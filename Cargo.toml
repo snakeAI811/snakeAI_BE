@@ -1,0 +1,25 @@
+[package]
+name = "snake_ai_backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8.3" }
+chrono = { version = "0.4.40", features = ["serde"] }
+dotenv = "0.15.0"
+hyper = { version = "1.6.0", features = ["full"] }
+rand = "0.9.0"
+serde = { version = "1.0.219", features = ["derive"] }
+sqlx = { version = "0.8.3", features = [
+    "runtime-async-std-native-tls",
+    "postgres",
+    "chrono",
+    "uuid",
+] }
+tokio = { version = "1.44.2", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["full"] }
+twitter-v2 = "0.1.8"
+uuid = { version = "1.16.0", features = ["serde", "v4"] }
+
+[dev-dependencies]
+tower = { version = "0.5.2", features = ["util"] }
