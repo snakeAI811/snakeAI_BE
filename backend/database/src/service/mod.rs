@@ -2,8 +2,9 @@ mod user;
 
 pub use user::*;
 
-use crate::{env::Env, DatabasePool};
+use crate::DatabasePool;
 use std::sync::Arc;
+use utils::env::Env;
 
 #[derive(Clone)]
 pub struct AppService {

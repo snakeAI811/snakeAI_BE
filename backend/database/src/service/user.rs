@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::database::{DatabasePool, UserRepository};
+use crate::{pool::DatabasePool, repository::UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {

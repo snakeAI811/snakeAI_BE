@@ -1,5 +1,5 @@
-use crate::env::Env;
 use sqlx::{postgres::PgPoolOptions, Error, Pool, Postgres};
+use utils::env::Env;
 
 pub struct DatabasePool {
     pool: Pool<Postgres>,

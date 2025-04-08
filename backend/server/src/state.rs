@@ -1,6 +1,6 @@
-use crate::database::{AppService, DatabasePool};
-use crate::env::Env;
+use database::{AppService, DatabasePool};
 use std::sync::Arc;
+use utils::env::Env;
 
 #[derive(Clone)]
 pub struct AppState {

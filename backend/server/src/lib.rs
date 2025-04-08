@@ -1,11 +1,10 @@
-mod database;
-mod env;
 mod routes;
 mod state;
 
 use database::DatabasePool;
 use routes::routes;
 use std::sync::Arc;
+use utils::env;
 
 pub async fn run() {
     let env = env::Env::init();

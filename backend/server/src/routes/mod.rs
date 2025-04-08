@@ -1,17 +1,19 @@
 mod user;
 
-use crate::{database::DatabasePool, env::Env, state::AppState};
+use crate::state::AppState;
 use axum::{
     http::HeaderValue,
     routing::{get, IntoMakeService},
     Router,
 };
+use database::DatabasePool;
 use hyper::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Method,
 };
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+use utils::env::Env;
 
 pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> IntoMakeService<Router> {
     let production = env.production;
