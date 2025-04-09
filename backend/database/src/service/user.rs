@@ -1,6 +1,5 @@
-use std::{net::IpAddr, sync::Arc};
-
 use sqlx::types::Uuid;
+use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
     model::{Session, User},
