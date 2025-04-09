@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 axum.workspace = true
 chrono.workspace = true
-uuid.workspace = true
 serde.workspace = true
 sqlx.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

@@ -7,5 +7,5 @@ CREATE TABLE
         twitter_username VARCHAR(255),
         wallet_address VARCHAR(255),
         latest_claim_timestamp TIMESTAMPTZ,
-        created_at TIMESTAMPTZ
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );

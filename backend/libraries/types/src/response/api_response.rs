@@ -19,13 +19,13 @@ impl<T: Serialize> ApiSuccessResponse<T>
 where
     T: Serialize,
 {
-    pub(crate) fn send(data: T) -> Self {
+    pub fn send(data: T) -> Self {
         return ApiSuccessResponse { data };
     }
 }
 
 impl ApiErrorResponse {
-    pub(crate) fn send(status: u16, message: Option<String>) -> Response {
+    pub fn send(status: u16, message: Option<String>) -> Response {
         return ApiErrorResponse { message, status }.into_response();
     }
 }

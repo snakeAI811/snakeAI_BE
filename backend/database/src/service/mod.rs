@@ -12,7 +12,7 @@ pub struct AppService {
 }
 
 impl AppService {
-    pub fn init(db: &Arc<DatabasePool>, env: &Env) -> Self {
+    pub fn init(db: &Arc<DatabasePool>, _env: &Env) -> Self {
         Self {
             user: UserService::new(db),
         }

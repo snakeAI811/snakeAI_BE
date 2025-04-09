@@ -1,3 +1,4 @@
+mod auth;
 mod user;
 
 use crate::state::AppState;
@@ -21,6 +22,7 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> IntoMakeService<Router> {
         let app_state = AppState::init(&db_conn, env);
         Router::new()
             .merge(user::routes())
+            .merge(auth::routes())
             .with_state(app_state)
             .merge(Router::new().route("/health", get(|| async { "<h1>SNAKE AI BACKEND</h1>" })))
             .merge(Router::new().route("/version", get(|| async { "V0.0.1" })))

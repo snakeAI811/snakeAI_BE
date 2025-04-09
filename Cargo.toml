@@ -13,6 +13,7 @@ edition = "2021"
 
 [workspace.dependencies]
 axum = "0.8.3"
+axum-extra = { version = "0.10.1", features = ["typed-header", "cookie"] }
 chrono = { version = "0.4.40", features = ["serde"] }
 dotenv = "0.15.0"
 hyper = { version = "1.6.0", features = ["full"] }
@@ -24,7 +25,9 @@ sqlx = { version = "0.8.3", features = [
     "chrono",
     "uuid",
 ] }
+thiserror = "2.0.12"
 tokio = { version = "1.44.2", features = ["full"] }
 tower-http = { version = "0.6.2", features = ["full"] }
 twitter-v2 = "0.1.8"
 uuid = { version = "1.16.0", features = ["serde", "v4"] }
+url = "2.5.4"

@@ -4,9 +4,9 @@ CREATE TABLE
     IF NOT EXISTS sessions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        token TEXT NOT NULL UNIQUE,
-        user_agent TEXT,
-        ip_address INET,
-        created_at TIMESTAMPTZ DEFAULT now(),
-        expired_at TIMESTAMPTZ
+        session_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+        user_agent TEXT NOT NULL,
+        ip_address VARCHAR(55) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL
     );

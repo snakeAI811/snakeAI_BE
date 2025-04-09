@@ -6,8 +6,8 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub twitter_id: String,
-    pub twitter_username: String,
-    pub wallet_address: String,
+    pub twitter_username: Option<String>,
+    pub wallet_address: Option<String>,
     pub latest_claim_timestamp: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
