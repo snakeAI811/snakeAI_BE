@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use sqlx::types::{chrono::Utc, Uuid};
-use types::model::{Session, User};
+use types::model::{Reward, Session, User};
 
 use crate::pool::DatabasePool;
 
@@ -149,5 +149,42 @@ impl UserRepository {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_rewards(
+        &self,
+        user_id: &Option<Uuid>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+    ) -> Result<Vec<Reward>, sqlx::Error> {
+        let offset = offset.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+
+        let rewards = if let Some(user_id) = user_id {
+            sqlx::query_as!(
+                Reward,
+                r#"
+                    SELECT * FROM rewards WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3
+                "#,
+                user_id,
+                offset,
+                limit
+            )
+            .fetch_all(self.db_conn.get_pool())
+            .await?
+        } else {
+            sqlx::query_as!(
+                Reward,
+                r#"
+                    SELECT * FROM rewards ORDER BY timestamp DESC OFFSET $1 LIMIT $2
+                "#,
+                offset,
+                limit
+            )
+            .fetch_all(self.db_conn.get_pool())
+            .await?
+        };
+
+        Ok(rewards)
     }
 }

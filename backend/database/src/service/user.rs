@@ -2,7 +2,7 @@ use sqlx::types::{chrono::Utc, Uuid};
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
-    model::{Session, User},
+    model::{Reward, Session, User},
 };
 
 use crate::{pool::DatabasePool, repository::UserRepository};
@@ -86,6 +86,18 @@ impl UserService {
 
         self.user_repo
             .get_user_by_user_id(&session.user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_rewards(
+        &self,
+        user_id: &Option<Uuid>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+    ) -> Result<Vec<Reward>, ApiError> {
+        self.user_repo
+            .get_rewards(user_id, offset, limit)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

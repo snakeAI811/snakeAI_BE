@@ -1,9 +1,12 @@
 use crate::state::AppState;
-use axum::{extract::State, Extension, Json};
+use axum::{
+    extract::{Query, State},
+    Extension, Json,
+};
 use types::{
-    dto::SetWalletAddressRequest,
+    dto::{GetRewardsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
-    model::User,
+    model::{Reward, User},
 };
 
 pub async fn get_me(Extension(user): Extension<User>) -> Result<Json<User>, ApiError> {
@@ -44,4 +47,18 @@ pub async fn set_wallet_address(
         .await?;
 
     Ok(Json(user))
+}
+
+pub async fn get_rewards(
+    Extension(user): Extension<User>,
+    Query(opts): Query<GetRewardsQuery>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<Reward>>, ApiError> {
+    let rewards = state
+        .service
+        .user
+        .get_rewards(&Some(user.id), opts.offset, opts.limit)
+        .await?;
+
+    Ok(Json(rewards))
 }
