@@ -9,5 +9,6 @@ pub struct Reward {
     pub reward_amount: i64,
     pub tx_id: Option<String>,
     pub timestamp: Option<DateTime<Utc>>,
+    pub available: bool,
     pub created_at: DateTime<Utc>,
 }

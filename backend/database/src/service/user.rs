@@ -95,9 +95,10 @@ impl UserService {
         user_id: &Option<Uuid>,
         offset: Option<i64>,
         limit: Option<i64>,
+        available: Option<bool>,
     ) -> Result<Vec<Reward>, ApiError> {
         self.user_repo
-            .get_rewards(user_id, offset, limit)
+            .get_rewards(user_id, offset, limit, available)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

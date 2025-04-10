@@ -57,7 +57,7 @@ pub async fn get_rewards(
     let rewards = state
         .service
         .user
-        .get_rewards(&Some(user.id), opts.offset, opts.limit)
+        .get_rewards(&Some(user.id), opts.offset, opts.limit, opts.available)
         .await?;
 
     Ok(Json(rewards))

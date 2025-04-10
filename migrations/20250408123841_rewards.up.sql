@@ -7,5 +7,6 @@ CREATE TABLE
         reward_amount BIGINT NOT NULL DEFAULT 0,
         tx_id VARCHAR(255),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        available BOOLEAN NOT NULL DEFAULT TRUE,
         timestamp TIMESTAMPTZ
     );
