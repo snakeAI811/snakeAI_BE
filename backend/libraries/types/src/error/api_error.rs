@@ -13,6 +13,10 @@ pub enum ApiError {
     BadRequest(String),
     #[error("{0}")]
     InternalServerError(String),
+    #[error("Session is invalid")]
+    SessionInvalid,
+    #[error("Session is expired")]
+    SessionExpired,
 }
 
 impl IntoResponse for ApiError {
@@ -24,6 +28,12 @@ impl IntoResponse for ApiError {
             }
             ApiError::InternalServerError(error) => {
                 ApiErrorResponse::send(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), Some(error))
+            }
+            ApiError::SessionInvalid => {
+                ApiErrorResponse::send(StatusCode::UNAUTHORIZED.as_u16(), Some(self.to_string()))
+            }
+            ApiError::SessionExpired => {
+                ApiErrorResponse::send(StatusCode::UNAUTHORIZED.as_u16(), Some(self.to_string()))
             }
         }
     }

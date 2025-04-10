@@ -1,4 +1,4 @@
-use sqlx::types::Uuid;
+use sqlx::types::{chrono::Utc, Uuid};
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
@@ -39,6 +39,32 @@ impl UserService {
     ) -> Result<Session, ApiError> {
         self.user_repo
             .create_session(user_id, user_agent, ip_address, session_ttl_in_minutes)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_user_by_session_id(
+        &self,
+        session_id: &Uuid,
+        user_agent: &str,
+    ) -> Result<User, ApiError> {
+        let session = self
+            .user_repo
+            .get_session_by_session_id(session_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()))?;
+
+        let now = Utc::now();
+        if session.expires_at < now {
+            return Err(ApiError::SessionExpired);
+        }
+
+        if session.user_agent != user_agent {
+            return Err(ApiError::SessionInvalid);
+        }
+
+        self.user_repo
+            .get_user_by_user_id(&session.user_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

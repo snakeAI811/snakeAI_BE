@@ -40,6 +40,20 @@ impl UserRepository {
         Ok(user)
     }
 
+    pub async fn get_user_by_user_id(&self, user_id: &Uuid) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+                SELECT * FROM users WHERE id = $1
+            "#,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
     pub async fn create_session(
         &self,
         user_id: &Uuid,
@@ -67,5 +81,36 @@ impl UserRepository {
         .await?;
 
         Ok(session)
+    }
+
+    pub async fn get_session_by_session_id(
+        &self,
+        session_id: &Uuid,
+    ) -> Result<Session, sqlx::Error> {
+        let session = sqlx::query_as!(
+            Session,
+            r#"
+                SELECT * FROM sessions WHERE session_id = $1
+            "#,
+            session_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(session)
+    }
+
+    pub async fn remove_expired_sessions(&self) -> Result<(), sqlx::Error> {
+        sqlx::query_as!(
+            Session,
+            r#"
+                DELETE FROM sessions WHERE expires_at < $1
+            "#,
+            Utc::now(),
+        )
+        .execute(self.db_conn.get_pool())
+        .await?;
+
+        Ok(())
     }
 }

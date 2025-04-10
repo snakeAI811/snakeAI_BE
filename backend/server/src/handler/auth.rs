@@ -106,12 +106,18 @@ pub async fn callback(
         .await?;
 
     // Create a cookie for the session ID
-    let cookie = Cookie::build(("session_id", session.session_id.to_string()))
+    let cookie = Cookie::build(("SID", session.session_id.to_string()))
         .path("/")
         .http_only(true)
         .secure(true) // Use only if served over HTTPS
         .same_site(axum_extra::extract::cookie::SameSite::Lax);
 
     // Attach the cookie to the response
-    Ok((jar.add(cookie), Redirect::to(&s.env.frontend_url)))
+    Ok((
+        jar.add(cookie),
+        Redirect::to(&format!(
+            "{}?SID={}",
+            s.env.frontend_url, session.session_id
+        )),
+    ))
 }

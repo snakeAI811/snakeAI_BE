@@ -11,6 +11,7 @@ database.path = "../database"
 hyper.workspace = true
 serde.workspace = true
 tokio.workspace = true
+tower.workspace = true
 tower-http.workspace = true
 twitter-v2.workspace = true
 utils.path = "../libraries/utils"
