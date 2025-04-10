@@ -1,0 +1,11 @@
+[package]
+name = "jobs"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+reqwest.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tokio-cron-scheduler.workspace = true
+urlencoding.workspace = true
