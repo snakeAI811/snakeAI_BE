@@ -1,10 +1,47 @@
 use crate::state::AppState;
 use axum::{extract::State, Extension, Json};
-use types::{error::ApiError, model::User};
+use types::{
+    dto::SetWalletAddressRequest,
+    error::{ApiError, ValidatedRequest},
+    model::User,
+};
 
-pub async fn get_me(
+pub async fn get_me(Extension(user): Extension<User>) -> Result<Json<User>, ApiError> {
+    Ok(Json(user))
+}
+
+pub async fn set_wallet_address(
     State(state): State<AppState>,
-    Extension(me): Extension<User>,
+    Extension(user): Extension<User>,
+    ValidatedRequest(payload): ValidatedRequest<SetWalletAddressRequest>,
 ) -> Result<Json<User>, ApiError> {
-    Ok(Json(me))
+    if let Some(wallet_address) = user.wallet_address {
+        if !wallet_address.is_empty() {
+            return Err(ApiError::BadRequest(
+                "Wallet address is already set".to_string(),
+            ));
+        }
+    }
+
+    // TODO: validate wallet address
+
+    if state
+        .service
+        .user
+        .get_user_by_wallet_address(&payload.wallet_address)
+        .await?
+        .is_some()
+    {
+        return Err(ApiError::BadRequest(
+            "Wallet address is already using by other user".to_string(),
+        ));
+    }
+
+    let user = state
+        .service
+        .user
+        .set_wallet_address(&user.id, &payload.wallet_address)
+        .await?;
+
+    Ok(Json(user))
 }

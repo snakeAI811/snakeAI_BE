@@ -40,6 +40,26 @@ impl UserRepository {
         Ok(user)
     }
 
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &Uuid,
+        wallet_address: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            UPDATE users SET wallet_address = $1 WHERE id = $2
+            RETURNING *
+            "#,
+            wallet_address,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
     pub async fn get_user_by_user_id(&self, user_id: &Uuid) -> Result<User, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
@@ -49,6 +69,23 @@ impl UserRepository {
             user_id,
         )
         .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_wallet_address(
+        &self,
+        wallet_address: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+                SELECT * FROM users WHERE wallet_address = $1
+            "#,
+            wallet_address,
+        )
+        .fetch_optional(self.db_conn.get_pool())
         .await?;
 
         Ok(user)

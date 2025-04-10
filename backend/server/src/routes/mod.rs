@@ -17,12 +17,13 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
     let production = env.production;
     let merged_router = {
         let app_state = AppState::init(&db_conn, env);
-        let protected = Router::new()
-            .merge(user::routes())
-            .layer(ServiceBuilder::new().layer(middleware::from_fn_with_state(
-                app_state.clone(),
-                auth_middleware,
-            )));
+        let protected =
+            Router::new()
+                .nest("/user", user::routes())
+                .layer(ServiceBuilder::new().layer(middleware::from_fn_with_state(
+                    app_state.clone(),
+                    auth_middleware,
+                )));
         let public = Router::new().merge(auth::routes());
         Router::new()
             .merge(protected)

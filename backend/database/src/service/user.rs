@@ -30,6 +30,27 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
+    pub async fn get_user_by_wallet_address(
+        &self,
+        wallet_address: &str,
+    ) -> Result<Option<User>, ApiError> {
+        self.user_repo
+            .get_user_by_wallet_address(wallet_address)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &Uuid,
+        wallet_address: &str,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .set_wallet_address(user_id, wallet_address)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
     pub async fn create_session(
         &self,
         user_id: &Uuid,
