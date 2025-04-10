@@ -9,6 +9,8 @@
 
 # rust
 target/
+node_modules/
+.anchor/
 
 # environment variables
 .env
