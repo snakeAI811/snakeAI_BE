@@ -177,7 +177,7 @@ impl UserRepository {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
         }
 
-        query.push_str(" ORDER BY created-at DESC OFFSET $1 LIMIT $2");
+        query.push_str(" ORDER BY created_at DESC OFFSET $1 LIMIT $2");
 
         let mut sql_query = sqlx::query_as::<_, Reward>(&query).bind(offset).bind(limit);
 
