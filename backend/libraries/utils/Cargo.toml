@@ -1,0 +1,9 @@
+[package]
+name = "utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+dotenv.workspace = true
+url.workspace = true
