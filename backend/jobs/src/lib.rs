@@ -13,7 +13,12 @@ pub async fn run() -> Result<(), anyhow::Error> {
         .unwrap_or_else(|e| panic!("Database error: {e}"));
     let db = Arc::new(connection);
     let service = Arc::new(AppService::init(&db, &env));
-    serve(service, env).await?;
+
+    let mut scheduler = serve(service, env).await?;
+
+    tokio::signal::ctrl_c().await?;
+    scheduler.shutdown().await?;
+
     Ok(())
 }
 
@@ -22,14 +27,18 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         .await
         .context("Failed to create job scheduler")?;
 
+    let job_service = service.clone();
+    let job_env = env.clone();
+    let schedule = env.twitter_job_schedule.clone();
+
     scheduler
         .add(
-            Job::new_async(env.twitter_job_schedule.clone(), move |_uuid, _l| {
-                println!("twitter job run: {}", env.now());
-                let service0 = service.clone();
-                let env0 = env.clone();
+            Job::new_async(&schedule, move |_uuid, _l| {
+                println!("twitter job run: {}", job_env.now());
+                let service = job_service.clone();
+                let env = job_env.clone();
                 Box::pin(async move {
-                    if let Err(err) = twitter_job::run(service0, env0).await {
+                    if let Err(err) = twitter_job::run(service, env).await {
                         println!("twitter job failed: {:?}", err);
                     }
                 })
@@ -38,6 +47,11 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         )
         .await
         .context("Failed to add twitter job to scheduler")?;
+
+    scheduler
+        .start()
+        .await
+        .context("Failed to start scheduler")?;
 
     Ok(scheduler)
 }

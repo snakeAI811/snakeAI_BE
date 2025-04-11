@@ -1,11 +1,10 @@
+use crate::{pool::DatabasePool, repository::UserRepository};
 use sqlx::types::{chrono::Utc, Uuid};
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
     model::{Reward, Session, User},
 };
-
-use crate::{pool::DatabasePool, repository::UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {

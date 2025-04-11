@@ -1,3 +1,4 @@
+use crate::{pool::DatabasePool, repository::TweetRepository};
 use sqlx::types::{
     chrono::{DateTime, Utc},
     Uuid,
@@ -7,8 +8,6 @@ use types::{
     error::{ApiError, DbError},
     model::Tweet,
 };
-
-use crate::{pool::DatabasePool, repository::TweetRepository};
 
 #[derive(Clone)]
 pub struct TweetService {

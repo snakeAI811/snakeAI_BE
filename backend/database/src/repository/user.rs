@@ -1,9 +1,7 @@
-use std::{sync::Arc, time::Duration};
-
-use sqlx::types::{chrono::Utc, Uuid};
-use types::model::{Reward, Session, User};
-
 use crate::pool::DatabasePool;
+use sqlx::types::{chrono::Utc, Uuid};
+use std::{sync::Arc, time::Duration};
+use types::model::{Reward, Session, User};
 
 #[derive(Clone)]
 pub struct UserRepository {

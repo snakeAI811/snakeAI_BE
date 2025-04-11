@@ -1,7 +1,9 @@
+mod reward;
 mod tweet;
 mod user;
 mod util;
 
+pub use reward::*;
 pub use tweet::*;
 pub use user::*;
 pub use util::*;
@@ -15,6 +17,7 @@ pub struct AppService {
     pub user: UserService,
     pub util: UtilService,
     pub tweet: TweetService,
+    pub reward: RewardService,
 }
 
 impl AppService {
@@ -23,6 +26,7 @@ impl AppService {
             user: UserService::new(db),
             util: UtilService::new(db),
             tweet: TweetService::new(db),
+            reward: RewardService::new(db),
         }
     }
 }

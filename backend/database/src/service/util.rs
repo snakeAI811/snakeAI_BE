@@ -1,7 +1,6 @@
+use crate::{pool::DatabasePool, repository::UtilRepository};
 use std::sync::Arc;
 use types::error::{ApiError, DbError};
-
-use crate::{pool::DatabasePool, repository::UtilRepository};
 
 #[derive(Clone)]
 pub struct UtilService {

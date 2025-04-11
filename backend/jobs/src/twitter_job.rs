@@ -182,5 +182,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
             .await?;
     }
 
+    // Create reward if condition meet
+
     Ok(())
 }

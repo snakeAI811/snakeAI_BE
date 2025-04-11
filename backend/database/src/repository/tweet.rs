@@ -1,11 +1,10 @@
+use crate::pool::DatabasePool;
 use sqlx::types::{
     chrono::{DateTime, Utc},
     Uuid,
 };
-use types::model::Tweet;
-
-use crate::pool::DatabasePool;
 use std::sync::Arc;
+use types::model::Tweet;
 
 #[derive(Clone)]
 pub struct TweetRepository {
