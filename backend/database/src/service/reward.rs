@@ -19,6 +19,20 @@ impl RewardService {
         }
     }
 
+    pub async fn insert_reward(&self, user_id: &Uuid, tweet_id: &Uuid) -> Result<Reward, ApiError> {
+        self.reward_repo
+            .insert_reward(user_id, tweet_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_available_reward(&self, user_id: &Uuid) -> Result<Option<Reward>, ApiError> {
+        self.reward_repo
+            .get_available_reward(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
     pub async fn get_rewards(
         &self,
         user_id: &Option<Uuid>,

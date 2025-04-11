@@ -16,6 +16,42 @@ impl RewardRepository {
         }
     }
 
+    pub async fn insert_reward(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &Uuid,
+    ) -> Result<Reward, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            r#"
+            INSERT INTO rewards (user_id, tweet_id)
+            VALUES ($1, $2)
+            RETURNING *
+            "#,
+            user_id,
+            tweet_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
+
+    pub async fn get_available_reward(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Option<Reward>, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            "SELECT * FROM rewards WHERE user_id = $1 AND available = true",
+            user_id,
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
+
     pub async fn get_rewards(
         &self,
         user_id: &Option<Uuid>,

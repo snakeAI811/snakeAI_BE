@@ -1,8 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Days, Utc};
 use database::AppService;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, sync::Arc};
-use types::model::TweetToInsert;
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,42 +146,43 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
     }
 
     // Prepare tweets to insert into database
-    let mut tweets = vec![];
-    for tweet in &new_tweets {
-        let user = if let Some(user) = service
-            .user
-            .get_user_by_twitter_id(&tweet.author_id)
-            .await?
-        {
+    for t in &new_tweets {
+        // Get user
+        let user = if let Some(user) = service.user.get_user_by_twitter_id(&t.author_id).await? {
             user
         } else {
             service
                 .user
-                .insert_user(
-                    &tweet.author_id,
-                    &tweet.author_username.clone().unwrap_or_default(),
-                )
+                .insert_user(&t.author_id, &t.author_username.clone().unwrap_or_default())
                 .await?
         };
 
-        tweets.push(TweetToInsert {
-            user_id: user.id,
-            tweet_id: tweet.id.clone(),
-            created_at: DateTime::parse_from_rfc3339(&tweet.created_at)
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or(Utc::now()),
-        });
-    }
+        let created_at = DateTime::parse_from_rfc3339(&t.created_at)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or(Utc::now());
 
-    // Insert tweets into databse
-    for tweet in &tweets {
-        service
+        // Insert tweet
+        let tweet = service
             .tweet
-            .insert_tweet(&tweet.user_id, &tweet.tweet_id, &tweet.created_at)
+            .insert_tweet(&user.id, &t.id, &created_at)
             .await?;
-    }
 
-    // Create reward if condition meet
+        // Create reward if conditions are met
+        let should_create_reward = match service.reward.get_available_reward(&user.id).await? {
+            Some(_) => false, // Reward already exists
+            None => match user.latest_claim_timestamp {
+                Some(timestamp) => timestamp
+                    .checked_add_days(Days::new(1))
+                    .map(|next_claim_date| next_claim_date < Utc::now())
+                    .unwrap_or(false),
+                None => true, // No previous claim
+            },
+        };
+
+        if should_create_reward {
+            service.reward.insert_reward(&user.id, &tweet.id).await?;
+        }
+    }
 
     Ok(())
 }

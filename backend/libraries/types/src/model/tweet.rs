@@ -9,10 +9,3 @@ pub struct Tweet {
     pub tweet_id: String,
     pub created_at: DateTime<Utc>,
 }
-
-#[derive(Clone, Deserialize, Serialize, Default, Debug)]
-pub struct TweetToInsert {
-    pub user_id: Uuid,
-    pub tweet_id: String,
-    pub created_at: DateTime<Utc>,
-}
