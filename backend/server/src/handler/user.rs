@@ -56,7 +56,7 @@ pub async fn get_rewards(
 ) -> Result<Json<Vec<Reward>>, ApiError> {
     let rewards = state
         .service
-        .user
+        .reward
         .get_rewards(&Some(user.id), opts.offset, opts.limit, opts.available)
         .await?;
 

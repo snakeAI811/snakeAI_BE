@@ -1,20 +1,22 @@
-use crate::{pool::DatabasePool, repository::UserRepository};
+use crate::{pool::DatabasePool, repository::UserRepository, SessionRepository};
 use sqlx::types::{chrono::Utc, Uuid};
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
-    model::{Reward, Session, User},
+    model::User,
 };
 
 #[derive(Clone)]
 pub struct UserService {
     user_repo: UserRepository,
+    session_repo: SessionRepository,
 }
 
 impl UserService {
     pub fn new(db_conn: &Arc<DatabasePool>) -> Self {
         Self {
             user_repo: UserRepository::new(db_conn),
+            session_repo: SessionRepository::new(db_conn),
         }
     }
 
@@ -50,19 +52,6 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn create_session(
-        &self,
-        user_id: &Uuid,
-        user_agent: &str,
-        ip_address: &str,
-        session_ttl_in_minutes: u64,
-    ) -> Result<Session, ApiError> {
-        self.user_repo
-            .create_session(user_id, user_agent, ip_address, session_ttl_in_minutes)
-            .await
-            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
-    }
-
     pub async fn get_user_by_twitter_id(&self, twitter_id: &str) -> Result<Option<User>, ApiError> {
         self.user_repo
             .get_user_by_twitter_id(twitter_id)
@@ -76,7 +65,7 @@ impl UserService {
         user_agent: &str,
     ) -> Result<User, ApiError> {
         let session = self
-            .user_repo
+            .session_repo
             .get_session_by_session_id(session_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()))?;
@@ -92,19 +81,6 @@ impl UserService {
 
         self.user_repo
             .get_user_by_user_id(&session.user_id)
-            .await
-            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
-    }
-
-    pub async fn get_rewards(
-        &self,
-        user_id: &Option<Uuid>,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        available: Option<bool>,
-    ) -> Result<Vec<Reward>, ApiError> {
-        self.user_repo
-            .get_rewards(user_id, offset, limit, available)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

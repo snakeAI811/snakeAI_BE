@@ -96,7 +96,7 @@ pub async fn callback(
 
     let session = s
         .service
-        .user
+        .session
         .create_session(
             &user.id,
             user_agent.as_str(),
