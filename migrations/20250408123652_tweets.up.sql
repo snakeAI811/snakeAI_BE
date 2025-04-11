@@ -7,3 +7,6 @@ CREATE TABLE
         tweet_id VARCHAR(255) NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+-- Indexes for faster lookups
+CREATE INDEX idx_tweets_user_id ON tweets(user_id);

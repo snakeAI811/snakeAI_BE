@@ -47,10 +47,7 @@ impl UserRepository {
     ) -> Result<User, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
-            r#"
-            UPDATE users SET wallet_address = $1 WHERE id = $2
-            RETURNING *
-            "#,
+            "UPDATE users SET wallet_address = $1 WHERE id = $2 RETURNING *",
             wallet_address,
             user_id,
         )
@@ -61,14 +58,23 @@ impl UserRepository {
     }
 
     pub async fn get_user_by_user_id(&self, user_id: &Uuid) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id,)
+            .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_twitter_id(
+        &self,
+        twitter_id: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
-            r#"
-                SELECT * FROM users WHERE id = $1
-            "#,
-            user_id,
+            "SELECT * FROM users WHERE twitter_id = $1",
+            twitter_id,
         )
-        .fetch_one(self.db_conn.get_pool())
+        .fetch_optional(self.db_conn.get_pool())
         .await?;
 
         Ok(user)
@@ -80,9 +86,7 @@ impl UserRepository {
     ) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
-            r#"
-                SELECT * FROM users WHERE wallet_address = $1
-            "#,
+            "SELECT * FROM users WHERE wallet_address = $1",
             wallet_address,
         )
         .fetch_optional(self.db_conn.get_pool())
@@ -107,7 +111,7 @@ impl UserRepository {
                 INSERT INTO sessions (user_id, user_agent, ip_address, created_at, expires_at)
                 VALUES ($1, $2, $3, $4, $5)
                 RETURNING *
-                "#,
+            "#,
             user_id,
             user_agent,
             ip_address,
@@ -126,9 +130,7 @@ impl UserRepository {
     ) -> Result<Session, sqlx::Error> {
         let session = sqlx::query_as!(
             Session,
-            r#"
-                SELECT * FROM sessions WHERE session_id = $1
-            "#,
+            "SELECT * FROM sessions WHERE session_id = $1",
             session_id,
         )
         .fetch_one(self.db_conn.get_pool())
@@ -140,9 +142,7 @@ impl UserRepository {
     pub async fn remove_expired_sessions(&self) -> Result<(), sqlx::Error> {
         sqlx::query_as!(
             Session,
-            r#"
-                DELETE FROM sessions WHERE expires_at < $1
-            "#,
+            "DELETE FROM sessions WHERE expires_at < $1",
             Utc::now(),
         )
         .execute(self.db_conn.get_pool())

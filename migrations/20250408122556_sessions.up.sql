@@ -10,3 +10,7 @@ CREATE TABLE
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         expires_at TIMESTAMPTZ NOT NULL
     );
+
+-- Indexes for faster lookups
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_session_id ON sessions(session_id);

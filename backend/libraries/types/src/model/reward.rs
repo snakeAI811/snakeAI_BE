@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub struct Reward {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub tweet_id: Uuid,
     pub reward_amount: i64,
     pub tx_id: Option<String>,
     pub timestamp: Option<DateTime<Utc>>,

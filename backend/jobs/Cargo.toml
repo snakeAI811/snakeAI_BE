@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+database.path = "../database"
 reqwest.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tokio-cron-scheduler.workspace = true
+types.path = "../libraries/types"
 urlencoding.workspace = true
+utils.path = "../libraries/utils"

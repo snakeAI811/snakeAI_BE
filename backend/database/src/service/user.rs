@@ -64,6 +64,13 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
+    pub async fn get_user_by_twitter_id(&self, twitter_id: &str) -> Result<Option<User>, ApiError> {
+        self.user_repo
+            .get_user_by_twitter_id(twitter_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
     pub async fn get_user_by_session_id(
         &self,
         session_id: &Uuid,

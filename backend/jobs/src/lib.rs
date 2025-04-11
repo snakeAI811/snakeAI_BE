@@ -1,42 +1,43 @@
-mod twitter_api;
+mod twitter_job;
 
-use std::error::Error;
-use twitter_api::TwitterClient;
+use anyhow::Context;
+use database::{AppService, DatabasePool};
+use std::sync::Arc;
+use tokio_cron_scheduler::{Job, JobScheduler};
+use utils::env::Env;
 
-pub async fn run() -> Result<(), Box<dyn Error>> {
-    // Initialize client
-    let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
-    let client = TwitterClient::new(bearer_token);
-
-    // Example 1: Get recent tweets
-    let response = client
-        .get_tweets(
-            "playSnakeAI",
-            "MineTheSnake",
-            &None, // No starting tweet ID
-            Some(10),
-        )
-        .await?;
-
-    println!("Recent tweets:");
-    for tweet in response.data {
-        println!("[{}] {}: {}", tweet.created_at, tweet.author_id, tweet.text);
-    }
-
-    // Example 2: Get all tweets starting from a specific ID
-    let all_tweets = client
-        .get_all_tweets(
-            "playSnakeAI",
-            "MineTheSnake",
-            &Some("1234567890123456789".to_string()), // Starting tweet ID
-            100,
-        )
-        .await?;
-
-    println!("All tweets in chronological order:");
-    for tweet in all_tweets {
-        println!("[{}] {}: {}", tweet.created_at, tweet.author_id, tweet.text);
-    }
-
+pub async fn run() -> Result<(), anyhow::Error> {
+    let env = Env::init();
+    let connection = DatabasePool::init(&env)
+        .await
+        .unwrap_or_else(|e| panic!("Database error: {e}"));
+    let db = Arc::new(connection);
+    let service = Arc::new(AppService::init(&db, &env));
+    serve(service, env).await?;
     Ok(())
+}
+
+pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobScheduler> {
+    let scheduler = JobScheduler::new()
+        .await
+        .context("Failed to create job scheduler")?;
+
+    scheduler
+        .add(
+            Job::new_async(env.twitter_job_schedule.clone(), move |_uuid, _l| {
+                println!("twitter job run: {}", env.now());
+                let service0 = service.clone();
+                let env0 = env.clone();
+                Box::pin(async move {
+                    if let Err(err) = twitter_job::run(service0, env0).await {
+                        println!("twitter job failed: {:?}", err);
+                    }
+                })
+            })
+            .context("Failed to create twitter job")?,
+        )
+        .await
+        .context("Failed to add twitter job to scheduler")?;
+
+    Ok(scheduler)
 }

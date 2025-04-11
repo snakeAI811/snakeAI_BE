@@ -9,3 +9,7 @@ CREATE TABLE
         latest_claim_timestamp TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+-- Indexes for faster lookups
+CREATE INDEX idx_users_twitter_id ON users(twitter_id);
+CREATE INDEX idx_users_wallet_address ON users(wallet_address);
