@@ -34,7 +34,8 @@ pub async fn set_wallet_address(
         ));
     }
 
-    // TODO: validate wallet address
+    Pubkey::from_str(&payload.wallet_address)
+        .map_err(|err| ApiError::BadRequest(err.to_string()))?;
 
     if state
         .service
