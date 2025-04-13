@@ -15,6 +15,7 @@ pub struct Env {
     pub twitter_job_schedule: String,
     pub frontend_url: String,
     pub production: bool,
+    pub backend_wallet_private_key: String,
 }
 
 impl Env {
@@ -56,6 +57,9 @@ impl Env {
             .and_then(|p| p.parse().ok())
             .unwrap_or_default();
 
+        let backend_wallet_private_key = std::env::var("BACKEND_WALLET_PRIVATE_KEY")
+            .expect("BACKEND_WALLET_PRIVATE_KEY must be set");
+
         Self {
             port,
             session_ttl_in_minutes,
@@ -68,6 +72,7 @@ impl Env {
             twitter_job_schedule,
             frontend_url,
             production,
+            backend_wallet_private_key,
         }
     }
 

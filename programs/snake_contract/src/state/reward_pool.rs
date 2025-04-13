@@ -6,6 +6,7 @@ use crate::events::RewardPoolInitialized;
 #[derive(Default, InitSpace)]
 pub struct RewardPool {
     pub owner: Pubkey,
+    pub admin: Pubkey,
     pub mint: Pubkey,
     pub treasury: Pubkey,
 
@@ -16,8 +17,9 @@ pub struct RewardPool {
 }
 
 impl RewardPool {
-    pub fn init(&mut self, owner: Pubkey, mint: Pubkey, treasury: Pubkey) {
+    pub fn init(&mut self, owner: Pubkey, admin: Pubkey, mint: Pubkey, treasury: Pubkey) {
         self.owner = owner;
+        self.admin = admin;
         self.mint = mint;
         self.treasury = treasury;
 
@@ -28,6 +30,7 @@ impl RewardPool {
 
         emit!(RewardPoolInitialized {
             owner: self.owner,
+            admin: self.admin,
             mint: self.mint,
             treasury: self.treasury
         });

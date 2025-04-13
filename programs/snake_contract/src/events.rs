@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 #[event]
 pub struct RewardPoolInitialized {
     pub owner: Pubkey,
+    pub admin: Pubkey,
     pub mint: Pubkey,
     pub treasury: Pubkey,
 }

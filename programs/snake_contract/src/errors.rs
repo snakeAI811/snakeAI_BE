@@ -2,6 +2,8 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum SnakeError {
+    #[msg("Unauthorized owner key")]
+    Unauthorized,
     #[msg("Cooldown period not passed")]
     CooldownNotPassed,
     #[msg("Insufficient funds in treasury")]
