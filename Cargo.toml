@@ -29,6 +29,8 @@ hyper = { version = "1.6.0", features = ["full"] }
 rand = "0.9.0"
 reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
+spl-associated-token-account = "6.0.0"
+spl-token = "8.0.0"
 sqlx = { version = "0.8.3", features = [
     "runtime-async-std-native-tls",
     "postgres",

@@ -4,7 +4,7 @@ use crate::state::AppState;
 use anchor_client::{
     solana_sdk::{
         commitment_config::CommitmentConfig, message::Message, pubkey::Pubkey, signature::Keypair,
-        signer::Signer, transaction::Transaction,
+        signer::Signer, system_program, transaction::Transaction,
     },
     Client, Cluster,
 };
@@ -87,17 +87,15 @@ pub async fn get_claim_tx(
                 Client::new_with_options(Cluster::Devnet, &admin, CommitmentConfig::processed());
             let program = client.program(snake_contract::ID).unwrap();
 
-            let mint = Pubkey::from_str("E1BHSRCrWvBe1hVBKjHvUbaA8H2QGWttQva14xr2DEJJ").unwrap();
+            let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+
             let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &program.id());
-            let treasury = reward_pool;
+            let treasury =
+                spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
             let (user_claim, _) =
                 Pubkey::find_program_address(&[USER_CLAIM_SEED, wallet.as_array()], &program.id());
-            let user_token_ata = wallet;
-
-            let associated_token_program =
-                Pubkey::from_str("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").unwrap();
-            let token_program = associated_token_program;
-            let system_program = associated_token_program;
+            let user_token_ata =
+                spl_associated_token_account::get_associated_token_address(&wallet, &mint);
 
             let instructions = match program
                 .request()
@@ -109,9 +107,9 @@ pub async fn get_claim_tx(
                     user_claim,
                     user_token_ata,
                     mint,
-                    associated_token_program,
-                    token_program,
-                    system_program,
+                    associated_token_program: spl_associated_token_account::ID,
+                    token_program: spl_token::ID,
+                    system_program: system_program::ID,
                 })
                 .args(snake_contract::instruction::ClaimReward)
                 .instructions()
