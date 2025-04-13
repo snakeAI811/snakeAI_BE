@@ -4538,6 +4538,8 @@ dependencies = [
  "anchor-client",
  "axum",
  "axum-extra",
+ "base64 0.22.1",
+ "bincode",
  "chrono",
  "database",
  "hyper 1.6.0",
