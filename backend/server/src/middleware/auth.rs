@@ -13,7 +13,6 @@ pub async fn auth(
     mut req: Request,
     next: Next,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Fallback to cookie if not in header
     let cookies = req
         .headers()
         .get("Cookie")

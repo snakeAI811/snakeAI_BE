@@ -47,13 +47,13 @@ impl SessionRepository {
     pub async fn get_session_by_session_id(
         &self,
         session_id: &Uuid,
-    ) -> Result<Session, sqlx::Error> {
+    ) -> Result<Option<Session>, sqlx::Error> {
         let session = sqlx::query_as!(
             Session,
             "SELECT * FROM sessions WHERE session_id = $1",
             session_id,
         )
-        .fetch_one(self.db_conn.get_pool())
+        .fetch_optional(self.db_conn.get_pool())
         .await?;
 
         Ok(session)

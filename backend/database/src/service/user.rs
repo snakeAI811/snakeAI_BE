@@ -68,7 +68,8 @@ impl UserService {
             .session_repo
             .get_session_by_session_id(session_id)
             .await
-            .map_err(|err| DbError::SomethingWentWrong(err.to_string()))?;
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()))?
+            .ok_or(ApiError::SessionInvalid)?;
 
         let now = Utc::now();
         if session.expires_at < now {
