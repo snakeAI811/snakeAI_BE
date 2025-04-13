@@ -1,31 +1,30 @@
+use crate::{
+    constants::{LAMPORTS_PER_SNK, REWARD_POOL_SEED, STAKE_AMOUNT},
+    errors::SnakeError,
+    state::RewardPool,
+};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount, Transfer},
 };
 
-use crate::{
-    constants::{LAMPORTS_PER_SNK, REWARD_POOL_SEED, STAKE_AMOUNT},
-    errors::SnakeError,
-    state::RewardPool,
-};
-
 #[derive(Accounts)]
 pub struct InitializeRewardPool<'info> {
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub owner: Signer<'info>,
 
     #[account(
         mut,
         associated_token::mint = mint,
-        associated_token::authority = admin,
-        constraint = admin_ata.amount >= STAKE_AMOUNT * LAMPORTS_PER_SNK @ SnakeError::InsufficientFunds
+        associated_token::authority = owner,
+        constraint = owner_ata.amount >= STAKE_AMOUNT * LAMPORTS_PER_SNK @ SnakeError::InsufficientFunds
     )]
-    pub admin_ata: Account<'info, TokenAccount>,
+    pub owner_ata: Account<'info, TokenAccount>,
 
     #[account(
         init,
-        payer = admin,
+        payer = owner,
         space = 8 + RewardPool::INIT_SPACE,
         seeds=[REWARD_POOL_SEED],
         bump
@@ -34,7 +33,7 @@ pub struct InitializeRewardPool<'info> {
 
     #[account(
         init_if_needed,
-        payer = admin,
+        payer = owner,
         associated_token::mint = mint,
         associated_token::authority = reward_pool,
         constraint = treasury.amount == 0
@@ -49,19 +48,23 @@ pub struct InitializeRewardPool<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn initialize_reward_pool(ctx: Context<InitializeRewardPool>) -> Result<()> {
+pub fn initialize_reward_pool(
+    ctx: Context<InitializeRewardPool>,
+    args: InitializeRewardPoolParams,
+) -> Result<()> {
     let reward_pool = &mut ctx.accounts.reward_pool;
     reward_pool.init(
-        ctx.accounts.admin.key(),
+        ctx.accounts.owner.key(),
+        args.admin,
         ctx.accounts.mint.key(),
         ctx.accounts.treasury.key(),
     );
 
     // Transfer 500,000,000 $SNK token to treasury
     let token_transfer_cpi_account = Transfer {
-        from: ctx.accounts.admin_ata.to_account_info(),
+        from: ctx.accounts.owner_ata.to_account_info(),
         to: ctx.accounts.treasury.to_account_info(),
-        authority: ctx.accounts.admin.to_account_info(),
+        authority: ctx.accounts.owner.to_account_info(),
     };
     token::transfer(
         CpiContext::new(
@@ -72,4 +75,9 @@ pub fn initialize_reward_pool(ctx: Context<InitializeRewardPool>) -> Result<()> 
     )?;
 
     Ok(())
+}
+
+#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InitializeRewardPoolParams {
+    pub admin: Pubkey,
 }

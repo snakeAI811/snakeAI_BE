@@ -14,8 +14,18 @@ declare_id!("Aw4zQtbMuxCChXS923HeyhAMPakC8KMQa6tQmMS4pPYM");
 pub mod snake_contract {
     use super::*;
 
-    pub fn initialize_reward_pool(ctx: Context<InitializeRewardPool>) -> Result<()> {
-        instructions::initialize_reward_pool(ctx)
+    pub fn initialize_reward_pool(
+        ctx: Context<InitializeRewardPool>,
+        args: InitializeRewardPoolParams,
+    ) -> Result<()> {
+        instructions::initialize_reward_pool(ctx, args)
+    }
+
+    pub fn update_reward_pool(
+        ctx: Context<UpdateRewardPool>,
+        args: UpdateRewardPoolParams,
+    ) -> Result<()> {
+        instructions::update_reward_pool(ctx, args)
     }
 
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {

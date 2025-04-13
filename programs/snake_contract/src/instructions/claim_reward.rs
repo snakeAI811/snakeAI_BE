@@ -1,9 +1,3 @@
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{self, Burn, Mint, Token, TokenAccount, Transfer},
-};
-
 use crate::{
     constants::{
         HIGH_REWARDS_THREADHOLD, LAMPORTS_PER_SNK, LOWER_REWARDS_THREADHOLD,
@@ -13,16 +7,25 @@ use crate::{
     events::ClaimedReward,
     state::{RewardPool, UserClaim},
 };
+use anchor_lang::prelude::*;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{self, Burn, Mint, Token, TokenAccount, Transfer},
+};
 
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
     #[account(mut)]
-    pub signer: Signer<'info>,
+    pub user: Signer<'info>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
 
     #[account(
         mut,
-        has_one = treasury,
-        has_one = mint,
+        has_one = treasury @ SnakeError::Unauthorized,
+        has_one = mint @ SnakeError::Unauthorized,
+        has_one = admin @ SnakeError::Unauthorized,
         seeds=[REWARD_POOL_SEED],
         bump
     )]
@@ -37,18 +40,18 @@ pub struct ClaimReward<'info> {
 
     #[account(
         init_if_needed,
-        payer = signer,
+        payer = user,
         space = 8 + UserClaim::INIT_SPACE,
-        seeds=[USER_CLAIM_SEED, signer.key().as_ref()],
+        seeds=[USER_CLAIM_SEED, user.key().as_ref()],
         bump
     )]
     pub user_claim: Account<'info, UserClaim>,
 
     #[account(
         init_if_needed,
-        payer = signer,
+        payer = user,
         associated_token::mint = mint,
-        associated_token::authority = signer,
+        associated_token::authority = user,
     )]
     pub user_token_ata: Account<'info, TokenAccount>,
 
@@ -69,7 +72,7 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
 
     // Initialize user claim state if it is not initialized
     if user_claim.initialized == false {
-        user_claim.init(ctx.accounts.signer.key());
+        user_claim.init(ctx.accounts.user.key());
     }
 
     // Check claim is available
@@ -141,7 +144,7 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     )?;
 
     emit!(ClaimedReward {
-        user: ctx.accounts.signer.key(),
+        user: ctx.accounts.user.key(),
         reward_amount,
         burn_amount,
         reward_level,

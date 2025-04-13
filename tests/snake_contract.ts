@@ -56,9 +56,11 @@ describe("snake_contract", () => {
 
   it("Initialize reward pool", async () => {
     const tx = await program.methods
-      .initializeRewardPool()
+      .initializeRewardPool({
+        admin: wallet.publicKey
+      })
       .accounts({
-        admin: wallet.publicKey,
+        owner: wallet.publicKey,
         mint: tokenMint.publicKey,
       })
       .rpc();
@@ -92,11 +94,26 @@ describe("snake_contract", () => {
     const tx = await program.methods
       .claimReward()
       .accounts({
-        signer: user.publicKey,
+        user: user.publicKey,
       })
       .transaction();
 
-    signature = await provider.connection.sendTransaction(tx, [user]);
+    // tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    // tx.feePayer = user.publicKey;
+
+    console.log(user.publicKey);
+    console.log(wallet.publicKey);
+
+    tx.partialSign(wallet);
+
+    // await new Promise(resolve => setTimeout(resolve, 1000));
+
+    tx.partialSign(user);
+
+    console.log(user.publicKey);
+    console.log(wallet.publicKey);
+
+    signature = await provider.connection.sendTransaction(tx, [user, wallet]);
     await provider.connection.confirmTransaction(signature);
 
     const rewardPool = anchor.web3.PublicKey.findProgramAddressSync(

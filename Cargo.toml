@@ -16,6 +16,7 @@ edition = "2021"
 [workspace.dependencies]
 anchor-lang = { version = "0.31.0", features = ["init-if-needed"] }
 anchor-spl = { version = "0.31.0" }
+anchor-client = { version = "0.31.0" }
 anyhow = "1.0.95"
 async-trait = "0.1.88"
 axum = "0.8.3"
