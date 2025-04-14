@@ -8,7 +8,7 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey, Transaction, sendAndConfirmRawTransaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import { assert, use } from "chai";
 
 const REWARD_POOL_SEED = Buffer.from("reward_pool");
@@ -148,5 +148,27 @@ describe("snake_contract", () => {
     assert(
       userToken.amount === BigInt(estimateRewardAmount) * BigInt(1000000000)
     );
+  });
+
+  // it("Claim reward with signed transaction", async () => {
+  //   // Add your test here.
+  //   const tx = await program.methods
+  //     .updateRewardPool({
+  //       admin: new anchor.web3.PublicKey("CPtWsrTiHV8sLHd94JmTUo86znBbruV1EHbo6VdMnPPR")
+  //     })
+  //     .rpc();
+  //   console.log(tx);
+  // });
+
+  it("Claim reward with signed transaction", async () => {
+    // return;
+    // Add your test here.
+    const serializedTransaction = "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfFq1ez4HmSjBvUmXxxENHQZdsN4KYw5f40DI20npJQILPPE2HTz7jKpJd0dLNbxQjloNCAul1vHPwNxKV9GkBAgAEC0HI9aDPJ0FsCI389jkfUTRGSXzJSW1w0JYKqcTh4/k/qU2VEsaKAIKfX6NUGyg2d+rtMBUDs3+xx5zMoVw/HHQkpYslhDlqEQ0o+g2vtJmz6Fn3eCccG6KXwH2En01ChVtA+uoETCtZzdMSLp5jueGd0DlCIVk2yMu9SlKh6jFOwTOOuvK3kpH1nQdLsT3qcH5X412PoguSbEnu4pN+po/bq+4JytIEz64NDti95cFxoVtVF0+J+JAyYkHTj8ENj/8AIjptDl4193u8NDa+Y95Fws0faRFAE1jYBRgnf8SWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG3fbh12Whk9nL4UbO63msHLSF7V9bN5E6jPWFfv8AqYyXJY9OJInxuz0QKRSODYMLWhOZ2v8QhASOe9jb6fhZk5MOsDlx+UZTeCPxiV0AZieao9r6G5WGMp+TRZBctVoWk9jzcNJzXWtrHJZfuItuwaglfr6l/R3+jbhtXQ3ajwEKCgABAwYCBQQJCAcIlV+18l5anqI=";
+    const transaction = Transaction.from(Buffer.from(serializedTransaction, 'base64'));
+    console.log(transaction.signatures)
+    transaction.partialSign(wallet);
+    console.log(transaction.signatures)
+    const signature = await sendAndConfirmRawTransaction(provider.connection, transaction.serialize());
+    console.log(signature);
   });
 });

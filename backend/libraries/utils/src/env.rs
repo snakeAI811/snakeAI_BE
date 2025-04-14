@@ -16,6 +16,7 @@ pub struct Env {
     pub frontend_url: String,
     pub production: bool,
     pub backend_wallet_private_key: String,
+    pub token_mint: String,
 }
 
 impl Env {
@@ -59,6 +60,7 @@ impl Env {
 
         let backend_wallet_private_key = std::env::var("BACKEND_WALLET_PRIVATE_KEY")
             .expect("BACKEND_WALLET_PRIVATE_KEY must be set");
+        let token_mint = std::env::var("TOKEN_MINT").expect("TOKEN_MINT must be set");
 
         Self {
             port,
@@ -73,6 +75,7 @@ impl Env {
             frontend_url,
             production,
             backend_wallet_private_key,
+            token_mint,
         }
     }
 
