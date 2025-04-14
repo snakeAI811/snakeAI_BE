@@ -1,4 +1,4 @@
-use crate::{errors::SnakeError, state::RewardPool};
+use crate::{constants::REWARD_POOL_SEED, errors::SnakeError, state::RewardPool};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -8,7 +8,9 @@ pub struct UpdateRewardPool<'info> {
 
     #[account(
         mut,
-        has_one = owner @ SnakeError::Unauthorized
+        has_one = owner @ SnakeError::Unauthorized,
+        seeds=[REWARD_POOL_SEED],
+        bump
     )]
     pub reward_pool: Account<'info, RewardPool>,
 }
