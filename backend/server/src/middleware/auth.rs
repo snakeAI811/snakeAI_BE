@@ -4,7 +4,8 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use axum_extra::{extract::cookie, headers::UserAgent, TypedHeader};
+use axum_extra::{headers::UserAgent, TypedHeader};
+use hyper::header::AUTHORIZATION;
 use types::error::ApiError;
 
 pub async fn auth(
@@ -13,18 +14,19 @@ pub async fn auth(
     mut req: Request,
     next: Next,
 ) -> Result<impl IntoResponse, ApiError> {
-    let cookies = req
+    let token = req
         .headers()
-        .get("Cookie")
+        .get(AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
-        .ok_or(ApiError::SessionInvalid)?;
+        .and_then(|h| {
+            if h.starts_with("Bearer ") {
+                Some(h[7..].to_string())
+            } else {
+                None
+            }
+        });
 
-    let session_token = cookie::Cookie::split_parse(cookies)
-        .filter_map(|c| c.ok())
-        .find(|c| c.name() == "SID")
-        .map(|c| c.value().to_string());
-
-    let session_token = match session_token {
+    let session_token = match token {
         Some(token) => token,
         None => return Err(ApiError::SessionInvalid),
     };
