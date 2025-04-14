@@ -5,7 +5,7 @@ use crate::{middleware::auth as auth_middleware, state::AppState};
 use axum::{http::HeaderValue, middleware, routing::get, Router};
 use database::DatabasePool;
 use hyper::{
-    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, COOKIE},
     Method,
 };
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use tower_http::cors::CorsLayer;
 use utils::env::Env;
 
 pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
-    let production = env.production;
+    let _production = env.production;
     let merged_router = {
         let app_state = AppState::init(&db_conn, env);
         let protected =
@@ -34,11 +34,12 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
     };
 
     let cors = CorsLayer::new()
-        .allow_origin(if production {
-            vec![]
-        } else {
-            vec!["http://localhost:3000".parse::<HeaderValue>().unwrap()]
-        })
+        .allow_origin([
+            "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+            "https://snake-token.vercel.app"
+                .parse::<HeaderValue>()
+                .unwrap(),
+        ])
         .allow_methods([
             Method::POST,
             Method::GET,
@@ -49,7 +50,7 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
             Method::OPTIONS,
         ])
         .allow_credentials(true)
-        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
+        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, COOKIE]);
 
     let app_router = Router::new().nest("/api/v1", merged_router).layer(cors);
 
