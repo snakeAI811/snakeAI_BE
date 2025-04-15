@@ -17,6 +17,8 @@ pub struct Env {
     pub production: bool,
     pub backend_wallet_private_key: String,
     pub token_mint: String,
+    pub solana_job_schedule: String,
+    pub solana_rpc_url: String,
 }
 
 impl Env {
@@ -62,6 +64,10 @@ impl Env {
             .expect("BACKEND_WALLET_PRIVATE_KEY must be set");
         let token_mint = std::env::var("TOKEN_MINT").expect("TOKEN_MINT must be set");
 
+        let solana_job_schedule =
+            std::env::var("SOLANA_JOB_SCHEDULE").expect("SOLANA_JOB_SCHEDULE must be set");
+        let solana_rpc_url = std::env::var("SOLANA_RPC_URL").expect("SOLANA_RPC_URL must be set");
+
         Self {
             port,
             session_ttl_in_minutes,
@@ -76,6 +82,8 @@ impl Env {
             production,
             backend_wallet_private_key,
             token_mint,
+            solana_job_schedule,
+            solana_rpc_url,
         }
     }
 

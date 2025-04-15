@@ -1,5 +1,8 @@
 use crate::{pool::DatabasePool, repository::UserRepository, SessionRepository};
-use sqlx::types::{chrono::Utc, Uuid};
+use sqlx::types::{
+    chrono::{DateTime, Utc},
+    Uuid,
+};
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
@@ -41,17 +44,6 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn set_wallet_address(
-        &self,
-        user_id: &Uuid,
-        wallet_address: &str,
-    ) -> Result<User, ApiError> {
-        self.user_repo
-            .set_wallet_address(user_id, wallet_address)
-            .await
-            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
-    }
-
     pub async fn get_user_by_twitter_id(&self, twitter_id: &str) -> Result<Option<User>, ApiError> {
         self.user_repo
             .get_user_by_twitter_id(twitter_id)
@@ -82,6 +74,28 @@ impl UserService {
 
         self.user_repo
             .get_user_by_user_id(&session.user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &Uuid,
+        wallet_address: &str,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .set_wallet_address(user_id, wallet_address)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_latest_claim_timestamp(
+        &self,
+        user_id: &Uuid,
+        latest_claim_timestamp: &DateTime<Utc>,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .set_latest_claim_timestamp(user_id, latest_claim_timestamp)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

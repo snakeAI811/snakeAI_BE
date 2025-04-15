@@ -7,9 +7,12 @@ pub struct Reward {
     pub id: Uuid,
     pub user_id: Uuid,
     pub tweet_id: Uuid,
-    pub reward_amount: i64,
-    pub tx_id: Option<String>,
-    pub timestamp: Option<DateTime<Utc>>,
-    pub available: bool,
     pub created_at: DateTime<Utc>,
+    pub available: bool,
+    pub message_sent: bool,
+    // solana transaction
+    pub transaction_signature: Option<String>,
+    pub reward_amount: i64,
+    pub wallet_address: Option<String>,
+    pub block_time: Option<DateTime<Utc>>,
 }

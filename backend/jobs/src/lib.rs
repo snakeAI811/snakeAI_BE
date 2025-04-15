@@ -1,3 +1,4 @@
+mod solana_job;
 mod twitter_job;
 
 use anyhow::Context;
@@ -47,6 +48,27 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         )
         .await
         .context("Failed to add twitter job to scheduler")?;
+
+    let job_service = service.clone();
+    let job_env = env.clone();
+    let schedule = env.solana_job_schedule.clone();
+
+    scheduler
+        .add(
+            Job::new_async(&schedule, move |_uuid, _l| {
+                println!("solana job run: {}", job_env.now());
+                let service = job_service.clone();
+                let env = job_env.clone();
+                Box::pin(async move {
+                    if let Err(err) = solana_job::run(service, env).await {
+                        println!("solana job failed: {:?}", err);
+                    }
+                })
+            })
+            .context("Failed to create solana job")?,
+        )
+        .await
+        .context("Failed to add solana job to scheduler")?;
 
     scheduler
         .start()

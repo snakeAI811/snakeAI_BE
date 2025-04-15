@@ -1,4 +1,7 @@
-use sqlx::types::Uuid;
+use sqlx::types::{
+    chrono::{DateTime, Utc},
+    Uuid,
+};
 use types::model::Reward;
 
 use crate::pool::DatabasePool;
@@ -93,5 +96,34 @@ impl RewardRepository {
         let rewards = sql_query.fetch_all(self.db_conn.get_pool()).await?;
 
         Ok(rewards)
+    }
+
+    pub async fn update_reward(
+        &self,
+        reward_id: &Uuid,
+        transaction_signature: &str,
+        reward_amount: i64,
+        wallet_address: &str,
+        block_time: &DateTime<Utc>,
+        available: bool,
+    ) -> Result<Reward, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            r#"
+            UPDATE rewards SET transaction_signature = $2, reward_amount = $3, wallet_address = $4, block_time = $5, available = $6
+            WHERE id = $1
+            RETURNING *
+            "#,
+            reward_id,
+            transaction_signature,
+            reward_amount,
+            wallet_address,
+            block_time,
+            available
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
     }
 }
