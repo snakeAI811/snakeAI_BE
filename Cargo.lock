@@ -2867,6 +2867,7 @@ dependencies = [
  "database",
  "reqwest 0.12.15",
  "serde",
+ "serde_json",
  "snake_contract",
  "solana-client",
  "solana-sdk",

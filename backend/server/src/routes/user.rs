@@ -1,5 +1,5 @@
 use crate::{
-    handler::user::{get_claim_tx, get_me, get_rewards, set_wallet_address},
+    handler::user::{get_claim_tx, get_me, get_rewards, set_wallet_address, token_validation},
     state::AppState,
 };
 use axum::{
@@ -9,6 +9,7 @@ use axum::{
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/token", get(token_validation))
         .route("/me", get(get_me))
         .route("/wallet_address", post(set_wallet_address))
         .route("/rewards", get(get_rewards))

@@ -50,7 +50,6 @@ impl SolanaClient {
                 UiTransactionEncoding::Json,
             ) {
                 Ok(tx) => {
-                    println!("tx: {:?}", signature.signature);
                     if let Some(meta) = &tx.transaction.meta {
                         if let OptionSerializer::Some(logs) = &meta.log_messages {
                             let mut claim_reward = false;
@@ -114,7 +113,9 @@ impl SolanaClient {
                 if sigs.len() == 0 {
                     break;
                 }
-                new_latest_transaction_signature = sigs.first().map(|tx| tx.signature.clone());
+                if new_latest_transaction_signature.is_none() {
+                    new_latest_transaction_signature = sigs.first().map(|tx| tx.signature.clone());
+                }
                 current_signature = sigs
                     .last()
                     .map(|tx| tx.signature.clone())

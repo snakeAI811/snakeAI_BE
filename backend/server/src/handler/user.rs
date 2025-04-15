@@ -16,6 +16,10 @@ use types::{
     model::{Reward, User},
 };
 
+pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
+    Ok(Json(true))
+}
+
 pub async fn get_me(Extension(user): Extension<User>) -> Result<Json<User>, ApiError> {
     Ok(Json(user))
 }
@@ -75,9 +79,13 @@ pub async fn get_claim_tx(
     Extension(user): Extension<User>,
     State(state): State<AppState>,
 ) -> Result<Json<String>, ApiError> {
-    let available_reward = state.service.reward.get_available_reward(&user.id).await?;
-
-    if let Some(available_reward) = available_reward {
+    if state
+        .service
+        .reward
+        .get_available_reward(&user.id)
+        .await?
+        .is_some()
+    {
         if let Some(wallet) = user.wallet() {
             let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
             let mint = Pubkey::from_str(&state.env.token_mint).unwrap();

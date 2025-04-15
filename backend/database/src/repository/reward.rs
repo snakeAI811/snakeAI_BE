@@ -2,7 +2,7 @@ use sqlx::types::{
     chrono::{DateTime, Utc},
     Uuid,
 };
-use types::model::Reward;
+use types::model::{Reward, RewardToReply};
 
 use crate::pool::DatabasePool;
 use std::sync::Arc;
@@ -96,6 +96,29 @@ impl RewardRepository {
         let rewards = sql_query.fetch_all(self.db_conn.get_pool()).await?;
 
         Ok(rewards)
+    }
+
+    pub async fn get_rewards_to_send_message(&self) -> Result<Vec<RewardToReply>, sqlx::Error> {
+        let rewards = sqlx::query_as!(
+            RewardToReply,
+            "SELECT rewards.id, tweets.tweet_id FROM rewards JOIN tweets ON rewards.tweet_id = tweets.id WHERE rewards.available = true AND rewards.message_sent = false",
+        )
+        .fetch_all(self.db_conn.get_pool())
+        .await?;
+
+        Ok(rewards)
+    }
+
+    pub async fn mark_as_message_sent(&self, reward_id: &Uuid) -> Result<Reward, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            "UPDATE rewards SET message_sent = true WHERE id = $1 RETURNING *",
+            reward_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
     }
 
     pub async fn update_reward(

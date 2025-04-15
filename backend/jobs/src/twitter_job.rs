@@ -1,6 +1,7 @@
 use chrono::{DateTime, Days, Utc};
 use database::AppService;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{error::Error, sync::Arc};
 use utils::env::Env;
 
@@ -124,6 +125,22 @@ impl TwitterClient {
 
         Ok((result, latest_tweet_id))
     }
+
+    pub async fn send_message(&self, text: &str, tweet_id: &str) -> Result<(), Box<dyn Error>> {
+        let payload = json!({
+            "text": text,
+            "reply": {
+                "in_reply_to_tweet_id": tweet_id
+            }
+        });
+        self.client
+            .post("https://api.twitter.com/2/tweets")
+            .json(&payload)
+            .send()
+            .await?;
+
+        Ok(())
+    }
 }
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error>> {
@@ -136,14 +153,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
     let (new_tweets, latest_tweet_id) = client
         .get_tweets("playSnakeAI", "MineTheSnake", latest_tweet_id)
         .await?;
-
-    // Update latest_tweet_id from response
-    if let Some(latest_tweet_id) = latest_tweet_id {
-        service
-            .util
-            .upsert_latest_tweet_id(&latest_tweet_id)
-            .await?;
-    }
 
     // Prepare tweets to insert into database
     for t in &new_tweets {
@@ -181,6 +190,36 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
 
         if should_create_reward {
             service.reward.insert_reward(&user.id, &tweet.id).await?;
+        }
+    }
+
+    // Update latest_tweet_id from response
+    if let Some(latest_tweet_id) = latest_tweet_id {
+        service
+            .util
+            .upsert_latest_tweet_id(&latest_tweet_id)
+            .await?;
+    }
+
+    loop {
+        if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
+            if rewards.is_empty() {
+                break;
+            }
+            for reward in &rewards {
+                if client
+                    .send_message(
+                        &format!("{}/claim/{}", env.frontend_url, reward.id),
+                        &reward.tweet_id,
+                    )
+                    .await
+                    .is_ok()
+                {
+                    service.reward.mark_as_message_sent(&reward.id).await.ok();
+                }
+            }
+        } else {
+            break;
         }
     }
 

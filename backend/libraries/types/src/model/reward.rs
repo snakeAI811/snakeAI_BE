@@ -16,3 +16,9 @@ pub struct Reward {
     pub wallet_address: Option<String>,
     pub block_time: Option<DateTime<Utc>>,
 }
+
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
+pub struct RewardToReply {
+    pub id: Uuid,
+    pub tweet_id: String,
+}

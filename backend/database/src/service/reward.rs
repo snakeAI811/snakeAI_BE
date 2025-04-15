@@ -4,7 +4,7 @@ use sqlx::types::{
 };
 use types::{
     error::{ApiError, DbError},
-    model::Reward,
+    model::{Reward, RewardToReply},
 };
 
 use crate::{pool::DatabasePool, repository::RewardRepository};
@@ -45,6 +45,20 @@ impl RewardService {
     ) -> Result<Vec<Reward>, ApiError> {
         self.reward_repo
             .get_rewards(user_id, offset, limit, available)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_rewards_to_send_message(&self) -> Result<Vec<RewardToReply>, ApiError> {
+        self.reward_repo
+            .get_rewards_to_send_message()
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn mark_as_message_sent(&self, reward_id: &Uuid) -> Result<Reward, ApiError> {
+        self.reward_repo
+            .mark_as_message_sent(reward_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
