@@ -1,5 +1,6 @@
 use chrono::{DateTime, Days, Utc};
 use database::AppService;
+use oauth10a::client::{Client, Credentials, RestClient};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{error::Error, sync::Arc};
@@ -48,13 +49,26 @@ pub struct TwitterMeta {
 
 pub struct TwitterClient {
     client: reqwest::Client,
+    oauth10a_client: Client,
     bearer_token: String,
 }
 
 impl TwitterClient {
-    pub fn new(bearer_token: String) -> Self {
+    pub fn new(
+        bearer_token: String,
+        access_token: String,
+        access_token_secret: String,
+        api_key: String,
+        api_key_secret: String,
+    ) -> Self {
         Self {
             client: reqwest::Client::new(),
+            oauth10a_client: Client::from(Credentials::oauth1(
+                access_token,
+                access_token_secret,
+                api_key,
+                api_key_secret,
+            )),
             bearer_token,
         }
     }
@@ -133,18 +147,24 @@ impl TwitterClient {
                 "in_reply_to_tweet_id": tweet_id
             }
         });
-        self.client
-            .post("https://api.twitter.com/2/tweets")
-            .json(&payload)
-            .send()
+        let response: String = self
+            .oauth10a_client
+            .post("https://api.twitter.com/2/tweets", &payload)
             .await?;
+        println!("{:?}", response);
 
         Ok(())
     }
 }
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error>> {
-    let client = TwitterClient::new(env.twitter_bearer_token);
+    let client = TwitterClient::new(
+        env.twitter_bearer_token,
+        env.twitter_access_token,
+        env.twitter_access_token_secret,
+        env.twitter_api_key,
+        env.twitter_api_key_secret,
+    );
 
     // Fetch latest_tweet_id what I fetched last
     let latest_tweet_id = service.util.get_latest_tweet_id().await?;

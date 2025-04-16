@@ -12,6 +12,10 @@ pub struct Env {
     pub twitter_oauth_client_secret: String,
     pub twitter_oauth_callback_url: Url,
     pub twitter_bearer_token: String,
+    pub twitter_api_key: String,
+    pub twitter_api_key_secret: String,
+    pub twitter_access_token: String,
+    pub twitter_access_token_secret: String,
     pub twitter_job_schedule: String,
     pub frontend_url: String,
     pub production: bool,
@@ -50,6 +54,15 @@ impl Env {
             .expect("TWITTER_OAUTH_CALLBACK_URL is incorrect");
         let twitter_bearer_token =
             std::env::var("TWITTER_BEARER_TOKEN").expect("TWITTER_BEARER_TOKEN must be set");
+        let twitter_api_key =
+            std::env::var("TWITTER_API_KEY").expect("TWITTER_API_KEY must be set");
+        let twitter_api_key_secret =
+            std::env::var("TWITTER_API_KEY_SECRET").expect("TWITTER_API_KEY_SECRET must be set");
+        let twitter_access_token =
+            std::env::var("TWITTER_ACCESS_TOKEN").expect("TWITTER_ACCESS_TOKEN must be set");
+        let twitter_access_token_secret = std::env::var("TWITTER_ACCESS_TOKEN_SECRET")
+            .expect("TWITTER_ACCESS_TOKEN_SECRET must be set");
+
         let twitter_job_schedule =
             std::env::var("TWITTER_JOB_SCHEDULE").expect("TWITTER_JOB_SCHEDULE must be set");
 
@@ -77,6 +90,10 @@ impl Env {
             twitter_oauth_client_secret,
             twitter_oauth_callback_url,
             twitter_bearer_token,
+            twitter_api_key,
+            twitter_api_key_secret,
+            twitter_access_token,
+            twitter_access_token_secret,
             twitter_job_schedule,
             frontend_url,
             production,
