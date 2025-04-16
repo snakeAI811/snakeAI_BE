@@ -1,5 +1,8 @@
 use crate::pool::DatabasePool;
-use sqlx::types::Uuid;
+use sqlx::types::{
+    chrono::{DateTime, Utc},
+    Uuid,
+};
 use std::sync::Arc;
 use types::model::User;
 
@@ -31,23 +34,6 @@ impl UserRepository {
             "#,
             twitter_id,
             twitter_username,
-        )
-        .fetch_one(self.db_conn.get_pool())
-        .await?;
-
-        Ok(user)
-    }
-
-    pub async fn set_wallet_address(
-        &self,
-        user_id: &Uuid,
-        wallet_address: &str,
-    ) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as!(
-            User,
-            "UPDATE users SET wallet_address = $1 WHERE id = $2 RETURNING *",
-            wallet_address,
-            user_id,
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;
@@ -88,6 +74,40 @@ impl UserRepository {
             wallet_address,
         )
         .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &Uuid,
+        wallet_address: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET wallet_address = $1 WHERE id = $2 RETURNING *",
+            wallet_address,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_latest_claim_timestamp(
+        &self,
+        user_id: &Uuid,
+        latest_claim_timestamp: &DateTime<Utc>,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET latest_claim_timestamp = $1 WHERE id = $2 RETURNING *",
+            latest_claim_timestamp,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
         .await?;
 
         Ok(user)

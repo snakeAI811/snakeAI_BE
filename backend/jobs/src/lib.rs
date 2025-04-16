@@ -1,8 +1,10 @@
+mod solana_job;
 mod twitter_job;
 
 use anyhow::Context;
 use database::{AppService, DatabasePool};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use utils::env::Env;
 
@@ -27,8 +29,12 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         .await
         .context("Failed to create job scheduler")?;
 
+    let is_twitter_job_running = Arc::new(Mutex::new(false));
+    let is_solana_job_running = Arc::new(Mutex::new(false));
+
     let job_service = service.clone();
     let job_env = env.clone();
+    let job_is_running = is_twitter_job_running.clone();
     let schedule = env.twitter_job_schedule.clone();
 
     scheduler
@@ -37,9 +43,20 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
                 println!("twitter job run: {}", job_env.now());
                 let service = job_service.clone();
                 let env = job_env.clone();
+                let running_flag = job_is_running.clone();
                 Box::pin(async move {
-                    if let Err(err) = twitter_job::run(service, env).await {
-                        println!("twitter job failed: {:?}", err);
+                    let mut running = running_flag.lock().await;
+                    if *running == false {
+                        *running = true;
+                        drop(running);
+                        if let Err(err) = twitter_job::run(service, env).await {
+                            println!("twitter job failed: {:?}", err);
+                        }
+                        let mut running = running_flag.lock().await;
+                        *running = false;
+                        drop(running);
+                    } else {
+                        println!("twitter_job::run() already in progress, skipping");
                     }
                 })
             })
@@ -47,6 +64,39 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         )
         .await
         .context("Failed to add twitter job to scheduler")?;
+
+    let job_service = service.clone();
+    let job_env = env.clone();
+    let job_is_running = is_solana_job_running.clone();
+    let schedule = env.solana_job_schedule.clone();
+
+    scheduler
+        .add(
+            Job::new_async(&schedule, move |_uuid, _l| {
+                println!("solana job run: {}", job_env.now());
+                let service = job_service.clone();
+                let env = job_env.clone();
+                let running_flag = job_is_running.clone();
+                Box::pin(async move {
+                    let mut running = running_flag.lock().await;
+                    if *running == false {
+                        *running = true;
+                        drop(running);
+                        if let Err(err) = solana_job::run(service, env).await {
+                            println!("twitter job failed: {:?}", err);
+                        }
+                        let mut running = running_flag.lock().await;
+                        *running = false;
+                        drop(running);
+                    } else {
+                        println!("solana_job::run() already in progress, skipping");
+                    }
+                })
+            })
+            .context("Failed to create solana job")?,
+        )
+        .await
+        .context("Failed to add solana job to scheduler")?;
 
     scheduler
         .start()

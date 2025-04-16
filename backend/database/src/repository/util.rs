@@ -42,4 +42,36 @@ impl UtilRepository {
 
         Ok(value.value)
     }
+
+    pub async fn get_latest_transaction_signature(&self) -> Result<Option<String>, sqlx::Error> {
+        let value = sqlx::query_as!(
+            Value,
+            "SELECT * from values WHERE key = 'latest_transaction_signature'",
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(value.map(|v| v.value))
+    }
+
+    pub async fn upsert_latest_transaction_signature(
+        &self,
+        latest_transaction_signature: &str,
+    ) -> Result<String, sqlx::Error> {
+        let value = sqlx::query_as!(
+            Value,
+            r#"
+                INSERT INTO values (key, value)
+                VALUES ('latest_transaction_signature', $1)
+                ON CONFLICT (key)
+                DO UPDATE SET value = EXCLUDED.value
+                RETURNING *
+            "#,
+            latest_transaction_signature,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(value.value)
+    }
 }

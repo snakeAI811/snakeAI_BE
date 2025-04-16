@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-#[event]
+#[event(discriminator = b"poolinit")]
 pub struct RewardPoolInitialized {
     pub owner: Pubkey,
     pub admin: Pubkey,
@@ -13,7 +13,7 @@ pub struct UserClaimInitialized {
     pub user: Pubkey,
 }
 
-#[event]
+#[event(discriminator = b"claim")]
 pub struct ClaimedReward {
     pub user: Pubkey,
     pub reward_amount: u64,

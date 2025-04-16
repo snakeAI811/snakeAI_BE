@@ -27,4 +27,21 @@ impl UtilService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn get_latest_transaction_signature(&self) -> Result<Option<String>, ApiError> {
+        self.util_repo
+            .get_latest_transaction_signature()
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn upsert_latest_transaction_signature(
+        &self,
+        latest_transaction_signature: &str,
+    ) -> Result<String, ApiError> {
+        self.util_repo
+            .upsert_latest_transaction_signature(latest_transaction_signature)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }
