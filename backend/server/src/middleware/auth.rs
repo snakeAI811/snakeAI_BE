@@ -4,7 +4,7 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use axum_extra::{headers::UserAgent, TypedHeader};
+use axum_extra::{TypedHeader, headers::UserAgent};
 use hyper::header::AUTHORIZATION;
 use types::error::ApiError;
 
@@ -31,10 +31,15 @@ pub async fn auth(
         None => return Err(ApiError::SessionInvalid),
     };
 
+    let session_token = match session_token.parse() {
+        Ok(token) => token,
+        Err(_) => return Err(ApiError::SessionInvalid),
+    };
+
     let user = state
         .service
         .user
-        .get_user_by_session_id(&session_token.parse().unwrap(), user_agent.as_str())
+        .get_user_by_session_id(&session_token, user_agent.as_str())
         .await?;
 
     req.extensions_mut().insert(user);
