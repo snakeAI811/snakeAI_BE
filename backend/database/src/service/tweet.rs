@@ -1,7 +1,7 @@
 use crate::{pool::DatabasePool, repository::TweetRepository};
 use sqlx::types::{
-    chrono::{DateTime, Utc},
     Uuid,
+    chrono::{DateTime, Utc},
 };
 use std::sync::Arc;
 use types::{
@@ -29,6 +29,13 @@ impl TweetService {
     ) -> Result<Tweet, ApiError> {
         self.tweet_repo
             .insert_tweet(user_id, tweet_id, created_at)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_tweets_count(&self) -> Result<i64, ApiError> {
+        self.tweet_repo
+            .get_tweets_count()
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

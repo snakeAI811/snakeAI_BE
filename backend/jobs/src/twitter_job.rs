@@ -1,9 +1,10 @@
 use chrono::{DateTime, Days, Utc};
 use database::AppService;
-use oauth10a::client::{Client, Credentials, RestClient};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::{error::Error, sync::Arc};
+use twitter_v2::TwitterApi;
+use twitter_v2::authorization::Oauth1aToken;
+use twitter_v2::id::NumericId;
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,8 +50,11 @@ pub struct TwitterMeta {
 
 pub struct TwitterClient {
     client: reqwest::Client,
-    oauth10a_client: Client,
     bearer_token: String,
+    access_token: String,
+    access_token_secret: String,
+    api_key: String,
+    api_key_secret: String,
 }
 
 impl TwitterClient {
@@ -63,13 +67,11 @@ impl TwitterClient {
     ) -> Self {
         Self {
             client: reqwest::Client::new(),
-            oauth10a_client: Client::from(Credentials::oauth1(
-                access_token,
-                access_token_secret,
-                api_key,
-                api_key_secret,
-            )),
             bearer_token,
+            access_token,
+            access_token_secret,
+            api_key,
+            api_key_secret,
         }
     }
 
@@ -141,18 +143,18 @@ impl TwitterClient {
     }
 
     pub async fn send_message(&self, text: &str, tweet_id: &str) -> Result<(), Box<dyn Error>> {
-        let payload = json!({
-            "text": text,
-            "reply": {
-                "in_reply_to_tweet_id": tweet_id
-            }
-        });
-        let response: String = self
-            .oauth10a_client
-            .post("https://api.twitter.com/2/tweets", &payload)
-            .await?;
-        println!("{:?}", response);
-
+        let tweet = TwitterApi::new(Oauth1aToken::new(
+            &self.api_key,
+            &self.api_key_secret,
+            &self.access_token,
+            &self.access_token_secret,
+        ))
+        .post_tweet()
+        .in_reply_to_tweet_id(NumericId::new(tweet_id.parse().unwrap()))
+        .text(text.to_string())
+        .send()
+        .await?;
+        println!("{:?}", tweet);
         Ok(())
     }
 }

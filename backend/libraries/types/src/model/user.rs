@@ -21,3 +21,14 @@ impl User {
             .and_then(|addr| Pubkey::from_str(addr).ok())
     }
 }
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+pub struct Profile {
+    pub twitter_username: String,
+    pub wallet_address: String,
+    pub latest_claim_timestamp: Option<DateTime<Utc>>,
+    pub reward_balance: i64,
+    pub tweets: i64,
+    pub likes: i64,
+    pub replies: i64,
+}

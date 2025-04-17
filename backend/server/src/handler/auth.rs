@@ -1,21 +1,23 @@
 use crate::state::{AppState, TwitterChallenge};
 use axum::{
+    Json,
     extract::{ConnectInfo, Query, State},
     response::{IntoResponse, Redirect},
 };
 use axum_extra::{
-    extract::{cookie::Cookie, CookieJar},
-    headers::UserAgent,
     TypedHeader,
+    extract::{CookieJar, cookie::Cookie},
+    headers::UserAgent,
 };
 use serde::Deserialize;
 use std::net::SocketAddr;
 use twitter_v2::{
+    TwitterApi,
     authorization::Scope,
     oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier},
-    TwitterApi,
 };
 use types::error::ApiError;
+use uuid::Uuid;
 
 pub async fn login(State(state): State<AppState>) -> impl IntoResponse {
     let mut ctx = state.ctx.lock().unwrap();
@@ -120,4 +122,19 @@ pub async fn callback(
             s.env.frontend_url, session.session_id
         )),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct CheckRewardAvailableParams {
+    reward_id: Uuid,
+}
+
+pub async fn check_reward_available(
+    State(state): State<AppState>,
+    Query(CheckRewardAvailableParams { reward_id }): Query<CheckRewardAvailableParams>,
+) -> Result<Json<bool>, ApiError> {
+    if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
+        return Ok(Json(reward.available));
+    }
+    Ok(Json(false))
 }

@@ -2,11 +2,11 @@ mod auth;
 mod user;
 
 use crate::{middleware::auth as auth_middleware, state::AppState};
-use axum::{http::HeaderValue, middleware, routing::get, Router};
+use axum::{Router, http::HeaderValue, middleware, routing::get};
 use database::DatabasePool;
 use hyper::{
-    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, COOKIE},
     Method,
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, COOKIE},
 };
 use std::sync::Arc;
 use tower::ServiceBuilder;
@@ -36,10 +36,11 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
     let cors = CorsLayer::new()
         .allow_origin([
             "http://localhost:3000".parse::<HeaderValue>().unwrap(),
-            "http://170.130.55.155:3000".parse::<HeaderValue>().unwrap(),
             "https://snake-token.vercel.app"
                 .parse::<HeaderValue>()
                 .unwrap(),
+            "https://playsnake.ai".parse::<HeaderValue>().unwrap(),
+            "https://www.playsnake.ai".parse::<HeaderValue>().unwrap(),
         ])
         .allow_methods([
             Method::POST,
