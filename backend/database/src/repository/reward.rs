@@ -55,6 +55,18 @@ impl RewardRepository {
         Ok(reward)
     }
 
+    pub async fn get_reward_by_id(&self, reward_id: &Uuid) -> Result<Option<Reward>, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            "SELECT * FROM rewards WHERE id = $1 AND available = true",
+            reward_id,
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
+
     pub async fn get_rewards(
         &self,
         user_id: &Option<Uuid>,

@@ -4573,6 +4573,7 @@ dependencies = [
  "twitter-v2",
  "types",
  "utils",
+ "uuid",
 ]
 
 [[package]]
