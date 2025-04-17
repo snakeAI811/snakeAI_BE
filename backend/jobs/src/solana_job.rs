@@ -1,6 +1,6 @@
 use base64::Engine;
 use borsh::BorshDeserialize;
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use database::AppService;
 use serde::Serialize;
 use solana_client::{
@@ -8,7 +8,7 @@ use solana_client::{
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use solana_transaction_status::{option_serializer::OptionSerializer, UiTransactionEncoding};
+use solana_transaction_status::{UiTransactionEncoding, option_serializer::OptionSerializer};
 use std::{error::Error, str::FromStr, sync::Arc};
 use utils::env::Env;
 
@@ -151,8 +151,8 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
         {
             let block_time = claim_tx
                 .block_time
-                .map(|block_time| Utc.timestamp_nanos(block_time * 1000))
-                .unwrap_or(Utc::now());
+                .and_then(|block_time| DateTime::from_timestamp(block_time, 0))
+                .unwrap_or_else(Utc::now);
 
             // Update latest_claim_timestamp on user table
             service

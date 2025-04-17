@@ -1,6 +1,6 @@
 use sqlx::types::{
-    chrono::{DateTime, Utc},
     Uuid,
+    chrono::{DateTime, Utc},
 };
 use types::model::{Reward, RewardToReply};
 
@@ -96,6 +96,17 @@ impl RewardRepository {
         let rewards = sql_query.fetch_all(self.db_conn.get_pool()).await?;
 
         Ok(rewards)
+    }
+
+    pub async fn get_reward_balance(&self, user_id: &Uuid) -> Result<i64, sqlx::Error> {
+        let total_balance = sqlx::query_scalar!(
+            "SELECT CAST(SUM(reward_amount) AS BIGINT) FROM rewards WHERE user_id = $1 AND available = false",
+            user_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(total_balance.unwrap_or_default())
     }
 
     pub async fn get_rewards_to_send_message(&self) -> Result<Vec<RewardToReply>, sqlx::Error> {

@@ -1,6 +1,6 @@
 use sqlx::types::{
-    chrono::{DateTime, Utc},
     Uuid,
+    chrono::{DateTime, Utc},
 };
 use types::{
     error::{ApiError, DbError},
@@ -45,6 +45,13 @@ impl RewardService {
     ) -> Result<Vec<Reward>, ApiError> {
         self.reward_repo
             .get_rewards(user_id, offset, limit, available)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_reward_balance(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.reward_repo
+            .get_reward_balance(user_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

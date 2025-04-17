@@ -1,7 +1,7 @@
 use crate::pool::DatabasePool;
 use sqlx::types::{
-    chrono::{DateTime, Utc},
     Uuid,
+    chrono::{DateTime, Utc},
 };
 use std::sync::Arc;
 use types::model::Tweet;
@@ -39,5 +39,13 @@ impl TweetRepository {
         .await?;
 
         Ok(tweet)
+    }
+
+    pub async fn get_tweets_count(&self) -> Result<i64, sqlx::Error> {
+        let tweet = sqlx::query_scalar!("SELECT COUNT(*) FROM tweets")
+            .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(tweet.unwrap_or_default())
     }
 }

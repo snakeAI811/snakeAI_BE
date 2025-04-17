@@ -6,14 +6,14 @@ use anchor_client::solana_sdk::{
     transaction::Transaction,
 };
 use axum::{
-    extract::{Query, State},
     Extension, Json,
+    extract::{Query, State},
 };
-use base64::{engine, Engine};
+use base64::{Engine, engine};
 use types::{
     dto::{GetRewardsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
-    model::{Reward, User},
+    model::{Profile, Reward, User},
 };
 
 pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
@@ -22,6 +22,23 @@ pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool
 
 pub async fn get_me(Extension(user): Extension<User>) -> Result<Json<User>, ApiError> {
     Ok(Json(user))
+}
+
+pub async fn get_profile(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> Result<Json<Profile>, ApiError> {
+    let reward_balance = state.service.reward.get_reward_balance(&user.id).await?;
+    let tweets = state.service.tweet.get_tweets_count().await?;
+    Ok(Json(Profile {
+        twitter_username: user.twitter_username.unwrap_or_default(),
+        wallet_address: user.wallet_address.unwrap_or_default(),
+        latest_claim_timestamp: user.latest_claim_timestamp,
+        reward_balance,
+        tweets,
+        likes: 0,
+        replies: 0,
+    }))
 }
 
 pub async fn set_wallet_address(
