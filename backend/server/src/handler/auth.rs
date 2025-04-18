@@ -132,9 +132,9 @@ pub struct CheckRewardAvailableParams {
 pub async fn check_reward_available(
     State(state): State<AppState>,
     Query(CheckRewardAvailableParams { reward_id }): Query<CheckRewardAvailableParams>,
-) -> Result<Json<bool>, ApiError> {
+) -> Result<Json<Option<bool>>, ApiError> {
     if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
-        return Ok(Json(reward.available));
+        return Ok(Json(Some(reward.available)));
     }
-    Ok(Json(false))
+    Ok(Json(None))
 }
