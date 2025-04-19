@@ -223,25 +223,18 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
             .await?;
     }
 
-    loop {
-        if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
-            if rewards.is_empty() {
-                break;
+    if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
+        for reward in &rewards {
+            if client
+                .send_message(
+                    &format!("{}/claim/{}", env.frontend_url, reward.id),
+                    &reward.tweet_id,
+                )
+                .await
+                .is_ok()
+            {
+                service.reward.mark_as_message_sent(&reward.id).await.ok();
             }
-            for reward in &rewards {
-                if client
-                    .send_message(
-                        &format!("{}/claim/{}", env.frontend_url, reward.id),
-                        &reward.tweet_id,
-                    )
-                    .await
-                    .is_ok()
-                {
-                    service.reward.mark_as_message_sent(&reward.id).await.ok();
-                }
-            }
-        } else {
-            break;
         }
     }
 
