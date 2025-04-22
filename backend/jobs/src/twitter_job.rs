@@ -1,12 +1,20 @@
 use chrono::{DateTime, Days, Utc};
 use database::AppService;
+use qrcode_generator::QrCodeEcc;
+use reqwest::multipart;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, sync::Arc};
+use thiserror::Error;
 use twitter_v2::TwitterApi;
 use twitter_v2::authorization::Oauth1aToken;
 use twitter_v2::id::NumericId;
 use utils::env::Env;
 
+#[derive(Debug, Error)]
+pub enum MyError {
+    #[error("Custom error: {0}")]
+    Custom(String), // Variant that holds a String message
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
     pub id: String,
@@ -46,6 +54,19 @@ pub struct TwitterMeta {
     pub oldest_id: Option<String>,
     pub next_token: Option<String>,
     pub result_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MediaData {
+    pub expires_after_secs: Option<i64>,
+    pub id: Option<String>,
+    pub media_key: Option<String>,
+    pub size: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadMediaResponse {
+    pub data: Option<MediaData>,
 }
 
 pub struct TwitterClient {
@@ -98,7 +119,7 @@ impl TwitterClient {
             let response = self
                 .client
                 .get(&url)
-                .bearer_auth(self.bearer_token.clone())
+                .bearer_auth(&self.bearer_token)
                 .send()
                 .await?
                 .json::<TwitterResponse>()
@@ -142,7 +163,41 @@ impl TwitterClient {
         Ok((result, latest_tweet_id))
     }
 
+    pub async fn upload_media(&self, text: &str) -> Result<String, Box<dyn Error>> {
+        let url = format!("https://api.twitter.com/2/media/upload");
+
+        let qrcode: Vec<u8> = qrcode_generator::to_png_to_vec(text, QrCodeEcc::Low, 256).unwrap();
+
+        let response = self
+            .client
+            .post(url)
+            .bearer_auth(&self.bearer_token)
+            .multipart(
+                multipart::Form::new().part(
+                    "file",
+                    multipart::Part::bytes(qrcode)
+                        .file_name("qrcode")
+                        .mime_str("image/png")?,
+                ),
+            )
+            .send()
+            .await?
+            .json::<UploadMediaResponse>()
+            .await?;
+
+        if let Some(data) = response.data {
+            if let Some(id) = data.id {
+                return Ok(id);
+            }
+        }
+
+        return Err(Box::new(MyError::Custom("Upload media failed".to_string())));
+    }
+
     pub async fn send_message(&self, text: &str, tweet_id: &str) -> Result<(), Box<dyn Error>> {
+        let media_id = self.upload_media(text).await?;
+
+        let vec: Vec<u64> = vec![];
         let tweet = TwitterApi::new(Oauth1aToken::new(
             &self.api_key,
             &self.api_key_secret,
@@ -150,8 +205,8 @@ impl TwitterClient {
             &self.access_token_secret,
         ))
         .post_tweet()
+        .add_media(vec![NumericId::new(media_id.parse().unwrap())], vec)
         .in_reply_to_tweet_id(NumericId::new(tweet_id.parse().unwrap()))
-        .text(text.to_string())
         .send()
         .await?;
         println!("{:?}", tweet);

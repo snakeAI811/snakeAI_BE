@@ -9,6 +9,7 @@ base64.workspace = true
 borsh.workspace = true
 chrono.workspace = true
 database.path = "../database"
+qrcode-generator.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -18,6 +19,7 @@ snake_contract = { path = "../../programs/snake_contract", features = [
 solana-client.workspace = true
 solana-sdk.workspace = true
 solana-transaction-status.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-cron-scheduler.workspace = true
 types.path = "../libraries/types"
