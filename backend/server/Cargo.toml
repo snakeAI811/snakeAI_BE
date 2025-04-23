@@ -12,6 +12,7 @@ axum-extra.workspace = true
 chrono.workspace = true
 database.path = "../database"
 hyper.workspace = true
+qrcode-generator.workspace = true
 serde.workspace = true
 spl-associated-token-account.workspace = true
 spl-token.workspace = true

@@ -4720,6 +4720,7 @@ dependencies = [
  "chrono",
  "database",
  "hyper 1.6.0",
+ "qrcode-generator",
  "serde",
  "snake_contract",
  "spl-associated-token-account",
