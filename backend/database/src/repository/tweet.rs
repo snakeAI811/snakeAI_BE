@@ -70,7 +70,7 @@ impl TweetRepository {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
         }
 
-        query.push_str("ORDER BY tweets.created_at DESC LIMIT $1 OFFSET $2");
+        query.push_str(" ORDER BY tweets.created_at DESC LIMIT $1 OFFSET $2");
 
         let mut sql_query = sqlx::query_as::<_, TweetWithUser>(&query)
             .bind(limit)
