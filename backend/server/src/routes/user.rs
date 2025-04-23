@@ -17,6 +17,6 @@ pub fn routes() -> Router<AppState> {
         .route("/profile", get(get_profile))
         .route("/wallet_address", post(set_wallet_address))
         .route("/rewards", get(get_rewards))
-        .route("/tweets", post(get_tweets))
+        .route("/tweets", get(get_tweets))
         .route("/claim_tx", post(get_claim_tx))
 }
