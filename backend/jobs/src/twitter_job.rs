@@ -296,6 +296,8 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         )
         .await?;
 
+    let mut cnt = 0;
+
     // Prepare tweets to insert into database
     for t in &new_tweets {
         // Get user
@@ -332,12 +334,27 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         },
                     };
 
+                println!("log: should_create_reward: {}", should_create_reward);
+
                 if should_create_reward && follow_users.contains(&user.twitter_id) {
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
+                    cnt += 1;
                 }
             }
         }
     }
+
+    println!(
+        "log: {} tweets detected, {} follow users, {} rewards created",
+        new_tweets.len(),
+        follow_users.len(),
+        cnt
+    );
+
+    println!(
+        "log: tweets: {:?}\n    follow users: {:?}",
+        new_tweets, follow_users,
+    );
 
     // Update latest_tweet_id from response
     if let Some(latest_tweet_id) = latest_tweet_id {
