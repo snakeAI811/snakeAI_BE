@@ -120,7 +120,7 @@ impl RewardRepository {
     pub async fn get_rewards_to_send_message(&self) -> Result<Vec<RewardToReply>, sqlx::Error> {
         let rewards = sqlx::query_as!(
             RewardToReply,
-            "SELECT rewards.id, tweets.tweet_id FROM rewards JOIN tweets ON rewards.tweet_id = tweets.id WHERE rewards.available = true AND rewards.message_sent = false",
+            "SELECT rewards.id, tweets.tweet_id, rewards.media_id, rewards.media_id_expires_at FROM rewards JOIN tweets ON rewards.tweet_id = tweets.id WHERE rewards.available = true AND rewards.message_sent = false",
         )
         .fetch_all(self.db_conn.get_pool())
         .await?;
@@ -162,6 +162,29 @@ impl RewardRepository {
             wallet_address,
             block_time,
             available
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
+
+    pub async fn update_reward_media_data(
+        &self,
+        reward_id: &Uuid,
+        media_id: &str,
+        media_id_expires_at: &DateTime<Utc>,
+    ) -> Result<Reward, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            r#"
+            UPDATE rewards SET media_id = $2, media_id_expires_at = $3
+            WHERE id = $1
+            RETURNING *
+            "#,
+            reward_id,
+            media_id,
+            media_id_expires_at
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;
