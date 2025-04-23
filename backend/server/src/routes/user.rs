@@ -1,6 +1,7 @@
 use crate::{
     handler::user::{
-        get_claim_tx, get_me, get_profile, get_rewards, set_wallet_address, token_validation,
+        get_claim_tx, get_me, get_profile, get_rewards, get_tweets, set_wallet_address,
+        token_validation,
     },
     state::AppState,
 };
@@ -16,5 +17,6 @@ pub fn routes() -> Router<AppState> {
         .route("/profile", get(get_profile))
         .route("/wallet_address", post(set_wallet_address))
         .route("/rewards", get(get_rewards))
+        .route("/tweets", post(get_tweets))
         .route("/claim_tx", post(get_claim_tx))
 }

@@ -6,7 +6,7 @@ use sqlx::types::{
 use std::sync::Arc;
 use types::{
     error::{ApiError, DbError},
-    model::Tweet,
+    model::{Tweet, TweetWithUser},
 };
 
 #[derive(Clone)]
@@ -36,6 +36,18 @@ impl TweetService {
     pub async fn get_tweets_count(&self) -> Result<i64, ApiError> {
         self.tweet_repo
             .get_tweets_count()
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_tweets(
+        &self,
+        user_id: &Option<Uuid>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+    ) -> Result<Vec<TweetWithUser>, ApiError> {
+        self.tweet_repo
+            .get_tweets(user_id, offset, limit)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
