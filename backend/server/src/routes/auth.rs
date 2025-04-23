@@ -9,5 +9,5 @@ pub fn routes() -> Router<AppState> {
         .route("/login", get(login))
         .route("/callback", get(callback))
         .route("/check_reward_available", get(check_reward_available))
-        .route("/qrcode/:reward_id", get(get_qrcode))
+        .route("/qrcode/{reward_id}", get(get_qrcode))
 }
