@@ -11,9 +11,9 @@ use axum::{
 };
 use base64::{Engine, engine};
 use types::{
-    dto::{GetRewardsQuery, SetWalletAddressRequest},
+    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
-    model::{Profile, Reward, User},
+    model::{Profile, Reward, TweetWithUser, User},
 };
 
 pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
@@ -89,6 +89,27 @@ pub async fn get_rewards(
 
     Ok(Json(rewards))
 }
+
+pub async fn get_tweets(
+    Extension(user): Extension<User>,
+    Query(opts): Query<GetTweetsQuery>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<TweetWithUser>>, ApiError> {
+    let user_id = if user.twitter_username.unwrap_or_default() == "playSnakeAI" {
+        None
+    } else {
+        Some(user.id)
+    };
+
+    let tweets = state
+        .service
+        .tweet
+        .get_tweets(&user_id, opts.offset, opts.limit)
+        .await?;
+
+    Ok(Json(tweets))
+}
+
 const REWARD_POOL_SEED: &[u8] = b"reward_pool";
 const USER_CLAIM_SEED: &[u8] = b"user_claim";
 

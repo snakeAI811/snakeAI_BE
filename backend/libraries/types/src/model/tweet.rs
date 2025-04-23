@@ -9,3 +9,12 @@ pub struct Tweet {
     pub tweet_id: String,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
+pub struct TweetWithUser {
+    pub id: Uuid,
+    pub twitter_id: String,
+    pub twitter_username: Option<String>,
+    pub tweet_id: String,
+    pub created_at: DateTime<Utc>,
+}

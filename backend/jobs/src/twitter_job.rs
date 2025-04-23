@@ -1,10 +1,12 @@
-use chrono::{DateTime, Days, Utc};
+use anyhow::anyhow;
+use chrono::{DateTime, Days, Duration, Utc};
 use database::AppService;
+use qrcode_generator::QrCodeEcc;
+use reqwest::multipart::{Form, Part};
+use reqwest_oauth1::{OAuthClientProvider, Secrets};
 use serde::{Deserialize, Serialize};
-use std::{error::Error, sync::Arc};
-use twitter_v2::TwitterApi;
-use twitter_v2::authorization::Oauth1aToken;
-use twitter_v2::id::NumericId;
+use serde_json::json;
+use std::sync::Arc;
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,6 +50,20 @@ pub struct TwitterMeta {
     pub result_count: usize,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessingInfo {
+    pub check_after_secs: Option<i64>,
+    pub progress_percent: Option<i64>,
+    pub state: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadMediaResponse {
+    pub expires_after_secs: Option<i64>,
+    pub id: Option<String>,
+    pub size: Option<i64>,
+}
+
 pub struct TwitterClient {
     client: reqwest::Client,
     bearer_token: String,
@@ -80,7 +96,7 @@ impl TwitterClient {
         username: &str,
         hashtag: &str,
         latest_tweet_id: Option<String>,
-    ) -> Result<(Vec<TweetWithAuthor>, Option<String>), Box<dyn Error>> {
+    ) -> Result<(Vec<TweetWithAuthor>, Option<String>), anyhow::Error> {
         let query = format!("@{} #{}", username, hashtag);
 
         let mut url = format!(
@@ -98,7 +114,7 @@ impl TwitterClient {
             let response = self
                 .client
                 .get(&url)
-                .bearer_auth(self.bearer_token.clone())
+                .bearer_auth(&self.bearer_token)
                 .send()
                 .await?
                 .json::<TwitterResponse>()
@@ -142,24 +158,69 @@ impl TwitterClient {
         Ok((result, latest_tweet_id))
     }
 
-    pub async fn send_message(&self, text: &str, tweet_id: &str) -> Result<(), Box<dyn Error>> {
-        let tweet = TwitterApi::new(Oauth1aToken::new(
-            &self.api_key,
-            &self.api_key_secret,
-            &self.access_token,
-            &self.access_token_secret,
-        ))
-        .post_tweet()
-        .in_reply_to_tweet_id(NumericId::new(tweet_id.parse().unwrap()))
-        .text(text.to_string())
-        .send()
-        .await?;
-        println!("{:?}", tweet);
+    pub async fn upload_media(&self, text: &str) -> Result<(String, i64), anyhow::Error> {
+        let endpoint = "https://api.twitter.com/2/media/upload";
+
+        let file_content: Vec<u8> =
+            qrcode_generator::to_png_to_vec(text, QrCodeEcc::Low, 256).unwrap();
+
+        let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
+            .token(&self.access_token, &self.access_token_secret);
+
+        // Create multipart form data
+        let part = Part::bytes(file_content)
+            .file_name("qrcode.png")
+            .mime_str("image/png")?;
+        let form = Form::new().part("media", part);
+
+        let response = reqwest::Client::new()
+            .oauth1(secrets)
+            .post(endpoint)
+            .multipart(form)
+            .send()
+            .await?
+            .json::<UploadMediaResponse>()
+            .await?;
+
+        if let Some(id) = &response.id {
+            return Ok((
+                id.to_string(),
+                response.expires_after_secs.unwrap_or_default(),
+            ));
+        }
+
+        return Err(anyhow!(format!("Upload media failed: {:?}", response)));
+    }
+
+    pub async fn send_message(&self, media_id: &str, tweet_id: &str) -> Result<(), anyhow::Error> {
+        let endpoint = "https://api.twitter.com/2/tweets";
+
+        let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
+            .token(&self.access_token, &self.access_token_secret);
+
+        let payload = json!({
+            "text": "Scan QR code to claim",
+            "media": {
+                "media_ids": [media_id]
+            },
+            "reply": {
+                "in_reply_to_tweet_id": tweet_id
+            }
+        });
+
+        let response = reqwest::Client::new()
+            .oauth1(secrets)
+            .post(endpoint)
+            .json(&payload)
+            .send()
+            .await?;
+
+        println!("sent comment: {:?}", response);
         Ok(())
     }
 }
 
-pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error>> {
+pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
     let client = TwitterClient::new(
         env.twitter_bearer_token,
         env.twitter_access_token,
@@ -180,38 +241,42 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
     for t in &new_tweets {
         // Get user
         let user = if let Some(user) = service.user.get_user_by_twitter_id(&t.author_id).await? {
-            user
+            Some(user)
         } else {
             service
                 .user
                 .insert_user(&t.author_id, &t.author_username.clone().unwrap_or_default())
-                .await?
+                .await
+                .ok()
         };
+        if let Some(user) = user {
+            let created_at = DateTime::parse_from_rfc3339(&t.created_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or(Utc::now());
 
-        let created_at = DateTime::parse_from_rfc3339(&t.created_at)
-            .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or(Utc::now());
+            // Insert tweet
+            if let Ok(tweet) = service
+                .tweet
+                .insert_tweet(&user.id, &t.id, &created_at)
+                .await
+            {
+                // Create reward if conditions are met
+                let should_create_reward =
+                    match service.reward.get_available_reward(&user.id).await? {
+                        Some(_) => false, // Reward already exists
+                        None => match user.latest_claim_timestamp {
+                            Some(timestamp) => timestamp
+                                .checked_add_days(Days::new(1))
+                                .map(|next_claim_date| next_claim_date < Utc::now())
+                                .unwrap_or(false),
+                            None => true, // No previous claim
+                        },
+                    };
 
-        // Insert tweet
-        let tweet = service
-            .tweet
-            .insert_tweet(&user.id, &t.id, &created_at)
-            .await?;
-
-        // Create reward if conditions are met
-        let should_create_reward = match service.reward.get_available_reward(&user.id).await? {
-            Some(_) => false, // Reward already exists
-            None => match user.latest_claim_timestamp {
-                Some(timestamp) => timestamp
-                    .checked_add_days(Days::new(1))
-                    .map(|next_claim_date| next_claim_date < Utc::now())
-                    .unwrap_or(false),
-                None => true, // No previous claim
-            },
-        };
-
-        if should_create_reward {
-            service.reward.insert_reward(&user.id, &tweet.id).await?;
+                if should_create_reward {
+                    service.reward.insert_reward(&user.id, &tweet.id).await.ok();
+                }
+            }
         }
     }
 
@@ -223,25 +288,53 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
             .await?;
     }
 
-    loop {
-        if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
-            if rewards.is_empty() {
-                break;
-            }
-            for reward in &rewards {
-                if client
-                    .send_message(
-                        &format!("{}/claim/{}", env.frontend_url, reward.id),
-                        &reward.tweet_id,
-                    )
+    if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
+        for reward in &rewards {
+            let media_id = if !reward.media_available() {
+                match client
+                    .upload_media(&format!("{}/claim/{}", env.frontend_url, reward.id))
                     .await
-                    .is_ok()
                 {
+                    Ok((media_id, expires_after_secs)) => {
+                        match service
+                            .reward
+                            .update_reward_media_data(
+                                &reward.id,
+                                &media_id,
+                                &(Utc::now() + Duration::seconds(expires_after_secs)),
+                            )
+                            .await
+                        {
+                            Ok(ok) => ok.media_id,
+                            Err(err) => {
+                                println!("update db error: {:?}", err);
+                                continue;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        println!("upload_media error: {:?}", err);
+                        continue;
+                    }
+                }
+            } else {
+                reward.media_id.clone()
+            };
+            if media_id.is_none() {
+                continue;
+            }
+
+            match client
+                .send_message(&media_id.unwrap(), &reward.tweet_id)
+                .await
+            {
+                Ok(_) => {
                     service.reward.mark_as_message_sent(&reward.id).await.ok();
                 }
+                Err(err) => {
+                    println!("send message error: {:?}", err);
+                }
             }
-        } else {
-            break;
         }
     }
 

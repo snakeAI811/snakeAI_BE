@@ -98,4 +98,16 @@ impl RewardService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn update_reward_media_data(
+        &self,
+        reward_id: &Uuid,
+        media_id: &str,
+        media_id_expires_at: &DateTime<Utc>,
+    ) -> Result<Reward, ApiError> {
+        self.reward_repo
+            .update_reward_media_data(reward_id, media_id, media_id_expires_at)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

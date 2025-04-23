@@ -4,7 +4,7 @@ use sqlx::types::{
     chrono::{DateTime, Utc},
 };
 use std::sync::Arc;
-use types::model::Tweet;
+use types::model::{Tweet, TweetWithUser};
 
 #[derive(Clone)]
 pub struct TweetRepository {
@@ -47,5 +47,41 @@ impl TweetRepository {
             .await?;
 
         Ok(tweet.unwrap_or_default())
+    }
+
+    pub async fn get_tweets(
+        &self,
+        user_id: &Option<Uuid>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+    ) -> Result<Vec<TweetWithUser>, sqlx::Error> {
+        let offset = offset.unwrap_or_default();
+        let limit = limit.unwrap_or(10);
+
+        let mut filters = vec![];
+        let index = 3;
+        if user_id.is_some() {
+            filters.push(format!("user_id = ${index}"));
+        }
+
+        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, users.twitter_id, users.twitter_username FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
+
+        if !filters.is_empty() {
+            query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
+        }
+
+        query.push_str(" ORDER BY tweets.created_at DESC LIMIT $1 OFFSET $2");
+
+        let mut sql_query = sqlx::query_as::<_, TweetWithUser>(&query)
+            .bind(limit)
+            .bind(offset);
+
+        if let Some(user_id) = user_id {
+            sql_query = sql_query.bind(user_id);
+        }
+
+        let tweets = sql_query.fetch_all(self.db_conn.get_pool()).await?;
+
+        Ok(tweets)
     }
 }

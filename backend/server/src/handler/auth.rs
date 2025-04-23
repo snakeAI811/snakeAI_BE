@@ -1,7 +1,7 @@
 use crate::state::{AppState, TwitterChallenge};
 use axum::{
     Json,
-    extract::{ConnectInfo, Query, State},
+    extract::{ConnectInfo, Path, Query, State},
     response::{IntoResponse, Redirect},
 };
 use axum_extra::{
@@ -9,6 +9,8 @@ use axum_extra::{
     extract::{CookieJar, cookie::Cookie},
     headers::UserAgent,
 };
+use hyper::{StatusCode, header::CONTENT_TYPE};
+use qrcode_generator::QrCodeEcc;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use twitter_v2::{
@@ -137,4 +139,18 @@ pub async fn check_reward_available(
         return Ok(Json(Some(reward.available)));
     }
     Ok(Json(None))
+}
+
+pub async fn get_qrcode(
+    State(state): State<AppState>,
+    Path(reward_id): Path<Uuid>,
+) -> Result<impl IntoResponse, ApiError> {
+    if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
+        let redirect_url = format!("{}/claim/{}", state.env.frontend_url, reward.id);
+        let file_content: Vec<u8> =
+            qrcode_generator::to_png_to_vec(&redirect_url, QrCodeEcc::Low, 256).unwrap();
+        Ok((StatusCode::OK, [(CONTENT_TYPE, "image/png")], file_content))
+    } else {
+        Err(ApiError::BadRequest("Invalid reward id".to_string()))
+    }
 }
