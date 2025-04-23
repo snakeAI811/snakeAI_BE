@@ -58,27 +58,10 @@ pub struct ProcessingInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MediaData {
+pub struct UploadMediaResponse {
     pub expires_after_secs: Option<i64>,
     pub id: Option<String>,
-    pub media_key: Option<String>,
     pub size: Option<i64>,
-    pub processing_info: Option<ProcessingInfo>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MediaError {
-    pub detail: Option<String>,
-    pub status: Option<i64>,
-    pub title: Option<String>,
-    #[serde(rename = "type")]
-    pub _type: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UploadMediaResponse {
-    pub data: Option<MediaData>,
-    pub errors: Option<MediaError>,
 }
 
 pub struct TwitterClient {
@@ -199,10 +182,11 @@ impl TwitterClient {
             .json::<UploadMediaResponse>()
             .await?;
 
-        if let Some(data) = &response.data {
-            if let Some(id) = &data.id {
-                return Ok((id.to_string(), data.expires_after_secs.unwrap_or_default()));
-            }
+        if let Some(id) = &response.id {
+            return Ok((
+                id.to_string(),
+                response.expires_after_secs.unwrap_or_default(),
+            ));
         }
 
         return Err(anyhow!(format!("Upload media failed: {:?}", response)));
