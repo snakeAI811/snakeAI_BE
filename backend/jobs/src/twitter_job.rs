@@ -6,7 +6,7 @@ use reqwest::multipart::{Form, Part};
 use reqwest_oauth1::{OAuthClientProvider, Secrets};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,6 +62,24 @@ pub struct UploadMediaResponse {
     pub expires_after_secs: Option<i64>,
     pub id: Option<String>,
     pub size: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserData {
+    #[serde(default)]
+    pub id: String,
+    // #[serde(default)]
+    // pub username: String,
+    // #[serde(default)]
+    // pub name: String,
+    #[serde(default)]
+    pub connection_status: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsersResponse {
+    #[serde(default)]
+    pub data: Vec<UserData>,
 }
 
 pub struct TwitterClient {
@@ -218,6 +236,38 @@ impl TwitterClient {
         println!("sent comment: {:?}", response);
         Ok(())
     }
+
+    pub async fn get_follow_users(
+        &self,
+        twitter_ids: Vec<String>,
+    ) -> Result<HashSet<String>, anyhow::Error> {
+        let endpoint = "https://api.twitter.com/2/users";
+
+        let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
+            .token(&self.access_token, &self.access_token_secret);
+
+        let mut result = HashSet::new();
+
+        for chunk in twitter_ids.chunks(100) {
+            let ids = chunk.join(",");
+            let response = reqwest::Client::new()
+                .oauth1(secrets.clone())
+                .get(endpoint)
+                .query(&[("user.fields", "connection_status"), ("ids", &ids)])
+                .send()
+                .await?
+                .json::<UsersResponse>()
+                .await?;
+
+            for user in response.data {
+                if user.connection_status.contains(&"followed_by".to_string()) {
+                    result.insert(user.id);
+                }
+            }
+        }
+
+        return Ok(result);
+    }
 }
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
@@ -235,6 +285,15 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     // Fetch new tweets with author information
     let (new_tweets, latest_tweet_id) = client
         .get_tweets("playSnakeAI", "MineTheSnake", latest_tweet_id)
+        .await?;
+
+    let follow_users = client
+        .get_follow_users(
+            new_tweets
+                .iter()
+                .map(|tweet| tweet.author_id.clone())
+                .collect(),
+        )
         .await?;
 
     // Prepare tweets to insert into database
@@ -273,7 +332,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         },
                     };
 
-                if should_create_reward {
+                if should_create_reward && follow_users.contains(&user.twitter_id) {
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
                 }
             }
