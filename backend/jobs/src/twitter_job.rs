@@ -7,6 +7,7 @@ use reqwest_oauth1::{OAuthClientProvider, Secrets};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashSet, sync::Arc};
+use types::model::RewardUtils;
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -210,21 +211,35 @@ impl TwitterClient {
         return Err(anyhow!(format!("Upload media failed: {:?}", response)));
     }
 
-    pub async fn send_message(&self, media_id: &str, tweet_id: &str) -> Result<(), anyhow::Error> {
+    pub async fn reply_with_media(
+        &self,
+        text: &str,
+        media_id: &Option<String>,
+        tweet_id: &str,
+    ) -> Result<(), anyhow::Error> {
         let endpoint = "https://api.twitter.com/2/tweets";
 
         let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
             .token(&self.access_token, &self.access_token_secret);
 
-        let payload = json!({
-            "text": "Scan QR code to claim",
-            "media": {
-                "media_ids": [media_id]
-            },
-            "reply": {
-                "in_reply_to_tweet_id": tweet_id
-            }
-        });
+        let payload = if let Some(media_id) = media_id {
+            json!({
+                "text": text,
+                "media": {
+                    "media_ids": [media_id]
+                },
+                "reply": {
+                    "in_reply_to_tweet_id": tweet_id
+                }
+            })
+        } else {
+            json!({
+                "text": text,
+                "reply": {
+                    "in_reply_to_tweet_id": tweet_id
+                }
+            })
+        };
 
         let response = reqwest::Client::new()
             .oauth1(secrets)
@@ -310,6 +325,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .await
                 .ok()
         };
+
         if let Some(user) = user {
             let created_at = DateTime::parse_from_rfc3339(&t.created_at)
                 .map(|dt| dt.with_timezone(&Utc))
@@ -322,23 +338,84 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .await
             {
                 // Create reward if conditions are met
-                let should_create_reward =
-                    match service.reward.get_available_reward(&user.id).await? {
-                        Some(_) => false, // Reward already exists
-                        None => match user.latest_claim_timestamp {
-                            Some(timestamp) => timestamp
-                                .checked_add_days(Days::new(1))
-                                .map(|next_claim_date| next_claim_date < Utc::now())
-                                .unwrap_or(false),
-                            None => true, // No previous claim
-                        },
-                    };
+                let mut text = String::new();
+                let mut reward_url = String::new();
 
-                println!("log: should_create_reward: {}", should_create_reward);
+                let should_create_reward = match follow_users.contains(&user.twitter_id) {
+                    true => {
+                        // User follow us
+                        match service.reward.get_available_reward(&user.id).await? {
+                            Some(reward) => {
+                                // Reward already exists
+                                text = format!(
+                                    "You have already available reward. Scan QR code to claim"
+                                );
+                                reward_url = reward.get_reward_url(&env.frontend_url);
 
-                if should_create_reward && follow_users.contains(&user.twitter_id) {
+                                false
+                            }
+                            None => {
+                                // There is no available reward
+                                match user.latest_claim_timestamp {
+                                    Some(timestamp) => {
+                                        let result = timestamp
+                                            .checked_add_days(Days::new(1))
+                                            .map(|next_claim_date| next_claim_date < Utc::now())
+                                            .unwrap_or(false);
+
+                                        if !result {
+                                            let formatted_time =
+                                                timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                            let next_time = timestamp + Duration::hours(24);
+                                            let formatted_next_time =
+                                                next_time.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                            text = format!(
+                                                "You've claimed reward at {}, post after {} (24 hours later) to mint",
+                                                formatted_time, formatted_next_time
+                                            );
+                                        }
+
+                                        result
+                                    }
+                                    None => true, // No previous claim
+                                }
+                            }
+                        }
+                    }
+                    false => {
+                        // User don't follow us
+                        text = format!("You need to follow us before posting to get your rewards");
+                        false
+                    }
+                };
+
+                println!(
+                    "log: should_create_reward: {}, text: {}, redirect_url: {}",
+                    should_create_reward, text, reward_url
+                );
+
+                if should_create_reward {
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
                     cnt += 1;
+                } else {
+                    let media_id = if !reward_url.is_empty() {
+                        match client.upload_media(&reward_url).await {
+                            Ok((media_id, _)) => Some(media_id),
+                            Err(err) => {
+                                println!("upload_media error: {:?}", err);
+                                continue;
+                            }
+                        }
+                    } else {
+                        None
+                    };
+
+                    match client.reply_with_media(&text, &media_id, &t.id).await {
+                        Ok(_) => {}
+                        Err(err) => {
+                            println!("send message error: {:?}", err);
+                        }
+                    }
                 }
             }
         }
@@ -352,7 +429,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     );
 
     println!(
-        "log: tweets: {:?}\n    follow users: {:?}",
+        "log: tweets: {:?}\n     follow users: {:?}",
         new_tweets, follow_users,
     );
 
@@ -368,7 +445,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         for reward in &rewards {
             let media_id = if !reward.media_available() {
                 match client
-                    .upload_media(&format!("{}/claim/{}", env.frontend_url, reward.id))
+                    .upload_media(&reward.get_reward_url(&env.frontend_url))
                     .await
                 {
                     Ok((media_id, expires_after_secs)) => {
@@ -401,7 +478,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             }
 
             match client
-                .send_message(&media_id.unwrap(), &reward.tweet_id)
+                .reply_with_media(
+                    "Scan QR code to claim",
+                    &Some(media_id.unwrap()),
+                    &reward.tweet_id,
+                )
                 .await
             {
                 Ok(_) => {

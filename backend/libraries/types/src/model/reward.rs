@@ -29,11 +29,36 @@ pub struct RewardToReply {
     pub media_id_expires_at: Option<DateTime<Utc>>,
 }
 
-impl RewardToReply {
-    pub fn media_available(&self) -> bool {
-        if let Some(media_id_expires_at) = self.media_id_expires_at {
-            return media_id_expires_at > Utc::now();
-        }
-        return false;
+pub trait RewardUtils {
+    fn media_id_expires_at(&self) -> Option<chrono::DateTime<Utc>>;
+    fn id(&self) -> &Uuid;
+
+    fn media_available(&self) -> bool {
+        self.media_id_expires_at()
+            .map_or(false, |expiry| expiry > Utc::now())
+    }
+
+    fn get_reward_url(&self, frontend_url: &str) -> String {
+        format!("{}/claim/{}", frontend_url, self.id())
+    }
+}
+
+impl RewardUtils for RewardToReply {
+    fn media_id_expires_at(&self) -> Option<chrono::DateTime<Utc>> {
+        self.media_id_expires_at
+    }
+
+    fn id(&self) -> &Uuid {
+        &self.id
+    }
+}
+
+impl RewardUtils for Reward {
+    fn media_id_expires_at(&self) -> Option<chrono::DateTime<Utc>> {
+        self.media_id_expires_at
+    }
+
+    fn id(&self) -> &Uuid {
+        &self.id
     }
 }
