@@ -21,6 +21,30 @@ pub struct Reward {
 }
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
+pub struct RewardWithUserAndTweet {
+    pub id: Uuid,
+    // user data
+    pub user_id: Uuid,
+    pub twitter_id: String,
+    pub twitter_username: Option<String>,
+    // tweet_data
+    pub tweet_id: Uuid,
+    pub tweet_twitter_id: String,
+    // reward_data
+    pub created_at: DateTime<Utc>,
+    pub available: bool,
+    pub message_sent: bool,
+    // solana transaction
+    pub transaction_signature: Option<String>,
+    pub reward_amount: i64,
+    pub wallet_address: Option<String>,
+    pub block_time: Option<DateTime<Utc>>,
+    // media data
+    pub media_id: Option<String>,
+    pub media_id_expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
 pub struct RewardToReply {
     pub id: Uuid,
     pub tweet_id: String,

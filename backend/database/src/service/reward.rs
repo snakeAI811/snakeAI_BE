@@ -4,7 +4,7 @@ use sqlx::types::{
 };
 use types::{
     error::{ApiError, DbError},
-    model::{Reward, RewardToReply},
+    model::{Reward, RewardToReply, RewardWithUserAndTweet},
 };
 
 use crate::{pool::DatabasePool, repository::RewardRepository};
@@ -49,7 +49,7 @@ impl RewardService {
         offset: Option<i64>,
         limit: Option<i64>,
         available: Option<bool>,
-    ) -> Result<Vec<Reward>, ApiError> {
+    ) -> Result<Vec<RewardWithUserAndTweet>, ApiError> {
         self.reward_repo
             .get_rewards(user_id, offset, limit, available)
             .await
