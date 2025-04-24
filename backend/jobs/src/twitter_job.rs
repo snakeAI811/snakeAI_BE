@@ -6,7 +6,8 @@ use reqwest::multipart::{Form, Part};
 use reqwest_oauth1::{OAuthClientProvider, Secrets};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
+use types::model::RewardUtils;
 use utils::env::Env;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,6 +63,24 @@ pub struct UploadMediaResponse {
     pub expires_after_secs: Option<i64>,
     pub id: Option<String>,
     pub size: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserData {
+    #[serde(default)]
+    pub id: String,
+    // #[serde(default)]
+    // pub username: String,
+    // #[serde(default)]
+    // pub name: String,
+    #[serde(default)]
+    pub connection_status: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UsersResponse {
+    #[serde(default)]
+    pub data: Vec<UserData>,
 }
 
 pub struct TwitterClient {
@@ -192,21 +211,35 @@ impl TwitterClient {
         return Err(anyhow!(format!("Upload media failed: {:?}", response)));
     }
 
-    pub async fn send_message(&self, media_id: &str, tweet_id: &str) -> Result<(), anyhow::Error> {
+    pub async fn reply_with_media(
+        &self,
+        text: &str,
+        media_id: &Option<String>,
+        tweet_id: &str,
+    ) -> Result<(), anyhow::Error> {
         let endpoint = "https://api.twitter.com/2/tweets";
 
         let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
             .token(&self.access_token, &self.access_token_secret);
 
-        let payload = json!({
-            "text": "Scan QR code to claim",
-            "media": {
-                "media_ids": [media_id]
-            },
-            "reply": {
-                "in_reply_to_tweet_id": tweet_id
-            }
-        });
+        let payload = if let Some(media_id) = media_id {
+            json!({
+                "text": text,
+                "media": {
+                    "media_ids": [media_id]
+                },
+                "reply": {
+                    "in_reply_to_tweet_id": tweet_id
+                }
+            })
+        } else {
+            json!({
+                "text": text,
+                "reply": {
+                    "in_reply_to_tweet_id": tweet_id
+                }
+            })
+        };
 
         let response = reqwest::Client::new()
             .oauth1(secrets)
@@ -217,6 +250,38 @@ impl TwitterClient {
 
         println!("sent comment: {:?}", response);
         Ok(())
+    }
+
+    pub async fn get_follow_users(
+        &self,
+        twitter_ids: Vec<String>,
+    ) -> Result<HashSet<String>, anyhow::Error> {
+        let endpoint = "https://api.twitter.com/2/users";
+
+        let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
+            .token(&self.access_token, &self.access_token_secret);
+
+        let mut result = HashSet::new();
+
+        for chunk in twitter_ids.chunks(100) {
+            let ids = chunk.join(",");
+            let response = reqwest::Client::new()
+                .oauth1(secrets.clone())
+                .get(endpoint)
+                .query(&[("user.fields", "connection_status"), ("ids", &ids)])
+                .send()
+                .await?
+                .json::<UsersResponse>()
+                .await?;
+
+            for user in response.data {
+                if user.connection_status.contains(&"followed_by".to_string()) {
+                    result.insert(user.id);
+                }
+            }
+        }
+
+        return Ok(result);
     }
 }
 
@@ -237,6 +302,17 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         .get_tweets("playSnakeAI", "MineTheSnake", latest_tweet_id)
         .await?;
 
+    let follow_users = client
+        .get_follow_users(
+            new_tweets
+                .iter()
+                .map(|tweet| tweet.author_id.clone())
+                .collect(),
+        )
+        .await?;
+
+    let mut cnt = 0;
+
     // Prepare tweets to insert into database
     for t in &new_tweets {
         // Get user
@@ -249,6 +325,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .await
                 .ok()
         };
+
         if let Some(user) = user {
             let created_at = DateTime::parse_from_rfc3339(&t.created_at)
                 .map(|dt| dt.with_timezone(&Utc))
@@ -261,24 +338,100 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .await
             {
                 // Create reward if conditions are met
-                let should_create_reward =
-                    match service.reward.get_available_reward(&user.id).await? {
-                        Some(_) => false, // Reward already exists
-                        None => match user.latest_claim_timestamp {
-                            Some(timestamp) => timestamp
-                                .checked_add_days(Days::new(1))
-                                .map(|next_claim_date| next_claim_date < Utc::now())
-                                .unwrap_or(false),
-                            None => true, // No previous claim
-                        },
-                    };
+                let mut text = String::new();
+                let mut reward_url = String::new();
+
+                let should_create_reward = match follow_users.contains(&user.twitter_id) {
+                    true => {
+                        // User follow us
+                        match service.reward.get_available_reward(&user.id).await? {
+                            Some(reward) => {
+                                // Reward already exists
+                                text = format!(
+                                    "You have already available reward. Scan QR code to claim"
+                                );
+                                reward_url = reward.get_reward_url(&env.frontend_url);
+
+                                false
+                            }
+                            None => {
+                                // There is no available reward
+                                match user.latest_claim_timestamp {
+                                    Some(timestamp) => {
+                                        let result = timestamp
+                                            .checked_add_days(Days::new(1))
+                                            .map(|next_claim_date| next_claim_date < Utc::now())
+                                            .unwrap_or(false);
+
+                                        if !result {
+                                            let formatted_time =
+                                                timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                            let next_time = timestamp + Duration::hours(24);
+                                            let formatted_next_time =
+                                                next_time.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                            text = format!(
+                                                "You've claimed reward at {}, post after {} (24 hours later) to mint",
+                                                formatted_time, formatted_next_time
+                                            );
+                                        }
+
+                                        result
+                                    }
+                                    None => true, // No previous claim
+                                }
+                            }
+                        }
+                    }
+                    false => {
+                        // User don't follow us
+                        text = format!("You need to follow us before posting to get your rewards");
+                        false
+                    }
+                };
+
+                println!(
+                    "log: should_create_reward: {}, text: {}, redirect_url: {}",
+                    should_create_reward, text, reward_url
+                );
 
                 if should_create_reward {
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
+                    cnt += 1;
+                } else {
+                    let media_id = if !reward_url.is_empty() {
+                        match client.upload_media(&reward_url).await {
+                            Ok((media_id, _)) => Some(media_id),
+                            Err(err) => {
+                                println!("upload_media error: {:?}", err);
+                                continue;
+                            }
+                        }
+                    } else {
+                        None
+                    };
+
+                    match client.reply_with_media(&text, &media_id, &t.id).await {
+                        Ok(_) => {}
+                        Err(err) => {
+                            println!("send message error: {:?}", err);
+                        }
+                    }
                 }
             }
         }
     }
+
+    println!(
+        "log: {} tweets detected, {} follow users, {} rewards created",
+        new_tweets.len(),
+        follow_users.len(),
+        cnt
+    );
+
+    println!(
+        "log: tweets: {:?}\n     follow users: {:?}",
+        new_tweets, follow_users,
+    );
 
     // Update latest_tweet_id from response
     if let Some(latest_tweet_id) = latest_tweet_id {
@@ -292,7 +445,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         for reward in &rewards {
             let media_id = if !reward.media_available() {
                 match client
-                    .upload_media(&format!("{}/claim/{}", env.frontend_url, reward.id))
+                    .upload_media(&reward.get_reward_url(&env.frontend_url))
                     .await
                 {
                     Ok((media_id, expires_after_secs)) => {
@@ -325,7 +478,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             }
 
             match client
-                .send_message(&media_id.unwrap(), &reward.tweet_id)
+                .reply_with_media(
+                    "Scan QR code to claim",
+                    &Some(media_id.unwrap()),
+                    &reward.tweet_id,
+                )
                 .await
             {
                 Ok(_) => {

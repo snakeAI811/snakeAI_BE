@@ -2,7 +2,7 @@ use sqlx::types::{
     Uuid,
     chrono::{DateTime, Utc},
 };
-use types::model::{Reward, RewardToReply};
+use types::model::{Reward, RewardToReply, RewardWithUserAndTweet};
 
 use crate::pool::DatabasePool;
 use std::sync::Arc;
@@ -69,29 +69,37 @@ impl RewardRepository {
         offset: Option<i64>,
         limit: Option<i64>,
         available: Option<bool>,
-    ) -> Result<Vec<Reward>, sqlx::Error> {
+    ) -> Result<Vec<RewardWithUserAndTweet>, sqlx::Error> {
         let offset = offset.unwrap_or_default();
         let limit = limit.unwrap_or(10);
 
         let mut filters = vec![];
         let mut index = 3;
         if user_id.is_some() {
-            filters.push(format!("user_id = ${index}"));
+            filters.push(format!("rewards.user_id = ${index}"));
             index += 1;
         }
         if available.is_some() {
-            filters.push(format!("available = ${index}"));
+            filters.push(format!("rewards.available = ${index}"));
         }
 
-        let mut query = "SELECT * FROM rewards".to_string();
+        let mut query = r#"
+        SELECT
+            rewards.*, users.twitter_id, users.twitter_username, tweets.tweet_id tweet_twitter_id
+        FROM rewards
+        JOIN users ON users.id = rewards.user_id
+        JOIN tweets ON tweets.id = rewards.tweet_id"#
+            .to_string();
 
         if !filters.is_empty() {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
         }
 
-        query.push_str(" ORDER BY created_at DESC OFFSET $1 LIMIT $2");
+        query.push_str(" ORDER BY rewards.created_at DESC OFFSET $1 LIMIT $2");
 
-        let mut sql_query = sqlx::query_as::<_, Reward>(&query).bind(offset).bind(limit);
+        let mut sql_query = sqlx::query_as::<_, RewardWithUserAndTweet>(&query)
+            .bind(offset)
+            .bind(limit);
 
         if let Some(user_id) = user_id {
             sql_query = sql_query.bind(user_id);

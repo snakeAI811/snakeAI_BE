@@ -13,7 +13,7 @@ use base64::{Engine, engine};
 use types::{
     dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
-    model::{Profile, Reward, TweetWithUser, User},
+    model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
 
 pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
@@ -80,7 +80,7 @@ pub async fn get_rewards(
     Extension(user): Extension<User>,
     Query(opts): Query<GetRewardsQuery>,
     State(state): State<AppState>,
-) -> Result<Json<Vec<Reward>>, ApiError> {
+) -> Result<Json<Vec<RewardWithUserAndTweet>>, ApiError> {
     let rewards = state
         .service
         .reward

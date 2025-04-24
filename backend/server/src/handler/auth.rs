@@ -18,7 +18,7 @@ use twitter_v2::{
     authorization::Scope,
     oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier},
 };
-use types::error::ApiError;
+use types::{error::ApiError, model::RewardUtils};
 use uuid::Uuid;
 
 pub async fn login(State(state): State<AppState>) -> impl IntoResponse {
@@ -146,9 +146,12 @@ pub async fn get_qrcode(
     Path(reward_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
     if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
-        let redirect_url = format!("{}/claim/{}", state.env.frontend_url, reward.id);
-        let file_content: Vec<u8> =
-            qrcode_generator::to_png_to_vec(&redirect_url, QrCodeEcc::Low, 256).unwrap();
+        let file_content: Vec<u8> = qrcode_generator::to_png_to_vec(
+            &reward.get_reward_url(&state.env.frontend_url),
+            QrCodeEcc::Low,
+            256,
+        )
+        .unwrap();
         Ok((StatusCode::OK, [(CONTENT_TYPE, "image/png")], file_content))
     } else {
         Err(ApiError::BadRequest("Invalid reward id".to_string()))
