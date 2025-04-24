@@ -76,11 +76,11 @@ impl RewardRepository {
         let mut filters = vec![];
         let mut index = 3;
         if user_id.is_some() {
-            filters.push(format!("user_id = ${index}"));
+            filters.push(format!("rewards.user_id = ${index}"));
             index += 1;
         }
         if available.is_some() {
-            filters.push(format!("available = ${index}"));
+            filters.push(format!("rewards.available = ${index}"));
         }
 
         let mut query = r#"
@@ -95,7 +95,7 @@ impl RewardRepository {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
         }
 
-        query.push_str(" ORDER BY created_at DESC OFFSET $1 LIMIT $2");
+        query.push_str(" ORDER BY rewards.created_at DESC OFFSET $1 LIMIT $2");
 
         let mut sql_query = sqlx::query_as::<_, RewardWithUserAndTweet>(&query)
             .bind(offset)
