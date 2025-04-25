@@ -327,6 +327,10 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         };
 
         if let Some(user) = user {
+            if user.twitter_id == env.play_snake_ai_id {
+                continue;
+            }
+
             let created_at = DateTime::parse_from_rfc3339(&t.created_at)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or(Utc::now());
