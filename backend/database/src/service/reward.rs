@@ -29,7 +29,10 @@ impl RewardService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn get_available_reward(&self, user_id: &Uuid) -> Result<Option<Reward>, ApiError> {
+    pub async fn get_available_reward(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<Option<RewardWithUserAndTweet>, ApiError> {
         self.reward_repo
             .get_available_reward(user_id)
             .await

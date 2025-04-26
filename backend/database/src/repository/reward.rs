@@ -43,10 +43,16 @@ impl RewardRepository {
     pub async fn get_available_reward(
         &self,
         user_id: &Uuid,
-    ) -> Result<Option<Reward>, sqlx::Error> {
+    ) -> Result<Option<RewardWithUserAndTweet>, sqlx::Error> {
         let reward = sqlx::query_as!(
-            Reward,
-            "SELECT * FROM rewards WHERE user_id = $1 AND available = true",
+            RewardWithUserAndTweet,
+            r#"
+            SELECT
+                rewards.*, users.twitter_id, users.twitter_username, tweets.tweet_id tweet_twitter_id
+            FROM rewards
+            JOIN users ON users.id = rewards.user_id
+            JOIN tweets ON tweets.id = rewards.tweet_id
+            WHERE rewards.user_id = $1 AND rewards.available = true"#,
             user_id,
         )
         .fetch_optional(self.db_conn.get_pool())

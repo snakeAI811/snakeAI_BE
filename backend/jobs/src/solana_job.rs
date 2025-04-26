@@ -9,8 +9,10 @@ use solana_client::{
 };
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use solana_transaction_status::{UiTransactionEncoding, option_serializer::OptionSerializer};
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 use utils::env::Env;
+
+use crate::twitter_job::TwitterClient;
 
 pub struct SolanaClient {
     client: RpcClient,
@@ -92,7 +94,7 @@ impl SolanaClient {
     pub fn get_transactions(
         &self,
         latest_transaction_signature: Option<String>,
-    ) -> Result<(Vec<ClaimTx>, Option<String>), Box<dyn Error>> {
+    ) -> Result<(Vec<ClaimTx>, Option<String>), anyhow::Error> {
         let latest_transaction_signature = latest_transaction_signature
             .as_ref()
             .and_then(|tx| Signature::from_str(tx).ok());
@@ -134,7 +136,16 @@ impl SolanaClient {
     }
 }
 
-pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error>> {
+pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
+    let twitter_client = TwitterClient::new(
+        env.twitter_bearer_token,
+        env.twitter_access_token,
+        env.twitter_access_token_secret,
+        env.twitter_api_key,
+        env.twitter_api_key_secret,
+    );
+    let mut media_id = None;
+
     let client = SolanaClient::new(&env.solana_rpc_url, snake_contract::ID);
 
     let latest_transaction_signature = service.util.get_latest_transaction_signature().await?;
@@ -175,6 +186,26 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), Box<dyn Error
                     )
                     .await
                     .ok();
+
+                if media_id.is_none() {
+                    media_id = match twitter_client.upload_media("./gifs/dead-snake.mp4").await {
+                        Ok((media_id, _)) => Some(media_id),
+                        Err(err) => {
+                            println!("uploading media: {:?}", err);
+                            continue;
+                        }
+                    };
+                }
+
+                match twitter_client
+                    .reply_with_media("", &media_id, &reward.tweet_twitter_id)
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(err) => {
+                        println!("send dead snake gif error: {:?}", err);
+                    }
+                }
             }
         }
     }

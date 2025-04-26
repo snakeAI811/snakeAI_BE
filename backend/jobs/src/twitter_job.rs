@@ -1,12 +1,12 @@
 use anyhow::anyhow;
 use chrono::{DateTime, Days, Duration, Utc};
 use database::AppService;
-use qrcode_generator::QrCodeEcc;
 use reqwest::multipart::{Form, Part};
 use reqwest_oauth1::{OAuthClientProvider, Secrets};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashSet, sync::Arc};
+use tokio::fs;
 use types::model::RewardUtils;
 use utils::env::Env;
 
@@ -177,11 +177,10 @@ impl TwitterClient {
         Ok((result, latest_tweet_id))
     }
 
-    pub async fn upload_media(&self, text: &str) -> Result<(String, i64), anyhow::Error> {
+    pub async fn upload_media(&self, path: &str) -> Result<(String, i64), anyhow::Error> {
         let endpoint = "https://api.twitter.com/2/media/upload";
 
-        let file_content: Vec<u8> =
-            qrcode_generator::to_png_to_vec(text, QrCodeEcc::Low, 256).unwrap();
+        let file_content = fs::read(path).await?;
 
         let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
             .token(&self.access_token, &self.access_token_secret);
@@ -312,7 +311,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         .await?;
 
     let mut cnt = 0;
-
+    let mut media_id = None;
     // Prepare tweets to insert into database
     for t in &new_tweets {
         // Get user
@@ -434,13 +433,22 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
         for reward in &rewards {
+            if media_id.is_none() {
+                media_id = match client.upload_media("./gifs/alive-snake.mp4").await {
+                    Ok((media_id, _)) => Some(media_id),
+                    Err(err) => {
+                        println!("uploading media: {:?}", err);
+                        continue;
+                    }
+                };
+            }
             match client
                 .reply_with_media(
                     &format!(
                         "Click the link to claim. {}",
                         reward.get_reward_url(&env.frontend_url)
                     ),
-                    &None,
+                    &media_id,
                     &reward.tweet_id,
                 )
                 .await

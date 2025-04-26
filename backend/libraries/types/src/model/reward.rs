@@ -86,3 +86,13 @@ impl RewardUtils for Reward {
         &self.id
     }
 }
+
+impl RewardUtils for RewardWithUserAndTweet {
+    fn media_id_expires_at(&self) -> Option<chrono::DateTime<Utc>> {
+        self.media_id_expires_at
+    }
+
+    fn id(&self) -> &Uuid {
+        &self.id
+    }
+}
