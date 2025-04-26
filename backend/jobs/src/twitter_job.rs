@@ -327,6 +327,10 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         };
 
         if let Some(user) = user {
+            if user.twitter_id == env.play_snake_ai_id {
+                continue;
+            }
+
             let created_at = DateTime::parse_from_rfc3339(&t.created_at)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or(Utc::now());
@@ -339,7 +343,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             {
                 // Create reward if conditions are met
                 let mut text = String::new();
-                let mut reward_url = String::new();
 
                 let should_create_reward = match follow_users.contains(&user.twitter_id) {
                     true => {
@@ -348,9 +351,9 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                             Some(reward) => {
                                 // Reward already exists
                                 text = format!(
-                                    "You have already available reward. Scan QR code to claim"
+                                    "You have already available reward. Click the link to claim. {}",
+                                    reward.get_reward_url(&env.frontend_url)
                                 );
-                                reward_url = reward.get_reward_url(&env.frontend_url);
 
                                 false
                             }
@@ -390,27 +393,15 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 };
 
                 println!(
-                    "log: should_create_reward: {}, text: {}, redirect_url: {}",
-                    should_create_reward, text, reward_url
+                    "log: should_create_reward: {}, text: {}",
+                    should_create_reward, text
                 );
 
                 if should_create_reward {
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
                     cnt += 1;
                 } else {
-                    let media_id = if !reward_url.is_empty() {
-                        match client.upload_media(&reward_url).await {
-                            Ok((media_id, _)) => Some(media_id),
-                            Err(err) => {
-                                println!("upload_media error: {:?}", err);
-                                continue;
-                            }
-                        }
-                    } else {
-                        None
-                    };
-
-                    match client.reply_with_media(&text, &media_id, &t.id).await {
+                    match client.reply_with_media(&text, &None, &t.id).await {
                         Ok(_) => {}
                         Err(err) => {
                             println!("send message error: {:?}", err);
@@ -443,44 +434,13 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
         for reward in &rewards {
-            let media_id = if !reward.media_available() {
-                match client
-                    .upload_media(&reward.get_reward_url(&env.frontend_url))
-                    .await
-                {
-                    Ok((media_id, expires_after_secs)) => {
-                        match service
-                            .reward
-                            .update_reward_media_data(
-                                &reward.id,
-                                &media_id,
-                                &(Utc::now() + Duration::seconds(expires_after_secs)),
-                            )
-                            .await
-                        {
-                            Ok(ok) => ok.media_id,
-                            Err(err) => {
-                                println!("update db error: {:?}", err);
-                                continue;
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        println!("upload_media error: {:?}", err);
-                        continue;
-                    }
-                }
-            } else {
-                reward.media_id.clone()
-            };
-            if media_id.is_none() {
-                continue;
-            }
-
             match client
                 .reply_with_media(
-                    "Scan QR code to claim",
-                    &Some(media_id.unwrap()),
+                    &format!(
+                        "Click the link to claim. {}",
+                        reward.get_reward_url(&env.frontend_url)
+                    ),
+                    &None,
                     &reward.tweet_id,
                 )
                 .await

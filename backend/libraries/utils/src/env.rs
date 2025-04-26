@@ -23,6 +23,7 @@ pub struct Env {
     pub token_mint: String,
     pub solana_job_schedule: String,
     pub solana_rpc_url: String,
+    pub play_snake_ai_id: String,
 }
 
 impl Env {
@@ -81,6 +82,9 @@ impl Env {
             std::env::var("SOLANA_JOB_SCHEDULE").expect("SOLANA_JOB_SCHEDULE must be set");
         let solana_rpc_url = std::env::var("SOLANA_RPC_URL").expect("SOLANA_RPC_URL must be set");
 
+        let play_snake_ai_id =
+            std::env::var("PLAY_SNAKE_AI_id").expect("PLAY_SNAKE_AI_id must be set");
+
         Self {
             port,
             session_ttl_in_minutes,
@@ -101,6 +105,7 @@ impl Env {
             token_mint,
             solana_job_schedule,
             solana_rpc_url,
+            play_snake_ai_id,
         }
     }
 

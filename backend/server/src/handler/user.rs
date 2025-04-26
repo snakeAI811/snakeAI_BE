@@ -95,7 +95,7 @@ pub async fn get_tweets(
     Query(opts): Query<GetTweetsQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<TweetWithUser>>, ApiError> {
-    let user_id = if user.twitter_username.unwrap_or_default() == "playSnakeAI" {
+    let user_id = if user.twitter_id == state.env.play_snake_ai_id {
         None
     } else {
         Some(user.id)
