@@ -351,7 +351,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                             Some(reward) => {
                                 // Reward already exists
                                 text = format!(
-                                    "You have already available reward. Click the link to claim. {}",
+                                    "You can claim. Click the link to claim. {}",
                                     reward.get_reward_url(&env.frontend_url)
                                 );
 

@@ -28,8 +28,14 @@ pub async fn get_profile(
     State(state): State<AppState>,
     Extension(user): Extension<User>,
 ) -> Result<Json<Profile>, ApiError> {
+    let user_id = if user.twitter_id == state.env.play_snake_ai_id {
+        None
+    } else {
+        Some(user.id)
+    };
+
     let reward_balance = state.service.reward.get_reward_balance(&user.id).await?;
-    let tweets = state.service.tweet.get_tweets_count().await?;
+    let tweets = state.service.tweet.get_tweets_count(&user_id).await?;
     Ok(Json(Profile {
         twitter_username: user.twitter_username.unwrap_or_default(),
         wallet_address: user.wallet_address.unwrap_or_default(),
@@ -81,10 +87,16 @@ pub async fn get_rewards(
     Query(opts): Query<GetRewardsQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<RewardWithUserAndTweet>>, ApiError> {
+    let user_id = if user.twitter_id == state.env.play_snake_ai_id {
+        None
+    } else {
+        Some(user.id)
+    };
+
     let rewards = state
         .service
         .reward
-        .get_rewards(&Some(user.id), opts.offset, opts.limit, opts.available)
+        .get_rewards(&user_id, opts.offset, opts.limit, opts.available)
         .await?;
 
     Ok(Json(rewards))

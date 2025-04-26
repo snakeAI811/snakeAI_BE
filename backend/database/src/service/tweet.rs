@@ -33,9 +33,9 @@ impl TweetService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn get_tweets_count(&self) -> Result<i64, ApiError> {
+    pub async fn get_tweets_count(&self, user_id: &Option<Uuid>) -> Result<i64, ApiError> {
         self.tweet_repo
-            .get_tweets_count()
+            .get_tweets_count(user_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

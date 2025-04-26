@@ -41,10 +41,16 @@ impl TweetRepository {
         Ok(tweet)
     }
 
-    pub async fn get_tweets_count(&self) -> Result<i64, sqlx::Error> {
-        let tweet = sqlx::query_scalar!("SELECT COUNT(*) FROM tweets")
-            .fetch_one(self.db_conn.get_pool())
-            .await?;
+    pub async fn get_tweets_count(&self, user_id: &Option<Uuid>) -> Result<i64, sqlx::Error> {
+        let tweet = if let Some(user_id) = user_id {
+            sqlx::query_scalar!("SELECT COUNT(*) FROM tweets WHERE user_id = $1", user_id)
+                .fetch_one(self.db_conn.get_pool())
+                .await?
+        } else {
+            sqlx::query_scalar!("SELECT COUNT(*) FROM tweets")
+                .fetch_one(self.db_conn.get_pool())
+                .await?
+        };
 
         Ok(tweet.unwrap_or_default())
     }
