@@ -188,7 +188,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     .ok();
 
                 if media_id.is_none() {
-                    media_id = match twitter_client.upload_media("./gifs/dead-snake.mp4").await {
+                    media_id = match twitter_client.upload_media("./gifs/playsnake.gif").await {
                         Ok((media_id, _)) => Some(media_id),
                         Err(err) => {
                             println!("uploading media: {:?}", err);

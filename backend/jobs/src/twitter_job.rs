@@ -311,7 +311,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         .await?;
 
     let mut cnt = 0;
-    let mut media_id = None;
     // Prepare tweets to insert into database
     for t in &new_tweets {
         // Get user
@@ -433,22 +432,13 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
         for reward in &rewards {
-            if media_id.is_none() {
-                media_id = match client.upload_media("./gifs/alive-snake.mp4").await {
-                    Ok((media_id, _)) => Some(media_id),
-                    Err(err) => {
-                        println!("uploading media: {:?}", err);
-                        continue;
-                    }
-                };
-            }
             match client
                 .reply_with_media(
                     &format!(
                         "Click the link to claim. {}",
                         reward.get_reward_url(&env.frontend_url)
                     ),
-                    &media_id,
+                    &None,
                     &reward.tweet_id,
                 )
                 .await
