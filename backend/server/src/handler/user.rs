@@ -11,7 +11,7 @@ use axum::{
 };
 use base64::{Engine, engine};
 use types::{
-    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
+    dto::{GetClaimTransactionRequest, GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
@@ -128,14 +128,12 @@ const USER_CLAIM_SEED: &[u8] = b"user_claim";
 pub async fn get_claim_tx(
     Extension(user): Extension<User>,
     State(state): State<AppState>,
+    ValidatedRequest(payload): ValidatedRequest<GetClaimTransactionRequest>,
 ) -> Result<Json<String>, ApiError> {
-    if state
-        .service
-        .reward
-        .get_available_reward(&user.id)
-        .await?
-        .is_some()
-    {
+    if let Some(reward) = state.service.reward.get_available_reward(&user.id).await? {
+        if reward.id != payload.reward_id {
+            return Err(ApiError::BadRequest("Invalid reward id".to_string()));
+        }
         if let Some(wallet) = user.wallet() {
             let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
             let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
