@@ -1,4 +1,4 @@
-pub const REWARD_POOL_SEED: &[u8] = b"reward_pool";
+pub const REWARD_POOL_SEED: &[u8] = b"reward_pool_v2";
 pub const USER_CLAIM_SEED: &[u8] = b"user_claim";
 pub const LAMPORTS_PER_SNK: u64 = 1_000_000_000;
 

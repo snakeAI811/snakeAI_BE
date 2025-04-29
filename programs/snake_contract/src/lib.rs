@@ -31,4 +31,8 @@ pub mod snake_contract {
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         instructions::claim_reward(ctx)
     }
+
+    pub fn withdraw(ctx: Context<Withdraw>, args: WithdrawParams) -> Result<()> {
+        instructions::withdraw(ctx, args)
+    }
 }

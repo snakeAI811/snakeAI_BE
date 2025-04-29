@@ -109,8 +109,23 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     );
 
     reward_pool
+        .tweet_number
+        .checked_add(1)
+        .ok_or(SnakeError::ArithmeticOverflow)?;
+
+    reward_pool
         .minted_accum
         .checked_add(total_required)
+        .ok_or(SnakeError::ArithmeticOverflow)?;
+
+    reward_pool
+        .burned
+        .checked_add(burn_amount)
+        .ok_or(SnakeError::ArithmeticOverflow)?;
+
+    reward_pool
+        .airdropped
+        .checked_add(reward_amount)
         .ok_or(SnakeError::ArithmeticOverflow)?;
 
     // Transfer $SNK tokens from pool to buyer
