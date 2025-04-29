@@ -108,22 +108,22 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         SnakeError::InsufficientFundsInTreasury
     );
 
-    reward_pool
+    reward_pool.tweet_number = reward_pool
         .tweet_number
         .checked_add(1)
         .ok_or(SnakeError::ArithmeticOverflow)?;
 
-    reward_pool
+    reward_pool.minted_accum = reward_pool
         .minted_accum
         .checked_add(total_required)
         .ok_or(SnakeError::ArithmeticOverflow)?;
 
-    reward_pool
+    reward_pool.burned = reward_pool
         .burned
         .checked_add(burn_amount)
         .ok_or(SnakeError::ArithmeticOverflow)?;
 
-    reward_pool
+    reward_pool.airdropped = reward_pool
         .airdropped
         .checked_add(reward_amount)
         .ok_or(SnakeError::ArithmeticOverflow)?;

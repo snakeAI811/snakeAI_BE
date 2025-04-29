@@ -187,8 +187,8 @@ impl TwitterClient {
 
         // Create multipart form data
         let part = Part::bytes(file_content)
-            .file_name("qrcode.png")
-            .mime_str("image/png")?;
+            .file_name("snake.gif")
+            .mime_str("image/gif")?;
         let form = Form::new().part("media", part);
 
         let response = reqwest::Client::new()
