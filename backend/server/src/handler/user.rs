@@ -6,10 +6,10 @@ use anchor_client::solana_sdk::{
     transaction::Transaction,
 };
 use axum::{
-    Extension, Json,
     extract::{Query, State},
+    Extension, Json,
 };
-use base64::{Engine, engine};
+use base64::{engine, Engine};
 use types::{
     dto::{GetClaimTransactionRequest, GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
@@ -122,7 +122,7 @@ pub async fn get_tweets(
     Ok(Json(tweets))
 }
 
-const REWARD_POOL_SEED: &[u8] = b"reward_pool";
+const REWARD_POOL_SEED: &[u8] = b"reward_pool_v2";
 const USER_CLAIM_SEED: &[u8] = b"user_claim";
 
 pub async fn get_claim_tx(
