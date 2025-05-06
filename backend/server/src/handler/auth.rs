@@ -1,22 +1,22 @@
 use crate::state::{AppState, TwitterChallenge};
 use axum::{
-    Json,
     extract::{ConnectInfo, Path, Query, State},
     response::{IntoResponse, Redirect},
+    Json,
 };
 use axum_extra::{
-    TypedHeader,
-    extract::{CookieJar, cookie::Cookie},
+    extract::{cookie::Cookie, CookieJar},
     headers::UserAgent,
+    TypedHeader,
 };
-use hyper::{StatusCode, header::CONTENT_TYPE};
+use hyper::{header::CONTENT_TYPE, StatusCode};
 use qrcode_generator::QrCodeEcc;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use twitter_v2::{
-    TwitterApi,
     authorization::Scope,
     oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier},
+    TwitterApi,
 };
 use types::{error::ApiError, model::RewardUtils};
 use uuid::Uuid;

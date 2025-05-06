@@ -8,7 +8,7 @@ use solana_client::{
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use solana_transaction_status::{UiTransactionEncoding, option_serializer::OptionSerializer};
+use solana_transaction_status::{option_serializer::OptionSerializer, UiTransactionEncoding};
 use std::{str::FromStr, sync::Arc};
 use utils::env::Env;
 

@@ -292,6 +292,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         env.twitter_api_key,
         env.twitter_api_key_secret,
     );
+    let mut media_id = None;
 
     // Fetch latest_tweet_id what I fetched last
     let latest_tweet_id = service.util.get_latest_tweet_id().await?;
@@ -399,7 +400,19 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     service.reward.insert_reward(&user.id, &tweet.id).await.ok();
                     cnt += 1;
                 } else {
-                    match client.reply_with_media(&text, &None, &t.id).await {
+                    if media_id.is_none() {
+                        media_id = match client
+                            .upload_media("./gifs/snakeai_eatingtweet-5.gif")
+                            .await
+                        {
+                            Ok((media_id, _)) => Some(media_id),
+                            Err(err) => {
+                                println!("uploading media: {:?}", err);
+                                continue;
+                            }
+                        };
+                    }
+                    match client.reply_with_media(&text, &media_id, &t.id).await {
                         Ok(_) => {}
                         Err(err) => {
                             println!("send message error: {:?}", err);
@@ -432,13 +445,25 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
         for reward in &rewards {
+            if media_id.is_none() {
+                media_id = match client
+                    .upload_media("./gifs/snakeai_eatingtweet-5.gif")
+                    .await
+                {
+                    Ok((media_id, _)) => Some(media_id),
+                    Err(err) => {
+                        println!("uploading media: {:?}", err);
+                        continue;
+                    }
+                };
+            }
             match client
                 .reply_with_media(
                     &format!(
                         "Click the link to claim. {}",
                         reward.get_reward_url(&env.frontend_url)
                     ),
-                    &None,
+                    &media_id,
                     &reward.tweet_id,
                 )
                 .await
