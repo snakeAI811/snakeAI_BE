@@ -20,3 +20,4 @@ pub struct ClaimedReward {
     pub burn_amount: u64,
     pub reward_level: u8,
 }
+
