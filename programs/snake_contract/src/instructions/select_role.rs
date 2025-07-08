@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::state::{UserClaim, UserRole};
+use crate::errors::SnakeError;
 
 #[derive(Accounts)]
 pub struct SelectRole<'info> {
@@ -15,13 +16,24 @@ pub struct SelectRole<'info> {
 
 pub fn select_role(ctx: Context<SelectRole>, role: UserRole) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
-    require!(user_claim.initialized, CustomError::UserNotInitialized);
+    require!(user_claim.initialized, SnakeError::Unauthorized);
+    
+    // Validate role transition
+    match (&user_claim.role, &role) {
+        (UserRole::None, _) => {
+            // Normal users can select any role
+        },
+        (UserRole::Staker, UserRole::Patron) => {
+            // Stakers can upgrade to Patron
+        },
+        (current_role, new_role) if current_role == new_role => {
+            // Same role is allowed (no change)
+        },
+        _ => {
+            return Err(SnakeError::InvalidRoleTransition.into());
+        }
+    }
+    
     user_claim.role = role;
     Ok(())
-}
-
-#[error_code]
-pub enum CustomError {
-    #[msg("User not initialized")] 
-    UserNotInitialized,
 }

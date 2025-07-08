@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Mint, Transfer};
-use crate::state::{UserClaim, UserRole};
+use crate::{
+    errors::SnakeError,
+    state::{UserClaim, UserRole, RewardPool},
+};
 
 #[derive(Accounts)]
 pub struct ClaimTokensWithRole<'info> {
@@ -17,17 +20,17 @@ pub struct ClaimTokensWithRole<'info> {
     #[account(mut)]
     pub user_token_ata: Account<'info, TokenAccount>,
     
-    /// Treasury PDA that has authority over the treasury token account
+    /// Reward Pool PDA that has authority over the treasury token account
     #[account(
-        seeds = [b"treasury"],
+        seeds = [b"reward_pool"],
         bump,
     )]
-    pub treasury_pda: SystemAccount<'info>,
+    pub reward_pool_pda: Account<'info, RewardPool>,
     
-    /// Treasury token account owned by the treasury PDA
+    /// Treasury token account owned by the reward pool PDA
     #[account(
         mut,
-        constraint = treasury_token_account.owner == treasury_pda.key(),
+        constraint = treasury_token_account.owner == reward_pool_pda.key() @ SnakeError::InvalidTreasuryAuthority,
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
     
@@ -40,31 +43,31 @@ pub struct ClaimTokensWithRole<'info> {
 pub fn claim_tokens_with_role(ctx: Context<ClaimTokensWithRole>, amount: u64, role: UserRole) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     
-    require!(user_claim.initialized, CustomError::UserNotInitialized);
-    require!(user_claim.role == UserRole::None, CustomError::RoleAlreadySelected);
+    require!(user_claim.initialized, SnakeError::Unauthorized);
+    require!(user_claim.role == UserRole::None, SnakeError::InvalidRoleTransition);
     
     // Set the user's role
     user_claim.role = role;
     
-    // Create signer seeds for treasury PDA
-    let treasury_bump = ctx.bumps.treasury_pda;
-    let treasury_signer_seeds: &[&[u8]] = &[
-        b"treasury",
-        &[treasury_bump],
+    // Create signer seeds for reward pool PDA
+    let reward_pool_bump = ctx.bumps.reward_pool_pda;
+    let reward_pool_signer_seeds: &[&[u8]] = &[
+        b"reward_pool",
+        &[reward_pool_bump],
     ];
-    let treasury_signer = &[treasury_signer_seeds];
+    let reward_pool_signer = &[reward_pool_signer_seeds];
     
     // Transfer tokens from treasury to user
     let cpi_accounts = Transfer {
         from: ctx.accounts.treasury_token_account.to_account_info(),
         to: ctx.accounts.user_token_ata.to_account_info(),
-        authority: ctx.accounts.treasury_pda.to_account_info(), // Treasury PDA signs
+        authority: ctx.accounts.reward_pool_pda.to_account_info(), // Reward Pool PDA signs
     };
     
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(), 
         cpi_accounts,
-        treasury_signer, // Provide PDA signer
+        reward_pool_signer, // Provide PDA signer
     );
     
     token::transfer(cpi_ctx, amount)?;
@@ -72,10 +75,3 @@ pub fn claim_tokens_with_role(ctx: Context<ClaimTokensWithRole>, amount: u64, ro
     Ok(())
 }
 
-#[error_code]
-pub enum CustomError {
-    #[msg("User not initialized")] 
-    UserNotInitialized,
-    #[msg("Role already selected")] 
-    RoleAlreadySelected,
-}
