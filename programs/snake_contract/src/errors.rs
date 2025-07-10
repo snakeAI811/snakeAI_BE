@@ -120,6 +120,8 @@ pub enum SnakeError {
     InvalidRoleTransition,
     #[msg("Insufficient qualification score for patron")]
     InsufficientQualificationScore,
+    #[msg("No mining history - user must mine tokens in Phase 1")]
+    NoMiningHistory,
     
     // ========== VESTING ERRORS ==========
     

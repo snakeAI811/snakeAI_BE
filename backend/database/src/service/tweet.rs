@@ -26,9 +26,10 @@ impl TweetService {
         user_id: &Uuid,
         tweet_id: &str,
         created_at: &DateTime<Utc>,
+        mining_phase: &str,
     ) -> Result<Tweet, ApiError> {
         self.tweet_repo
-            .insert_tweet(user_id, tweet_id, created_at)
+            .insert_tweet(user_id, tweet_id, created_at, mining_phase)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
@@ -48,6 +49,32 @@ impl TweetService {
     ) -> Result<Vec<TweetWithUser>, ApiError> {
         self.tweet_repo
             .get_tweets(user_id, offset, limit)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_phase2_mining_count(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.tweet_repo
+            .get_phase2_mining_count(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_phase1_mining_count(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.tweet_repo
+            .get_phase1_mining_count(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_tweets_by_phase(
+        &self,
+        user_id: &Option<Uuid>,
+        mining_phase: &str,
+    ) -> Result<Vec<Tweet>, ApiError> {
+        let user_id_str = user_id.as_ref().map(|id| id.to_string());
+        self.tweet_repo
+            .get_tweets_by_phase(&user_id_str, mining_phase)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

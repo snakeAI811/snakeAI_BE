@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::{
-    state::{VestingAccount, VestingRoleType, RewardPool},
+    state::{VestingAccount, VestingRoleType, RewardPool, UserClaim, UserRole},
     events::{VestingCreated, VestingWithdrawn},
     errors::SnakeError,
 };
@@ -11,6 +11,13 @@ use crate::{
 pub struct CreateVesting<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"user_claim", user.key().as_ref()],
+        bump,
+    )]
+    pub user_claim: Account<'info, UserClaim>,
     
     #[account(
         init,
@@ -47,13 +54,41 @@ pub fn create_vesting(
 ) -> Result<()> {
     require!(amount > 0, SnakeError::CannotLockZeroTokens);
     
+    let user_claim = &mut ctx.accounts.user_claim;
     let vesting_account = &mut ctx.accounts.vesting_account;
+    
+    // Validate user is initialized and has proper role
+    require!(user_claim.initialized, SnakeError::Unauthorized);
+    
+    // Validate role compatibility
+    match (&user_claim.role, role_type) {
+        (UserRole::Staker, VestingRoleType::Staker) => {
+            // Staker can create staker vesting
+        },
+        (UserRole::Patron, VestingRoleType::Patron) => {
+            // Patron can create patron vesting
+        },
+        _ => {
+            return Err(SnakeError::InvalidRoleTransition.into());
+        }
+    }
+    
+    // Initialize vesting account
     vesting_account.init(
         ctx.accounts.user.key(),
         amount,
         role_type.clone(),
         ctx.bumps.vesting_account,
     )?;
+    
+    // Update user claim with vesting information
+    user_claim.locked_amount = amount;
+    user_claim.lock_start_timestamp = Clock::get()?.unix_timestamp;
+    user_claim.lock_end_timestamp = vesting_account.unlock_timestamp;
+    user_claim.lock_duration_months = match role_type {
+        VestingRoleType::Staker => 3,
+        VestingRoleType::Patron => 6,
+    };
     
     // Transfer tokens to escrow
     let cpi_accounts = Transfer {
@@ -84,6 +119,13 @@ pub fn create_vesting(
 pub struct WithdrawVesting<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"user_claim", user.key().as_ref()],
+        bump,
+    )]
+    pub user_claim: Account<'info, UserClaim>,
     
     #[account(
         mut,
@@ -127,12 +169,20 @@ pub struct WithdrawVesting<'info> {
 }
 
 pub fn withdraw_vesting(ctx: Context<WithdrawVesting>) -> Result<()> {
+    let user_claim = &mut ctx.accounts.user_claim;
     let vesting_account = &mut ctx.accounts.vesting_account;
     let user_key = ctx.accounts.user.key();
     
     // Calculate yield for stakers
     let yield_amount = vesting_account.calculate_yield()?;
     let total_withdrawal = vesting_account.amount + yield_amount;
+    
+    // Update user claim lock status
+    user_claim.locked_amount = 0;
+    user_claim.lock_start_timestamp = 0;
+    user_claim.lock_end_timestamp = 0;
+    user_claim.total_yield_claimed += yield_amount;
+    user_claim.last_yield_claim_timestamp = Clock::get()?.unix_timestamp;
     
     // Create PDA signer seeds
     let signer_seeds = &[

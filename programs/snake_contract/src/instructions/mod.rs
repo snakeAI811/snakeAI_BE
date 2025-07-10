@@ -34,15 +34,9 @@ pub use sellback_to_project::*;
 pub mod initialize_user_claim;
 pub use initialize_user_claim::*;
 
-// // New patron-related instructions
-// pub mod apply_as_patron;
-// pub use apply_as_patron::*;
-
-// pub mod confirm_patron;
-// pub use confirm_patron::*;
-
-// pub mod exit_as_patron;
-// pub use exit_as_patron::*;
+// New patron-related instructions
+pub mod patron_application;
+pub use patron_application::*;
 
 // Lock and staking instructions
 pub mod lock_tokens;

@@ -84,7 +84,7 @@ impl UserService {
         wallet_address: &str,
     ) -> Result<User, ApiError> {
         self.user_repo
-            .set_wallet_address(user_id, wallet_address)
+            .set_wallet_address_by_uuid(user_id, wallet_address)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
@@ -96,6 +96,59 @@ impl UserService {
     ) -> Result<User, ApiError> {
         self.user_repo
             .set_latest_claim_timestamp(user_id, latest_claim_timestamp)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_user_by_id(&self, user_id: &Uuid) -> Result<Option<User>, ApiError> {
+        self.user_repo
+            .get_user_by_user_id(user_id)
+            .await
+            .map(Some)
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn update_patron_status(
+        &self,
+        user_id: &Uuid,
+        patron_status: &str,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .update_patron_status(user_id, patron_status)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn update_selected_role(
+        &self,
+        user_id: &Uuid,
+        selected_role: &str,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .update_selected_role(user_id, selected_role)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn update_lock_details(
+        &self,
+        user_id: &Uuid,
+        lock_duration_months: i32,
+        lock_amount: i64,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .update_lock_details(user_id, lock_duration_months, lock_amount)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_wallet_address_by_uuid(
+        &self,
+        user_id: &Uuid,
+        wallet_address: &str,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .set_wallet_address_by_uuid(user_id, wallet_address)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

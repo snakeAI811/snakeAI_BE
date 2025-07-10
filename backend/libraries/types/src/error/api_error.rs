@@ -17,6 +17,8 @@ pub enum ApiError {
     SessionInvalid,
     #[error("Session is expired")]
     SessionExpired,
+    #[error("{0}")]
+    NotFound(String),
 }
 
 impl IntoResponse for ApiError {
@@ -34,6 +36,9 @@ impl IntoResponse for ApiError {
             }
             ApiError::SessionExpired => {
                 ApiErrorResponse::send(StatusCode::UNAUTHORIZED.as_u16(), Some(self.to_string()))
+            }
+            ApiError::NotFound(error) => {
+                ApiErrorResponse::send(StatusCode::NOT_FOUND.as_u16(), Some(error))
             }
         }
     }

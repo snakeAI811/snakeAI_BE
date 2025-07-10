@@ -335,10 +335,13 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or(Utc::now());
 
+            // Determine mining phase based on tweet creation time
+            let mining_phase = if env.get_mining_phase() == 2 { "Phase2" } else { "Phase1" };
+            
             // Insert tweet
             if let Ok(tweet) = service
                 .tweet
-                .insert_tweet(&user.id, &t.id, &created_at)
+                .insert_tweet(&user.id, &t.id, &created_at, mining_phase)
                 .await
             {
                 // Create reward if conditions are met

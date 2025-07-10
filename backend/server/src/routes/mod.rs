@@ -54,7 +54,9 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, COOKIE]);
 
-    let app_router = Router::new().nest("/api/v1", merged_router).layer(cors);
+    let app_router = Router::new()
+    .route("/", get(|| async { "🚀 Axum server is running!" }))
+    .nest("/api/v1", merged_router).layer(cors);
 
     app_router
 }

@@ -28,6 +28,10 @@ pub struct ClaimedReward {
 #[event]
 pub struct PatronApplicationSubmitted {
     pub user: Pubkey,
+    pub qualification_score: u32,
+    pub wallet_age_days: u32,
+    pub community_score: u32,
+    pub total_mined: u64,
     pub timestamp: i64,
 }
 

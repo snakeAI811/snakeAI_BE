@@ -42,8 +42,21 @@ impl UserRepository {
     }
 
     pub async fn get_user_by_user_id(&self, user_id: &Uuid) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id,)
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
             .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_id(&self, user_id: &str) -> Result<Option<User>, sqlx::Error> {
+        let parsed_id = match Uuid::parse_str(user_id) {
+            Ok(id) => id,
+            Err(_) => return Ok(None),
+        };
+
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", parsed_id)
+            .fetch_optional(self.db_conn.get_pool())
             .await?;
 
         Ok(user)
@@ -53,13 +66,9 @@ impl UserRepository {
         &self,
         twitter_id: &str,
     ) -> Result<Option<User>, sqlx::Error> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE twitter_id = $1",
-            twitter_id,
-        )
-        .fetch_optional(self.db_conn.get_pool())
-        .await?;
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE twitter_id = $1", twitter_id)
+            .fetch_optional(self.db_conn.get_pool())
+            .await?;
 
         Ok(user)
     }
@@ -71,7 +80,7 @@ impl UserRepository {
         let user = sqlx::query_as!(
             User,
             "SELECT * FROM users WHERE wallet_address = $1",
-            wallet_address,
+            wallet_address
         )
         .fetch_optional(self.db_conn.get_pool())
         .await?;
@@ -79,7 +88,7 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn set_wallet_address(
+    pub async fn set_wallet_address_by_uuid(
         &self,
         user_id: &Uuid,
         wallet_address: &str,
@@ -106,6 +115,80 @@ impl UserRepository {
             "UPDATE users SET latest_claim_timestamp = $1 WHERE id = $2 RETURNING *",
             latest_claim_timestamp,
             user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    // Patron Framework methods
+    pub async fn update_patron_status(
+        &self,
+        user_id: &Uuid,
+        patron_status: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET patron_status = $1 WHERE id = $2 RETURNING *",
+            patron_status,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_selected_role(
+        &self,
+        user_id: &Uuid,
+        selected_role: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET selected_role = $1 WHERE id = $2 RETURNING *",
+            selected_role,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_lock_details(
+        &self,
+        user_id: &Uuid,
+        lock_duration_months: i32,
+        locked_amount: i64,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET lock_duration_months = $1, locked_amount = $2 WHERE id = $3 RETURNING *",
+            lock_duration_months,
+            locked_amount,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &str,
+        wallet_address: &str,
+    ) -> Result<User, sqlx::Error> {
+        let parsed_id = Uuid::parse_str(user_id)
+            .map_err(|_| sqlx::Error::RowNotFound)?;
+
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET wallet_address = $1 WHERE id = $2 RETURNING *",
+            wallet_address,
+            parsed_id,
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;

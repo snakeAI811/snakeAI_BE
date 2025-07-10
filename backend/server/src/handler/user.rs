@@ -7,14 +7,38 @@ use anchor_client::solana_sdk::{
 };
 use axum::{
     Extension, Json,
-    extract::{Query, State},
+    extract::{Query, State, Path},
 };
 use base64::{Engine, engine};
+use serde_json::{json, Value};
 use types::{
     dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
+use serde::Deserialize;
+use uuid::Uuid;
+
+#[derive(Deserialize)]
+pub struct UpdatePatronStatusRequest {
+    pub patron_status: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserRoleRequest {
+    pub selected_role: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateLockDetailsRequest {
+    pub lock_duration_months: i32,
+    pub locked_amount: i64,
+}
+
+#[derive(Deserialize)]
+pub struct SetWalletAddressForUserRequest {
+    pub wallet_address: String,
+}
 
 pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
     Ok(Json(true))
@@ -39,6 +63,212 @@ pub async fn get_profile(
         likes: 0,
         replies: 0,
     }))
+}
+
+pub async fn get_mining_status(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> Result<Json<Value>, ApiError> {
+    let phase2_mining_count = state.service.tweet.get_phase2_mining_count(&user.id).await?;
+    let phase1_mining_count = state.service.tweet.get_phase1_mining_count(&user.id).await?;
+    let total_mining_count = phase1_mining_count + phase2_mining_count;
+    let current_phase = state.env.get_mining_phase();
+    let is_phase2 = state.env.is_phase2();
+    
+    Ok(Json(json!({
+        "phase1_mining_count": phase1_mining_count,
+        "phase2_mining_count": phase2_mining_count,
+        "total_mining_count": total_mining_count,
+        "current_phase": current_phase,
+        "is_phase2": is_phase2,
+        "phase2_start_date": state.env.phase2_start_date,
+        "user_id": user.id,
+        "wallet_address": user.wallet_address
+    })))
+}
+
+// New endpoint for getting mining status by user ID
+pub async fn get_user_mining_status(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+    
+    let user = state.service.user.get_user_by_id(&user_uuid).await?
+        .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
+    
+    let phase2_mining_count = state.service.tweet.get_phase2_mining_count(&user.id).await?;
+    let phase1_mining_count = state.service.tweet.get_phase1_mining_count(&user.id).await?;
+    let total_mining_count = phase1_mining_count + phase2_mining_count;
+    let current_phase = state.env.get_mining_phase();
+    let is_phase2 = state.env.is_phase2();
+    
+    Ok(Json(json!({
+        "phase1_mining_count": phase1_mining_count,
+        "phase2_mining_count": phase2_mining_count,
+        "total_mining_count": total_mining_count,
+        "current_phase": current_phase,
+        "is_phase2": is_phase2,
+        "phase2_start_date": state.env.phase2_start_date,
+        "wallet_address": user.wallet_address
+    })))
+}
+
+// Get user profile by user ID
+pub async fn get_user_profile(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+    
+    let user = state.service.user.get_user_by_id(&user_uuid).await?
+        .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
+    
+    Ok(Json(json!({
+        "id": user.id,
+        "username": user.twitter_username.unwrap_or_default(),
+        "wallet_address": user.wallet_address,
+        "patron_status": user.patron_status,
+        "selected_role": user.selected_role,
+        "lock_duration_months": user.lock_duration_months,
+        "locked_amount": user.locked_amount,
+        "patron_qualification_score": user.patron_qualification_score,
+        "wallet_age_days": user.wallet_age_days,
+        "community_score": user.community_score,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at
+    })))
+}
+
+// Set wallet address for a user
+pub async fn set_user_wallet_address(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<SetWalletAddressForUserRequest>,
+) -> Result<Json<Value>, ApiError> {
+    // Validate wallet address format
+    Pubkey::from_str(&payload.wallet_address)
+        .map_err(|err| ApiError::BadRequest(err.to_string()))?;
+
+    // Check if wallet is already in use
+    if state
+        .service
+        .user
+        .get_user_by_wallet_address(&payload.wallet_address)
+        .await?
+        .is_some()
+    {
+        return Err(ApiError::BadRequest(
+            "Wallet address is already using by other user".to_string(),
+        ));
+    }
+
+    // Parse user_id to UUID
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+
+    // Update user wallet address
+    let _user = state
+        .service
+        .user
+        .set_wallet_address(&user_uuid, &payload.wallet_address)
+        .await?;
+
+    Ok(Json(json!({ "success": true })))
+}
+
+// Update patron status
+pub async fn update_patron_status(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdatePatronStatusRequest>,
+) -> Result<Json<Value>, ApiError> {
+    // Validate patron status
+    if !["none", "applied", "approved", "rejected"].contains(&payload.patron_status.as_str()) {
+        return Err(ApiError::BadRequest("Invalid patron status".to_string()));
+    }
+
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+
+    let _user = state
+        .service
+        .user
+        .update_patron_status(&user_uuid, &payload.patron_status)
+        .await?;
+
+    Ok(Json(json!({ "success": true })))
+}
+
+// Update user role
+pub async fn update_user_role(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateUserRoleRequest>,
+) -> Result<Json<Value>, ApiError> {
+    // Validate role
+    if !["none", "staker", "patron"].contains(&payload.selected_role.as_str()) {
+        return Err(ApiError::BadRequest("Invalid role".to_string()));
+    }
+
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+
+    let _user = state
+        .service
+        .user
+        .update_selected_role(&user_uuid, &payload.selected_role)
+        .await?;
+
+    Ok(Json(json!({ "success": true })))
+}
+
+// Update lock details
+pub async fn update_lock_details(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateLockDetailsRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+
+    let _user = state
+        .service
+        .user
+        .update_lock_details(&user_uuid, payload.lock_duration_months, payload.locked_amount)
+        .await?;
+
+    Ok(Json(json!({ "success": true })))
+}
+
+// Get Phase 2 tweets for a user
+pub async fn get_user_phase2_tweets(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<Value>>, ApiError> {
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+    
+    let tweets = state.service.tweet.get_tweets_by_phase(&Some(user_uuid), "Phase2").await?;
+    
+    let tweet_values: Vec<Value> = tweets.into_iter().map(|tweet| {
+        let phase_string = match tweet.mining_phase {
+            Some(2) => "Phase2",
+            Some(1) => "Phase1", 
+            _ => "Phase1"
+        };
+        
+        json!({
+            "id": tweet.id,
+            "content": "Tweet content", // Note: tweets table doesn't have content field
+            "created_at": tweet.created_at,
+            "mining_phase": phase_string
+        })
+    }).collect();
+
+    Ok(Json(tweet_values))
 }
 
 pub async fn set_wallet_address(
@@ -70,7 +300,7 @@ pub async fn set_wallet_address(
     let user = state
         .service
         .user
-        .set_wallet_address(&user.id, &payload.wallet_address)
+        .set_wallet_address_by_uuid(&user.id, &payload.wallet_address)
         .await?;
 
     Ok(Json(user))

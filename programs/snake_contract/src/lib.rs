@@ -10,7 +10,7 @@ use instructions::*;
 use state::{UserRole, VestingRoleType};
 use instructions::otc_swap_enhanced::SwapType;
 
-declare_id!("Aw4zQtbMuxCChXS923HeyhAMPakC8KMQa6tQmMS4pPYM");
+declare_id!("GkRRA3Jhds6sxDr89wMneCjNDDmHof2zqnHdjaqP7kGU");
 
 #[program]
 pub mod snake_contract {
@@ -118,17 +118,21 @@ pub mod snake_contract {
     // }
 
     // Patron-related functions
-    // pub fn apply_as_patron(ctx: Context<ApplyAsPatron>) -> Result<()> {
-    //     instructions::apply_as_patron(ctx)
-    // }
+    pub fn apply_for_patron(ctx: Context<ApplyForPatron>, wallet_age_days: u32, community_score: u32) -> Result<()> {
+        instructions::apply_for_patron(ctx, wallet_age_days, community_score)
+    }
 
-    // pub fn confirm_patron(ctx: Context<ConfirmPatron>) -> Result<()> {
-    //     instructions::confirm_patron(ctx)
-    // }
+    pub fn approve_patron_application(ctx: Context<ApprovePatronApplication>, min_qualification_score: u32) -> Result<()> {
+        instructions::approve_patron_application(ctx, min_qualification_score)
+    }
 
-    // pub fn exit_as_patron(ctx: Context<ExitAsPatron>, amount: u64) -> Result<()> {
-    //     instructions::exit_as_patron(ctx, amount)
-    // }
+    pub fn revoke_patron_status(ctx: Context<ApprovePatronApplication>) -> Result<()> {
+        instructions::revoke_patron_status(ctx)
+    }
+
+    pub fn check_patron_eligibility(ctx: Context<ApplyForPatron>, min_score: u32) -> Result<bool> {
+        instructions::check_patron_eligibility(ctx, min_score)
+    }
 
     // Lock and staking functions
     pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -> Result<()> {

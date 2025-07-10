@@ -23,17 +23,21 @@ impl TweetRepository {
         user_id: &Uuid,
         tweet_id: &str,
         created_at: &DateTime<Utc>,
+        mining_phase: &str,
     ) -> Result<Tweet, sqlx::Error> {
+        let phase_number = if mining_phase == "Phase2" { 2 } else { 1 };
+        
         let tweet = sqlx::query_as!(
             Tweet,
             r#"
-            INSERT INTO tweets (user_id, tweet_id, created_at)
-            VALUES ($1, $2, $3)
+            INSERT INTO tweets (user_id, tweet_id, created_at, mining_phase)
+            VALUES ($1, $2, $3, $4)
             RETURNING *
             "#,
             user_id,
             tweet_id,
-            created_at
+            created_at,
+            phase_number
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;
@@ -64,7 +68,7 @@ impl TweetRepository {
             filters.push(format!("user_id = ${index}"));
         }
 
-        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, users.twitter_id, users.twitter_username FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
+        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, tweets.mining_phase, users.twitter_id, users.twitter_username FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
 
         if !filters.is_empty() {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
@@ -83,5 +87,74 @@ impl TweetRepository {
         let tweets = sql_query.fetch_all(self.db_conn.get_pool()).await?;
 
         Ok(tweets)
+    }
+
+
+
+    pub async fn get_phase2_mining_count(&self, user_id: &Uuid) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM tweets WHERE user_id = $1 AND mining_phase = 2",
+            user_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(count.unwrap_or_default())
+    }
+
+    pub async fn get_phase1_mining_count(&self, user_id: &Uuid) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM tweets WHERE user_id = $1 AND mining_phase = 1",
+            user_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(count.unwrap_or_default())
+    }
+
+    pub async fn get_tweets_by_phase(
+        &self,
+        user_id: &Option<String>,
+        mining_phase: &str,
+    ) -> Result<Vec<Tweet>, sqlx::Error> {
+        let phase_number = if mining_phase == "Phase2" { 2 } else { 1 };
+        
+        match user_id {
+            Some(uid) => {
+                let parsed_id = Uuid::parse_str(uid)
+                    .map_err(|_| sqlx::Error::RowNotFound)?;
+                
+                let tweets = sqlx::query_as!(
+                    Tweet,
+                    r#"
+                    SELECT * FROM tweets 
+                    WHERE user_id = $1 AND mining_phase = $2
+                    ORDER BY created_at DESC
+                    "#,
+                    parsed_id,
+                    phase_number
+                )
+                .fetch_all(self.db_conn.get_pool())
+                .await?;
+
+                Ok(tweets)
+            }
+            None => {
+                let tweets = sqlx::query_as!(
+                    Tweet,
+                    r#"
+                    SELECT * FROM tweets 
+                    WHERE mining_phase = $1
+                    ORDER BY created_at DESC
+                    "#,
+                    phase_number
+                )
+                .fetch_all(self.db_conn.get_pool())
+                .await?;
+
+                Ok(tweets)
+            }
+        }
     }
 }

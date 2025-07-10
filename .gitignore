@@ -11,8 +11,21 @@
 target/
 node_modules/
 .anchor/
+solana-release/
 
 # environment variables
 .env
 .env.prod
 
+
+Cargo.toml
+yarn.lock
+Cargo.lock
+Anchor.toml
+.gitignore
+.zencoder/
+.vscode/
+.anchor/
+target/
+test-ledger/
+node_modules/
