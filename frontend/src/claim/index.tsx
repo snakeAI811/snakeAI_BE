@@ -1,0 +1,350 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Menu from "../partials/menu";
+import { useWalletContext } from '../contexts/WalletContext';
+import { tokenApi } from '../patron/services/apiService';
+import { UserRole } from '../patron/index';
+
+interface ClaimPageProps {
+  page_number?: number;
+}
+
+interface ClaimData {
+  id: string;
+  amount: number;
+  phase: 'Phase1' | 'Phase2';
+  timestamp: string;
+  claimed: boolean;
+  userId: string;
+}
+
+function ClaimPage({ page_number = 1 }: ClaimPageProps) {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { connected, publicKey, connect } = useWalletContext();
+  
+  const [claimData, setClaimData] = useState<ClaimData | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole['role']>('None');
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchClaimData();
+    }
+  }, [id]);
+
+  const fetchClaimData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // TODO: Replace with actual API call to fetch claim data
+      // For now, simulate the data
+      const mockData: ClaimData = {
+        id: id || 'mock-id',
+        amount: Math.floor(Math.random() * 1000) + 100,
+        phase: Math.random() > 0.5 ? 'Phase1' : 'Phase2',
+        timestamp: new Date().toISOString(),
+        claimed: false,
+        userId: publicKey || 'mock-user'
+      };
+      
+      setClaimData(mockData);
+    } catch (err) {
+      setError('Failed to fetch claim data');
+      console.error('Error fetching claim data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!claimData || !connected || !publicKey) return;
+    
+    setClaiming(true);
+    setError(null);
+    
+    try {
+      const response = await tokenApi.claimTokensWithRole(selectedRole);
+      
+      if (response.success) {
+        setSuccess(true);
+        setClaimData(prev => prev ? { ...prev, claimed: true } : null);
+        console.log('Claim successful:', response.data);
+      } else {
+        throw new Error(response.error || 'Claim failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to claim tokens');
+      console.error('Error claiming tokens:', err);
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const getRoleColor = (role: UserRole['role']) => {
+    switch (role) {
+      case 'Staker': return 'primary';
+      case 'Patron': return 'warning';
+      default: return 'secondary';
+    }
+  };
+
+  const getRoleIcon = (role: UserRole['role']) => {
+    switch (role) {
+      case 'Staker': return '🏦';
+      case 'Patron': return '👑';
+      default: return '👤';
+    }
+  };
+
+  const getRoleBenefits = (role: UserRole['role']) => {
+    switch (role) {
+      case 'Staker': return ['5% staking rewards', '3-month lock period', 'Enhanced mining multiplier'];
+      case 'Patron': return ['All Staker benefits', 'DAO governance', '6-month lock period', 'OTC trading rebates'];
+      default: return ['Basic access', 'No token lock', 'Standard rewards'];
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="w-100 p-3" style={{ height: "100vh" }}>
+        <div className="d-flex justify-content-center align-items-center" style={{ height: "100%" }}>
+          <div className="text-center">
+            <div className="spinner-border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-2">Loading claim data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !claimData) {
+    return (
+      <div className="w-100 p-3" style={{ height: "100vh" }}>
+        <div className="d-flex justify-content-center align-items-center" style={{ height: "100%" }}>
+          <div className="text-center">
+            <div className="alert alert-danger">
+              <h4>Error</h4>
+              <p>{error}</p>
+              <button className="btn btn-primary" onClick={fetchClaimData}>
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-100 p-3" style={{ height: "100vh" }}>
+      <div className="d-flex gap-4" style={{ height: "calc(100vh-60px)", paddingTop: '55px' }}>
+        {/* Menu Begin */}
+        <Menu />
+        {/* Menu End */}
+        
+        <div className="item-stretch" style={{ width: '100%' }}>
+          <div className="w-100 d-flex justify-content-between gap-4">
+            <div className="item-stretch w-100" style={{ minHeight: '86vh' }}>
+              
+              {/* Header */}
+              <div className="w-100">
+                <div className="fs-1" style={{ lineHeight: 'normal' }}>
+                  🎁 Claim Your Tokens
+                </div>
+                <div className="fs-6 text-muted mb-3">
+                  Claim your Snake AI tokens and select your role to unlock exclusive features
+                </div>
+                <hr className="border border-dashed border-black border-3 opacity-100" />
+              </div>
+
+              {/* Wallet Connection */}
+              {!connected ? (
+                <div className="w-100 mb-4">
+                  <div className="alert alert-warning text-center">
+                    <h4>Connect Your Wallet</h4>
+                    <p>Please connect your wallet to claim your Snake AI tokens</p>
+                    <button className="btn btn-primary btn-lg" onClick={connect}>
+                      Connect Wallet
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-100 mb-4">
+                  <div className="alert alert-success">
+                    <strong>Wallet Connected:</strong> {publicKey?.slice(0, 8)}...{publicKey?.slice(-8)}
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <div className="w-100 mb-4">
+                  <div className="alert alert-success">
+                    <h4>🎉 Claim Successful!</h4>
+                    <p>Your tokens have been claimed successfully and your role has been updated.</p>
+                    <button className="btn btn-outline-success" onClick={() => navigate('/patron-framework')}>
+                      Go to Patron Framework
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Main Content */}
+              {claimData && connected && !success && (
+                <div className="row g-4">
+                  {/* Role Selection */}
+                  <div className="col-lg-6">
+                    <div className="card border-3 border-dashed h-100">
+                      <div className="card-body">
+                        <h3 className="card-title mb-4">🎭 Select Your Role</h3>
+                        
+                        <div className="row g-3">
+                          {(['None', 'Staker', 'Patron'] as UserRole['role'][]).map((role) => (
+                            <div key={role} className="col-12">
+                              <div 
+                                className={`card border-2 ${
+                                  selectedRole === role 
+                                    ? `border-${getRoleColor(role)} bg-light` 
+                                    : 'border-secondary'
+                                }`}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => setSelectedRole(role)}
+                              >
+                                <div className="card-body">
+                                  <div className="d-flex align-items-center mb-2">
+                                    <span className="fs-4 me-3">{getRoleIcon(role)}</span>
+                                    <div>
+                                      <h6 className="card-title mb-0">{role === 'None' ? 'No Role' : role}</h6>
+                                      {selectedRole === role && (
+                                        <small className="text-success">✓ Selected</small>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="mt-2">
+                                    <small className="text-muted">Benefits:</small>
+                                    <ul className="list-unstyled mt-1">
+                                      {getRoleBenefits(role).map((benefit, index) => (
+                                        <li key={index}>
+                                          <small>• {benefit}</small>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Claim Summary */}
+                  <div className="col-lg-6">
+                    <div className="card border-3 border-dashed h-100">
+                      <div className="card-body">
+                        <h3 className="card-title mb-4">📊 Claim Summary</h3>
+                        
+                        <div className="mb-4">
+                          <div className="row g-2">
+                            <div className="col-6">
+                              <div className="card bg-light">
+                                <div className="card-body text-center">
+                                  <div className="fs-2 fw-bold text-primary">{claimData.amount}</div>
+                                  <small className="text-muted">SNAKE Tokens</small>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-6">
+                              <div className="card bg-light">
+                                <div className="card-body text-center">
+                                  <div className={`badge bg-${claimData.phase === 'Phase1' ? 'success' : 'info'} fs-6`}>
+                                    {claimData.phase}
+                                  </div>
+                                  <div><small className="text-muted">Mining Phase</small></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <div className="card bg-light">
+                            <div className="card-body">
+                              <h6>Selected Role: {getRoleIcon(selectedRole)} {selectedRole === 'None' ? 'No Role' : selectedRole}</h6>
+                              <div className="mt-2">
+                                <small className="text-muted">Benefits:</small>
+                                <ul className="list-unstyled mt-1">
+                                  {getRoleBenefits(selectedRole).map((benefit, index) => (
+                                    <li key={index}>
+                                      <small>• {benefit}</small>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Error Display */}
+                        {error && (
+                          <div className="alert alert-danger">
+                            <strong>Error:</strong> {error}
+                          </div>
+                        )}
+
+                        {/* Claim Button */}
+                        <div className="d-grid">
+                          <button
+                            className={`btn btn-${getRoleColor(selectedRole)} btn-lg`}
+                            onClick={handleClaim}
+                            disabled={claiming || claimData.claimed}
+                          >
+                            {claiming ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-2" role="status" />
+                                Claiming...
+                              </>
+                            ) : claimData.claimed ? (
+                              'Already Claimed'
+                            ) : (
+                              `Claim ${claimData.amount} SNAKE Tokens`
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Important Notes */}
+                        <div className="mt-4">
+                          <div className="card border-warning">
+                            <div className="card-body">
+                              <h6 className="card-title">⚠️ Important Notes</h6>
+                              <ul className="mb-0">
+                                <li><small>Role changes affect token lock periods</small></li>
+                                <li><small>Staker and Patron roles require token commitment</small></li>
+                                <li><small>Locked tokens earn additional rewards</small></li>
+                                <li><small>This action requires blockchain confirmation</small></li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ClaimPage;

@@ -1,6 +1,9 @@
 pub const REWARD_POOL_SEED: &[u8] = b"reward_pool";
 pub const USER_CLAIM_SEED: &[u8] = b"user_claim";
 pub const DAO_REGISTRY_SEED: &[u8] = b"dao_registry";
+pub const OTC_SWAP_SEED: &[u8] = b"otc_swap";
+pub const ESCROW_SEED: &[u8] = b"escrow";
+pub const VESTING_SEED: &[u8] = b"vesting";
 pub const LAMPORTS_PER_SNK: u64 = 1_000_000_000;
 
 pub const STAKE_AMOUNT: u64 = 500_000_000;

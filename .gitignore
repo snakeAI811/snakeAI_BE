@@ -17,6 +17,8 @@ solana-release/
 .env
 .env.prod
 
+*.md
+
 
 Cargo.toml
 yarn.lock
@@ -29,3 +31,4 @@ Anchor.toml
 target/
 test-ledger/
 node_modules/
+M1_2_testing_result/

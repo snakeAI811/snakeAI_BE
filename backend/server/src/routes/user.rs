@@ -3,6 +3,10 @@ use crate::{
         get_claim_tx, get_me, get_mining_status, get_profile, get_rewards, get_tweets, set_wallet_address,
         token_validation, get_user_mining_status, get_user_profile, set_user_wallet_address,
         update_patron_status, update_user_role, update_lock_details, get_user_phase2_tweets,
+        // Smart contract interaction endpoints
+        select_role_tx, apply_patron_tx, approve_patron_tx, claim_tokens_with_role_tx,
+        lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
+        initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx,
     },
     state::AppState,
 };
@@ -30,4 +34,18 @@ pub fn routes() -> Router<AppState> {
         .route("/{user_id}/role", post(update_user_role))
         .route("/{user_id}/lock_details", post(update_lock_details))
         .route("/{user_id}/phase2_tweets", get(get_user_phase2_tweets))
+        // Smart contract interaction routes
+        .route("/select_role", post(select_role_tx))
+        .route("/apply_patron", post(apply_patron_tx))
+        .route("/approve_patron", post(approve_patron_tx))
+        .route("/claim_tokens_with_role", post(claim_tokens_with_role_tx))
+        .route("/lock_tokens", post(lock_tokens_tx))
+        .route("/unlock_tokens", post(unlock_tokens_tx))
+        .route("/claim_yield", post(claim_yield_tx))
+        .route("/create_vesting", post(create_vesting_tx))
+        .route("/withdraw_vesting", post(withdraw_vesting_tx))
+        // OTC swap endpoints
+        .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
+        .route("/accept_otc_swap", post(accept_otc_swap_tx))
+        .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
 }

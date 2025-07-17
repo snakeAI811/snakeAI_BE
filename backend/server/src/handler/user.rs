@@ -410,3 +410,730 @@ pub async fn get_claim_tx(
         Err(ApiError::BadRequest("No available reward".to_string()))
     }
 }
+
+// ========== SMART CONTRACT INTERACTION ENDPOINTS ==========
+
+#[derive(Deserialize)]
+pub struct SelectRoleRequest {
+    pub role: String, // "none", "staker", "patron"
+}
+
+#[derive(Deserialize)]
+pub struct ClaimTokensRequest {
+    pub amount: u64,
+    pub role: String,
+}
+
+#[derive(Deserialize)]
+pub struct PatronApplicationRequest {
+    pub wallet_age_days: u32,
+    pub community_score: u32,
+}
+
+#[derive(Deserialize)]
+pub struct ApprovePatronRequest {
+    pub min_qualification_score: u32,
+}
+
+#[derive(Deserialize)]
+pub struct LockTokensRequest {
+    pub amount: u64,
+    pub duration_months: u8,
+}
+
+#[derive(Deserialize)]
+pub struct VestingRequest {
+    pub amount: u64,
+    pub role_type: String, // "staker", "patron"
+}
+
+#[derive(Deserialize)]
+pub struct InitiateOtcSwapRequest {
+    pub token_amount: u64,
+    pub sol_rate: u64,
+    pub buyer_rebate: u64,
+    pub buyer_role_required: String, // "none", "staker", "patron"
+}
+
+#[derive(Deserialize)]
+pub struct AcceptOtcSwapRequest {
+    pub seller_pubkey: String,
+}
+
+// const PATRON_APPLICATION_SEED: &[u8] = b"patron_application";
+// const TOKEN_LOCK_SEED: &[u8] = b"token_lock";
+const VESTING_SEED: &[u8] = b"vesting";
+const OTC_SWAP_SEED: &[u8] = b"otc_swap";
+// const ESCROW_SEED: &[u8] = b"escrow";
+
+/// Select user role (None, Staker, Patron)
+pub async fn select_role_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<SelectRoleRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    // Validate role
+    let role = match payload.role.as_str() {
+        "none" => snake_contract::state::UserRole::None,
+        "staker" => snake_contract::state::UserRole::Staker,
+        "patron" => snake_contract::state::UserRole::Patron,
+        _ => return Err(ApiError::BadRequest("Invalid role".to_string())),
+    };
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::SelectRole {
+            user: wallet,
+            user_claim,
+        })
+        .args(snake_contract::instruction::SelectRole {
+            role,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Apply for patron status
+pub async fn apply_patron_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<PatronApplicationRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::ApplyForPatron {
+            user: wallet,
+            user_claim,
+        })
+        .args(snake_contract::instruction::ApplyForPatron {
+            wallet_age_days: payload.wallet_age_days,
+            community_score: payload.community_score,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Approve patron application (admin only)
+pub async fn approve_patron_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<ApprovePatronRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::ApprovePatronApplication {
+            admin: admin.pubkey(),
+            applicant: wallet,
+            user_claim,
+        })
+        .args(snake_contract::instruction::ApprovePatronApplication {
+            min_qualification_score: payload.min_qualification_score,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Claim tokens with role-specific logic
+pub async fn claim_tokens_with_role_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<ClaimTokensRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    // Validate role
+    let role = match payload.role.as_str() {
+        "none" => snake_contract::state::UserRole::None,
+        "staker" => snake_contract::state::UserRole::Staker,
+        "patron" => snake_contract::state::UserRole::Patron,
+        _ => return Err(ApiError::BadRequest("Invalid role".to_string())),
+    };
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::ClaimTokensWithRole {
+            user: wallet,
+            user_claim,
+            user_token_ata,
+            reward_pool_pda: reward_pool,
+            treasury_token_account: treasury,
+            mint,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::ClaimTokensWithRole {
+            amount: payload.amount,
+            role,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Lock tokens for staking
+pub async fn lock_tokens_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<LockTokensRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::LockTokens {
+            user: wallet,
+            user_claim,
+            user_token_account: user_token_ata,
+            reward_pool_pda: reward_pool,
+            treasury_token_account: treasury,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::LockTokens {
+            amount: payload.amount,
+            duration_months: payload.duration_months,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Unlock tokens after lock period
+pub async fn unlock_tokens_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::UnlockTokens {
+            user: wallet,
+            user_claim,
+            user_token_account: user_token_ata,
+            reward_pool_pda: reward_pool,
+            treasury_token_account: treasury,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::UnlockTokens {})
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Claim staking yield
+pub async fn claim_yield_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    // let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::ClaimYield {
+            user: wallet,
+            user_claim,
+            user_token_account: user_token_ata,
+            mint,
+            reward_pool_pda: reward_pool,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::ClaimYield {})
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Create vesting schedule
+pub async fn create_vesting_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<VestingRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    // Validate role type
+    let role_type = match payload.role_type.as_str() {
+        "staker" => snake_contract::state::VestingRoleType::Staker,
+        "patron" => snake_contract::state::VestingRoleType::Patron,
+        _ => return Err(ApiError::BadRequest("Invalid role type".to_string())),
+    };
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let (vesting_account, _) = Pubkey::find_program_address(
+        &[VESTING_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let escrow_vault = spl_associated_token_account::get_associated_token_address(&vesting_account, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::CreateVesting {
+            user: wallet,
+            user_claim,
+            vesting_account,
+            user_token_account: user_token_ata,
+            escrow_token_account: escrow_vault,
+            token_program: spl_token::ID,
+            system_program: system_program::ID,
+        })
+        .args(snake_contract::instruction::CreateVesting {
+            amount: payload.amount,
+            role_type,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Withdraw from vesting
+pub async fn withdraw_vesting_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let (vesting_account, _) = Pubkey::find_program_address(
+        &[VESTING_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let escrow_vault = spl_associated_token_account::get_associated_token_address(&vesting_account, &mint);
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::WithdrawVesting {
+            user: wallet,
+            user_claim,
+            vesting_account,
+            user_token_account: user_token_ata,
+            escrow_token_account: escrow_vault,
+            reward_pool,
+            treasury_token_account: treasury,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::WithdrawVesting {})
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Initiate OTC swap
+pub async fn initiate_otc_swap_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<InitiateOtcSwapRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (user_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let (otc_swap, _) = Pubkey::find_program_address(
+        &[OTC_SWAP_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+
+    // Convert role string to enum
+    let buyer_role_required = match payload.buyer_role_required.as_str() {
+        "none" => snake_contract::state::UserRole::None,
+        "staker" => snake_contract::state::UserRole::Staker,
+        "patron" => snake_contract::state::UserRole::Patron,
+        _ => return Err(ApiError::BadRequest("Invalid buyer role".to_string())),
+    };
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::InitiateOtcSwap {
+            seller: wallet,
+            seller_claim: user_claim,
+            otc_swap,
+            seller_token_account: seller_token_ata,
+            token_program: spl_token::ID,
+            system_program: system_program::ID,
+        })
+        .args(snake_contract::instruction::InitiateOtcSwap {
+            amount: payload.token_amount,
+            rate: payload.sol_rate,
+            buyer_rebate: payload.buyer_rebate,
+            buyer_role_required,
+        })
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Accept OTC swap
+pub async fn accept_otc_swap_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<AcceptOtcSwapRequest>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let seller_pubkey = Pubkey::from_str(&payload.seller_pubkey)
+        .map_err(|_| ApiError::BadRequest("Invalid seller pubkey".to_string()))?;
+    
+    let buyer_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&seller_pubkey, &mint);
+    let (buyer_claim, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+    let (otc_swap, _) = Pubkey::find_program_address(
+        &[OTC_SWAP_SEED, seller_pubkey.as_array()],
+        &state.program.id(),
+    );
+    let (treasury, _) = Pubkey::find_program_address(
+        &[b"treasury"],
+        &state.program.id(),
+    );
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::AcceptOtcSwap {
+            buyer: wallet,
+            buyer_claim,
+            seller: seller_pubkey,
+            otc_swap,
+            seller_token_account: seller_token_ata,
+            buyer_token_account: buyer_token_ata,
+            treasury,
+            token_program: spl_token::ID,
+            system_program: system_program::ID,
+        })
+        .args(snake_contract::instruction::AcceptOtcSwap {})
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Cancel OTC swap
+pub async fn cancel_otc_swap_tx(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (otc_swap, _) = Pubkey::find_program_address(
+        &[OTC_SWAP_SEED, wallet.as_array()],
+        &state.program.id(),
+    );
+
+    let instructions = match state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::CancelOtcSwap {
+            seller: wallet,
+            otc_swap,
+            seller_token_account: seller_token_ata,
+            token_program: spl_token::ID,
+        })
+        .args(snake_contract::instruction::CancelOtcSwap {})
+        .instructions()
+    {
+        Ok(ixs) => ixs,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+        Ok(latest_blockhash) => latest_blockhash,
+        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
+    };
+
+    let message = Message::new(&instructions, Some(&wallet));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+    
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}

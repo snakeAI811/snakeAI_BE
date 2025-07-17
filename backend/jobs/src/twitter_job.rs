@@ -287,11 +287,11 @@ impl TwitterClient {
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
     let client = TwitterClient::new(
-        env.twitter_bearer_token,
-        env.twitter_access_token,
-        env.twitter_access_token_secret,
-        env.twitter_api_key,
-        env.twitter_api_key_secret,
+        env.twitter_bearer_token.clone(),
+        env.twitter_access_token.clone(),
+        env.twitter_access_token_secret.clone(),
+        env.twitter_api_key.clone(),
+        env.twitter_api_key_secret.clone(),
     );
 
     // Fetch latest_tweet_id what I fetched last

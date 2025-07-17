@@ -4,6 +4,7 @@ members = [
     "backend/libraries/types",
     "backend/libraries/utils",
     "backend/server",
+    "backend/jobs",
     "programs/snake_contract",
 ]
 resolver = "2"
