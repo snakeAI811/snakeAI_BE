@@ -9,6 +9,9 @@ pub mod state;
 use instructions::*;
 use state::{UserRole, VestingRoleType};
 use instructions::otc_swap_enhanced::SwapType;
+use instructions::otc_trading;
+use instructions::patron_exit;
+use instructions::dao_governance;
 
 declare_id!("GkRRA3Jhds6sxDr89wMneCjNDDmHof2zqnHdjaqP7kGU");
 
@@ -147,23 +150,86 @@ pub mod snake_contract {
         instructions::claim_yield(ctx)
     }
 
-    // ========== VESTING PROGRAM ==========
-    
-    pub fn create_vesting(
-        ctx: Context<CreateVesting>,
+    // ========== NEW PATRON FRAMEWORK FUNCTIONS ==========
+
+    pub fn create_otc_order(
+        ctx: Context<CreateOTCOrder>,
+        order_id: u64,
         amount: u64,
-        role_type: VestingRoleType,
+        price: u64,
+        buyer_restrictions: otc_trading::BuyerRestrictions,
     ) -> Result<()> {
-        instructions::create_vesting(ctx, amount, role_type)
+        instructions::create_otc_order(ctx, order_id, amount, price, buyer_restrictions)
     }
 
-    pub fn withdraw_vesting(ctx: Context<WithdrawVesting>) -> Result<()> {
-        instructions::withdraw_vesting(ctx)
+    pub fn execute_otc_order(ctx: Context<ExecuteOTCOrder>) -> Result<()> {
+        instructions::execute_otc_order(ctx)
     }
 
-    pub fn admin_force_exit(ctx: Context<AdminForceExit>) -> Result<()> {
-        instructions::admin_force_exit(ctx)
+    pub fn cancel_otc_order(ctx: Context<CancelOTCOrder>) -> Result<()> {
+        instructions::cancel_otc_order(ctx)
     }
+
+    pub fn patron_exit(ctx: Context<PatronExit>, exit_amount: u64) -> Result<()> {
+        instructions::patron_exit(ctx, exit_amount)
+    }
+
+    pub fn patron_otc_exit(
+        ctx: Context<PatronOTCExit>,
+        exit_amount: u64,
+        sale_price: u64,
+    ) -> Result<()> {
+        instructions::patron_otc_exit(ctx, exit_amount, sale_price)
+    }
+
+    pub fn create_vesting_schedule(
+        ctx: Context<CreateVesting>,
+        vesting_amount: u64,
+    ) -> Result<()> {
+        instructions::vesting::create_vesting_schedule(ctx, vesting_amount)
+    }
+
+    pub fn claim_vested_tokens(ctx: Context<WithdrawVesting>) -> Result<()> {
+        instructions::vesting::claim_vested_tokens(ctx)
+    }
+
+    pub fn allocate_dao_seat(
+        ctx: Context<AllocateDAOSeat>,
+        current_balance: u64,
+    ) -> Result<()> {
+        instructions::allocate_dao_seat(ctx, current_balance)
+    }
+
+    pub fn revoke_dao_seat(ctx: Context<RevokeDAOSeat>, reason: String) -> Result<()> {
+        instructions::revoke_dao_seat(ctx, reason)
+    }
+
+    pub fn initialize_dao_registry(
+        ctx: Context<InitializeDAORegistry>,
+        max_seats: u32,
+        min_dao_stake: u64,
+        month6_timestamp: i64,
+    ) -> Result<()> {
+        instructions::initialize_dao_registry(ctx, max_seats, min_dao_stake, month6_timestamp)
+    }
+
+    // ========== OLD VESTING PROGRAM (COMMENTED OUT) ==========
+    
+    // pub fn create_vesting(
+    //     ctx: Context<CreateVesting>,
+    //     amount: u64,
+    //     role_type: VestingRoleType,
+    // ) -> Result<()> {
+    //     instructions::create_vesting(ctx, amount, role_type)
+    // }
+
+    // pub fn withdraw_vesting(ctx: Context<WithdrawVesting>) -> Result<()> {
+    //     instructions::withdraw_vesting(ctx)
+    // }
+
+    // pub fn admin_force_exit(ctx: Context<AdminForceExit>) -> Result<()> {
+    //     instructions::admin_force_exit(ctx)
+    // }
 
     // ========== ENHANCED OTC SWAP PROGRAM ==========
     

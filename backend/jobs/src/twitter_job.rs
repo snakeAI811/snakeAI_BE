@@ -10,6 +10,29 @@ use std::{collections::HashSet, sync::Arc};
 use types::model::RewardUtils;
 use utils::env::Env;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum MiningPhase {
+    Phase1,
+    Phase2,
+}
+
+impl MiningPhase {
+    pub fn to_string(&self) -> String {
+        match self {
+            MiningPhase::Phase1 => "phase1".to_string(),
+            MiningPhase::Phase2 => "phase2".to_string(),
+        }
+    }
+    
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "phase1" => Some(MiningPhase::Phase1),
+            "phase2" => Some(MiningPhase::Phase2),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
     pub id: String,
@@ -401,7 +424,9 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 );
 
                 if should_create_reward {
-                    service.reward.insert_reward(&user.id, &tweet.id).await.ok();
+                    // Determine current mining phase - this should be configurable
+                    let current_phase = get_current_mining_phase().await;
+                    service.reward.insert_reward_with_phase(&user.id, &tweet.id, if current_phase == MiningPhase::Phase2 { 2 } else { 1 }).await.ok();
                     cnt += 1;
                 } else {
                     match client.reply_with_media(&text, &None, &t.id).await {
@@ -459,4 +484,22 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     }
 
     Ok(())
+}
+
+// Helper function to determine current mining phase
+// This should be configurable based on project timeline
+async fn get_current_mining_phase() -> MiningPhase {
+    // For now, we'll use a simple time-based approach
+    // In production, this should be configurable via database or config
+    let current_time = Utc::now();
+    
+    // Example: Phase 1 ends on a specific date, then Phase 2 begins
+    // This should be configurable
+    let phase1_end = DateTime::parse_from_rfc3339("2024-06-01T00:00:00Z").unwrap().with_timezone(&Utc);
+    
+    if current_time < phase1_end {
+        MiningPhase::Phase1
+    } else {
+        MiningPhase::Phase2
+    }
 }

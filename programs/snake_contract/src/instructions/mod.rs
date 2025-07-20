@@ -48,6 +48,16 @@ pub use unlock_tokens::*;
 pub mod claim_yield;
 pub use claim_yield::*;
 
+// New Patron Framework instructions
+pub mod otc_trading;
+pub use otc_trading::*;
+
+pub mod patron_exit;
+pub use patron_exit::*;
+
+pub mod dao_governance;
+pub use dao_governance::*;
+
 // // DAO instructions
 // pub mod initialize_dao_registry;
 // pub use initialize_dao_registry::*;

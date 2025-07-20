@@ -870,15 +870,14 @@ pub async fn create_vesting_tx(
         .accounts(snake_contract::accounts::CreateVesting {
             user: wallet,
             user_claim,
-            vesting_account,
             user_token_account: user_token_ata,
-            escrow_token_account: escrow_vault,
-            token_program: spl_token::ID,
+            vesting_schedule: vesting_account,
+            vesting_escrow: escrow_vault,
             system_program: system_program::ID,
+            token_program: spl_token::ID,
         })
-        .args(snake_contract::instruction::CreateVesting {
-            amount: payload.amount,
-            role_type,
+        .args(snake_contract::instruction::CreateVestingSchedule {
+            vesting_amount: payload.amount,
         })
         .instructions()
     {
@@ -930,14 +929,12 @@ pub async fn withdraw_vesting_tx(
         .accounts(snake_contract::accounts::WithdrawVesting {
             user: wallet,
             user_claim,
-            vesting_account,
+            vesting_schedule: vesting_account,
+            vesting_escrow: escrow_vault,
             user_token_account: user_token_ata,
-            escrow_token_account: escrow_vault,
-            reward_pool,
-            treasury_token_account: treasury,
             token_program: spl_token::ID,
         })
-        .args(snake_contract::instruction::WithdrawVesting {})
+        .args(snake_contract::instruction::ClaimVestedTokens {})
         .instructions()
     {
         Ok(ixs) => ixs,

@@ -29,6 +29,13 @@ impl RewardService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
+    pub async fn insert_reward_with_phase(&self, user_id: &Uuid, tweet_id: &Uuid, phase: i32) -> Result<Reward, ApiError> {
+        self.reward_repo
+            .insert_reward_with_phase(user_id, tweet_id, phase)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
     pub async fn get_available_reward(&self, user_id: &Uuid) -> Result<Option<Reward>, ApiError> {
         self.reward_repo
             .get_available_reward(user_id)

@@ -50,7 +50,7 @@ pub struct PatronRevoked {
 }
 
 #[event]
-pub struct PatronExited {
+pub struct PatronExitedOld {
     pub user: Pubkey,
     pub burn_amount: u64,
     pub remaining_amount: u64,
@@ -257,6 +257,58 @@ pub struct PatronExitTracked {
 #[event]
 pub struct DAOEligibilityRevoked {
     pub user: Pubkey,
+    pub reason: String,
+}
+
+// ========== NEW PATRON FRAMEWORK EVENTS ==========
+
+#[event]
+pub struct OTCTradeExecuted {
+    pub order_id: u64,
+    pub seller: Pubkey,
+    pub buyer: Pubkey,
+    pub amount: u64,
+    pub price: u64,
+}
+
+#[event]
+pub struct PatronExited {
+    pub patron: Pubkey,
+    pub exit_amount: u64,
+    pub burn_amount: u64,
+    pub early_exit: bool,
+}
+
+#[event]
+pub struct VestingScheduleCreated {
+    pub beneficiary: Pubkey,
+    pub total_amount: u64,
+    pub duration_months: u8,
+    pub vesting_type: crate::instructions::vesting::VestingType,
+    pub start_time: i64,
+    pub end_time: i64,
+}
+
+#[event]
+pub struct TokensVested {
+    pub beneficiary: Pubkey,
+    pub amount: u64,
+    pub yield_amount: u64,
+    pub total_vested: u64,
+}
+
+#[event]
+pub struct DAOSeatAllocated {
+    pub holder: Pubkey,
+    pub allocated_at: i64,
+    pub voting_power: u64,
+    pub role: UserRole,
+}
+
+#[event]
+pub struct DAOSeatRevoked {
+    pub holder: Pubkey,
+    pub revoked_at: i64,
     pub reason: String,
 }
 

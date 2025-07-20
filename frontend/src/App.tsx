@@ -1,19 +1,21 @@
 
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 
-import LandingPage from "./landing";
-import GetStartedPage from "./get_started";
-import Home from "./home";
-import TweetMiningPage from "./tweet_mining";
-import GenerateMeme from "./meme_generation";
-import PatronFrameworkPage from "./patron";
-import ClaimPage from "./claim";
+import LandingPage from "./pages/landing";
+import GetStartedPage from "./pages/get_started";
+import Home from "./pages/home";
+import TweetMiningPage from "./pages/tweet_mining";
+import GenerateMeme from "./pages/meme_generation";
+import PatronFrameworkPage from "./pages/patron";
+import ClaimPage from "./pages/claim";
 import { WalletContextProvider } from "./contexts/WalletContext";
+import { AuthContextProvider } from "./contexts/AuthContext";
 
-function App() {
+function  App() {
   return (
-    <WalletContextProvider>
-      <Router>
+    <AuthContextProvider>
+      <WalletContextProvider>
+        <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
 
@@ -34,10 +36,16 @@ function App() {
           <Route path="/patron-framework" element={<PatronFrameworkPage />} />
           
           <Route path="/claim/:id" element={<ClaimPage />} />
+          <Route path="/claim" element={<ClaimPage />} />
+          <Route path="/profile" element={<>profile</>} />
+          <Route path="/staking" element={<>staking</>} />
+          <Route path="/swap" element={<>swap</>} />
+          <Route path="/dao" element={<>dao</>} />
 
         </Routes>
-      </Router>
-    </WalletContextProvider>
+        </Router>
+      </WalletContextProvider>
+    </AuthContextProvider>
   );
 }
 

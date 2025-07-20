@@ -1,7 +1,7 @@
 mod auth;
 mod user;
 
-use crate::{middleware::auth as auth_middleware, state::AppState, handler::test};
+use crate::{middleware::auth as auth_middleware, state::AppState, handler::{test, dev}};
 use axum::{Router, http::HeaderValue, middleware, routing::get};
 use database::DatabasePool;
 use hyper::{
@@ -34,10 +34,15 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
             .route("/test/vesting-info", get(test::test_vesting_info))
             .route("/test/auth-token", get(test::test_auth_token));
         
+        let dev_routes = Router::new()
+            .route("/dev/login", get(dev::dev_login))
+            .route("/dev/session", get(dev::dev_session_info));
+        
         Router::new()
             .merge(protected)
             .merge(public)
             .merge(test_routes)
+            .merge(dev_routes)
             .with_state(app_state)
             .merge(Router::new().route("/health", get(|| async { "<h1>SNAKE AI BACKEND</h1>" })))
             .merge(Router::new().route("/version", get(|| async { "V0.0.1" })))

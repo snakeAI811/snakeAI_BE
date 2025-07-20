@@ -145,4 +145,35 @@ pub enum SnakeError {
     OnlyPatrons,
     #[msg("No exit to track")]
     NoExitToTrack,
+    
+    // ========== NEW PATRON FRAMEWORK ERRORS ==========
+    
+    #[msg("Not eligible for OTC trading")]
+    NotEligibleForOTC,
+    #[msg("Order is for patrons only")]
+    PatronOnlyOrder,
+    #[msg("Order is for treasury only")]
+    TreasuryOnlyOrder,
+    #[msg("Insufficient patron score")]
+    InsufficientPatronScore,
+    #[msg("Order is not active")]
+    OrderNotActive,
+    #[msg("Invalid role for this action")]
+    InvalidRole,
+    #[msg("Not approved patron")]
+    NotApprovedPatron,
+    #[msg("Patron sold early")]
+    PatronSoldEarly,
+    #[msg("Vesting is not active")]
+    VestingNotActive,
+    #[msg("Nothing to claim")]
+    NothingToClaim,
+    #[msg("Month 6 milestone not reached")]
+    Month6NotReached,
+    #[msg("Maximum DAO seats reached")]
+    MaxSeatsReached,
+    #[msg("DAO seat is not active")]
+    SeatNotActive,
+    #[msg("Failed to fetch DAO seats")]
+    FailedToFetchSeats,
 }

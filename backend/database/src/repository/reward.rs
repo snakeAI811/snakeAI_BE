@@ -40,6 +40,51 @@ impl RewardRepository {
         Ok(reward)
     }
 
+    pub async fn insert_reward_with_phase(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &Uuid,
+        phase: i32,
+    ) -> Result<Reward, sqlx::Error> {
+        let reward = sqlx::query_as!(
+            Reward,
+            r#"
+            INSERT INTO rewards (user_id, tweet_id, phase)
+            VALUES ($1, $2, $3)
+            RETURNING *
+            "#,
+            user_id,
+            tweet_id,
+            &phase.to_string(),
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
+
+    pub async fn get_phase2_mining_count(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM rewards WHERE user_id = $1 AND phase = 'phase2'",
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(count.unwrap_or(0))
+    }
+
+    pub async fn has_mined_in_phase2(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<bool, sqlx::Error> {
+        let count = self.get_phase2_mining_count(user_id).await?;
+        Ok(count > 0)
+    }
+
     pub async fn get_available_reward(
         &self,
         user_id: &Uuid,
