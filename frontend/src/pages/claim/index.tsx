@@ -16,6 +16,8 @@ interface ClaimData {
   timestamp: string;
   claimed: boolean;
   userId: string;
+  tweetId?: string;
+  twitterUsername?: string;
 }
 
 function ClaimPage({ page_number = 1 }: ClaimPageProps) {
@@ -50,7 +52,8 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
           phase: (rewardData.phase === 'Phase2' ? 'Phase2' : 'Phase1') as 'Phase1' | 'Phase2',
           timestamp: rewardData.created_at,
           claimed: !!rewardData.transaction_signature, // If transaction exists, it's been claimed
-          userId: rewardData.user_id
+          userId: rewardData.user_id,
+          tweetId: rewardData.tweet_id
         };
         setClaimData(claimData);
       } else {
@@ -167,11 +170,29 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
               {/* Header */}
               <div className="w-100">
                 <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                  🎁 Claim Your Tokens
+                  🎁 Claim Your Twitter Mining Reward
                 </div>
                 <div className="fs-6 text-muted mb-3">
-                  Claim your Snake AI tokens and select your role to unlock exclusive features
+                  Your tweet qualified for Snake AI token rewards! Connect your wallet and claim your tokens.
                 </div>
+                {claimData?.tweetId && (
+                  <div className="alert alert-info mb-3">
+                    <div className="d-flex align-items-center">
+                      <span className="me-2">🐦</span>
+                      <div>
+                        <strong>Qualifying Tweet:</strong>{' '}
+                        <a 
+                          href={`https://twitter.com/i/status/${claimData.tweetId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-decoration-none"
+                        >
+                          View on Twitter →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <hr className="border border-dashed border-black border-3 opacity-100" />
               </div>
 
@@ -331,8 +352,24 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                           </button>
                         </div>
 
-                        {/* Important Notes */}
+                        {/* Twitter Mining Info */}
                         <div className="mt-4">
+                          <div className="card border-info">
+                            <div className="card-body">
+                              <h6 className="card-title">🐦 How Twitter Mining Works</h6>
+                              <ul className="mb-0">
+                                <li><small>1. Follow @playSnakeAI on Twitter</small></li>
+                                <li><small>2. Tweet mentioning @playSnakeAI with #MineTheSnake</small></li>
+                                <li><small>3. Our system automatically detects qualifying tweets</small></li>
+                                <li><small>4. You get a claim link sent to you on Twitter</small></li>
+                                <li><small>5. One reward per 24 hours per user</small></li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Important Notes */}
+                        <div className="mt-3">
                           <div className="card border-warning">
                             <div className="card-body">
                               <h6 className="card-title">⚠️ Important Notes</h6>

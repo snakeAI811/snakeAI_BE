@@ -456,14 +456,14 @@ pub async fn get_claim_tx(
                 Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
             };
 
-            let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+            let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
                 Ok(latest_blockhash) => latest_blockhash,
                 Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
             };
 
             let message = Message::new(&instructions, Some(&wallet));
             let mut transaction = Transaction::new_unsigned(message);
-            transaction.partial_sign(&[&admin], latest_blockhash);
+            transaction.partial_sign(&[&admin], _latest_blockhash);
             let serialized_transaction = bincode::serialize(&transaction).unwrap();
             let base64_transaction =
                 engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -570,7 +570,7 @@ pub async fn select_role_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
@@ -661,14 +661,14 @@ pub async fn approve_patron_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&admin.pubkey()));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -725,14 +725,14 @@ pub async fn claim_tokens_with_role_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -779,7 +779,7 @@ pub async fn lock_tokens_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
@@ -901,11 +901,11 @@ pub async fn create_vesting_tx(
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
     // Validate role type
-    let role_type = match payload.role_type.as_str() {
-        "staker" => snake_contract::state::VestingRoleType::Staker,
-        "patron" => snake_contract::state::VestingRoleType::Patron,
-        _ => return Err(ApiError::BadRequest("Invalid role type".to_string())),
-    };
+    // let role_type = match payload.role_type.as_str() {
+    //     "staker" => snake_contract::state::VestingRoleType::Staker,
+    //     "patron" => snake_contract::state::VestingRoleType::Patron,
+    //     _ => return Err(ApiError::BadRequest("Invalid role type".to_string())),
+    // };
 
     let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
@@ -941,14 +941,14 @@ pub async fn create_vesting_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -977,7 +977,7 @@ pub async fn withdraw_vesting_tx(
     );
     let escrow_vault = spl_associated_token_account::get_associated_token_address(&vesting_account, &mint);
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
-    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let _treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
 
     let instructions = match state
         .program
@@ -997,14 +997,14 @@ pub async fn withdraw_vesting_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -1021,7 +1021,7 @@ pub async fn initiate_otc_swap_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    // let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let seller_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (user_claim, _) = Pubkey::find_program_address(
@@ -1064,7 +1064,7 @@ pub async fn initiate_otc_swap_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
@@ -1128,14 +1128,14 @@ pub async fn accept_otc_swap_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -1175,14 +1175,14 @@ pub async fn cancel_otc_swap_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    transaction.partial_sign(&[&admin], _latest_blockhash);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);

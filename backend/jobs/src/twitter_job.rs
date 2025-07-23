@@ -377,7 +377,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                             Some(reward) => {
                                 // Reward already exists
                                 text = format!(
-                                    "You have already available reward. Click the link to claim. {}",
+                                    "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
                                     reward.get_reward_url(&env.frontend_url)
                                 );
 
@@ -399,7 +399,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                                             let formatted_next_time =
                                                 next_time.format("%Y-%-m-%-d %H:%M:%S").to_string();
                                             text = format!(
-                                                "You've claimed reward at {}, post after {} (24 hours later) to mint",
+                                                "⏰ You claimed at {}. Next mining available after {} (24hr cooldown). Thanks for playing! 🐍",
                                                 formatted_time, formatted_next_time
                                             );
                                         }
@@ -413,7 +413,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     }
                     false => {
                         // User don't follow us
-                        text = format!("You need to follow us before posting to get your rewards");
+                        text = format!("👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI #MineTheSnake! 🐍");
                         false
                     }
                 };
@@ -464,10 +464,10 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         for reward in &rewards {
             match client
                 .reply_with_media(
-                    &format!(
-                        "Click the link to claim. {}",
-                        reward.get_reward_url(&env.frontend_url)
-                    ),
+                &format!(
+                "🎉 Congrats! Your tweet qualified for Snake AI token rewards! 🐍💰\n\n🔗 Claim your tokens: {}\n\n#SnakeAI #TokenRewards",
+                reward.get_reward_url(&env.frontend_url)
+                ),
                     &None,
                     &reward.tweet_id,
                 )

@@ -5,6 +5,7 @@ import LandingPage from "./pages/landing";
 import GetStartedPage from "./pages/get_started";
 import Home from "./pages/home";
 import TweetMiningPage from "./pages/tweet_mining";
+import TwitterMiningPage from "./pages/twitter-mining";
 import GenerateMeme from "./pages/meme_generation";
 import PatronFrameworkPage from "./pages/patron";
 import TokensPage from "./pages/patron/tokens";
@@ -37,6 +38,8 @@ function  App() {
           <Route path="/tweet-mining/page1" element={<TweetMiningPage page_number={1} />} />
           <Route path="/tweet-mining/page2" element={<TweetMiningPage page_number={2} />} />
           <Route path="/tweet-mining/page3" element={<TweetMiningPage page_number={3} />} />
+
+          <Route path="/twitter-mining" element={<TwitterMiningPage />} />
 
           <Route path="/meme-generation" element={<GenerateMeme />} />
           <Route path="/meme-generation/page1" element={<GenerateMeme page_number={1} />} />

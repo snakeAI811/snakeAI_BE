@@ -17,7 +17,7 @@ snake_contract = "Aw4zQtbMuxCChXS923HeyhAMPakC8KMQa6tQmMS4pPYM"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

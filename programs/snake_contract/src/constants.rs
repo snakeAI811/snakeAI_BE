@@ -19,7 +19,7 @@ pub const SECONDS_IN_YEAR: i64 = 365 * 24 * 60 * 60;
 
 // DAO constants
 pub const MIN_DAO_STAKE_AMOUNT: u64 = 1_000_000_000; // 1000 tokens
-pub const DAO_TOTAL_SEATS: u32 = 100;
+pub const DAO_TOTAL_SEATS: u32 = 50;
 
 // Patron exit penalty
 pub const PATRON_EXIT_BURN_PERCENT: u64 = 20; // 20% burn on exit

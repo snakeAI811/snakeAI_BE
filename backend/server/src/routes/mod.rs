@@ -2,7 +2,7 @@ mod auth;
 mod user;
 
 use crate::{middleware::auth as auth_middleware, state::AppState, handler::{dev}};
-use axum::{Router, http::HeaderValue, middleware, routing::{get, post}};
+use axum::{Router, http::HeaderValue, middleware, routing::{get}};
 use database::DatabasePool;
 use hyper::{
     Method,
