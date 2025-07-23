@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { useWalletContext } from '../../contexts/WalletContext';
-import { tokenApi } from '../patron/services/apiService';
+import { tokenApi, userApi } from '../patron/services/apiService';
 import { UserRole } from '../patron/index';
 
 interface ClaimPageProps {
@@ -24,7 +24,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
   const { connected, publicKey, connect } = useWalletContext();
   
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
-  const [selectedRole, setSelectedRole] = useState<UserRole['role']>('None');
+  const [selectedRole, setSelectedRole] = useState<UserRole['role']>('none');
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,25 +35,34 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
       setLoading(true);
       setError(null);
       
-      // TODO: Replace with actual API call to fetch claim data
-      // For now, simulate the data
-      const mockData: ClaimData = {
-        id: id || 'mock-id',
-        amount: Math.floor(Math.random() * 1000) + 100,
-        phase: Math.random() > 0.5 ? 'Phase1' : 'Phase2',
-        timestamp: new Date().toISOString(),
-        claimed: false,
-        userId: publicKey || 'mock-user'
-      };
+      if (!id) {
+        setError('No reward ID provided');
+        return;
+      }
+
+      const response = await userApi.getRewardById(id);
       
-      setClaimData(mockData);
+      if (response.success && response.data) {
+        const rewardData = response.data;
+        const claimData: ClaimData = {
+          id: rewardData.id,
+          amount: rewardData.reward_amount,
+          phase: (rewardData.phase === 'Phase2' ? 'Phase2' : 'Phase1') as 'Phase1' | 'Phase2',
+          timestamp: rewardData.created_at,
+          claimed: !!rewardData.transaction_signature, // If transaction exists, it's been claimed
+          userId: rewardData.user_id
+        };
+        setClaimData(claimData);
+      } else {
+        setError(response.error || 'Failed to fetch reward data');
+      }
     } catch (err) {
       setError('Failed to fetch claim data');
       console.error('Error fetching claim data:', err);
     } finally {
       setLoading(false);
     }
-  }, [id, publicKey]);
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -68,7 +77,9 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
     setError(null);
     
     try {
-      const response = await tokenApi.claimTokensWithRole(selectedRole);
+      if (!claimData) return;
+      
+      const response = await tokenApi.claimTokensWithRole(selectedRole, claimData.amount);
       
       if (response.success) {
         setSuccess(true);
@@ -87,24 +98,24 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
 
   const getRoleColor = (role: UserRole['role']) => {
     switch (role) {
-      case 'Staker': return 'primary';
-      case 'Patron': return 'warning';
+      case 'staker': return 'primary';
+      case 'patron': return 'warning';
       default: return 'secondary';
     }
   };
 
   const getRoleIcon = (role: UserRole['role']) => {
     switch (role) {
-      case 'Staker': return '🏦';
-      case 'Patron': return '👑';
+      case 'staker': return '🏦';
+      case 'patron': return '👑';
       default: return '👤';
     }
   };
 
   const getRoleBenefits = (role: UserRole['role']) => {
     switch (role) {
-      case 'Staker': return ['5% staking rewards', '3-month lock period', 'Enhanced mining multiplier'];
-      case 'Patron': return ['All Staker benefits', 'DAO governance', '6-month lock period', 'OTC trading rebates'];
+      case 'staker': return ['5% staking rewards', '3-month lock period', 'Enhanced mining multiplier'];
+      case 'patron': return ['All Staker benefits', 'DAO governance', '6-month lock period', 'OTC trading rebates'];
       default: return ['Basic access', 'No token lock', 'Standard rewards'];
     }
   };
@@ -206,7 +217,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                         <h3 className="card-title mb-4">🎭 Select Your Role</h3>
                         
                         <div className="row g-3">
-                          {(['None', 'Staker', 'Patron'] as UserRole['role'][]).map((role) => (
+                          {(['none', 'staker', 'patron'] as UserRole['role'][]).map((role) => (
                             <div key={role} className="col-12">
                               <div 
                                 className={`card border-2 ${
@@ -221,7 +232,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                                   <div className="d-flex align-items-center mb-2">
                                     <span className="fs-4 me-3">{getRoleIcon(role)}</span>
                                     <div>
-                                      <h6 className="card-title mb-0">{role === 'None' ? 'No Role' : role}</h6>
+                                      <h6 className="card-title mb-0">{role === 'none' ? 'No Role' : role}</h6>
                                       {selectedRole === role && (
                                         <small className="text-success">✓ Selected</small>
                                       )}
@@ -278,7 +289,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                         <div className="mb-4">
                           <div className="card bg-light">
                             <div className="card-body">
-                              <h6>Selected Role: {getRoleIcon(selectedRole)} {selectedRole === 'None' ? 'No Role' : selectedRole}</h6>
+                              <h6>Selected Role: {getRoleIcon(selectedRole)} {selectedRole === 'none' ? 'No Role' : selectedRole}</h6>
                               <div className="mt-2">
                                 <small className="text-muted">Benefits:</small>
                                 <ul className="list-unstyled mt-1">

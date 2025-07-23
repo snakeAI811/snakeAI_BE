@@ -152,6 +152,10 @@ body {
   background-color: #A9E000;
 }
 
+.bg-white-custom {
+  background-color: #D9D9D9 !important;
+}
+
 .bg-gray-200 {
   background-color: #e9ecef;
 }
@@ -1036,18 +1040,18 @@ body {
   border-top: 0.3rem dashed black;
 }
 
+.custom-border-bottom {
+  border-bottom: 0.3rem dashed black;
+}
+
 .custom-content-height {
+  padding: 15px 20px;
   height: calc(100% - 50px);
+  overflow: auto;
 }
 
 .custom-menu {
   width: 130px;
-  height: calc(100vh - 100px);
-  min-height: 600px;
-}
-
-.custom-content {
-  width: calc(100% - 150px);
   height: calc(100vh - 100px);
   min-height: 600px;
 }
@@ -1103,5 +1107,11 @@ body {
   .mobile-dropdown-menu,
   .mobile-menu-overlay {
     display: none !important;
+  }
+
+  .custom-content {
+    width: calc(100% - 150px);
+    height: calc(100vh - 100px);
+    min-height: 600px;
   }
 }

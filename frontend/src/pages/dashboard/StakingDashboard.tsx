@@ -4,8 +4,8 @@ import { PublicKey, Connection } from '@solana/web3.js';
 import { Program, AnchorProvider, web3, utils, BN } from '@project-serum/anchor';
 
 interface UserStakingData {
-  role: 'None' | 'Staker' | 'Patron';
-  patronStatus: 'None' | 'Applied' | 'Approved' | 'Revoked';
+  role: 'none' | 'staker' | 'patron';
+  patronStatus: 'none' | 'Applied' | 'Approved' | 'Revoked';
   lockedAmount: number;
   lockStartTimestamp: number;
   lockEndTimestamp: number;
@@ -67,11 +67,11 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
       const phase2Mining = await checkPhase2Mining(publicKey.toString());
 
       const stakingData: UserStakingData = {
-        role: userClaimAccount.role && userClaimAccount.role.staker !== undefined ? 'Staker' : 
-              userClaimAccount.role && userClaimAccount.role.patron !== undefined ? 'Patron' : 'None',
+        role: userClaimAccount.role && userClaimAccount.role.staker !== undefined ? 'staker' : 
+              userClaimAccount.role && userClaimAccount.role.patron !== undefined ? 'patron' : 'none',
         patronStatus: userClaimAccount.patronStatus && userClaimAccount.patronStatus.applied !== undefined ? 'Applied' :
                      userClaimAccount.patronStatus && userClaimAccount.patronStatus.approved !== undefined ? 'Approved' :
-                     userClaimAccount.patronStatus && userClaimAccount.patronStatus.revoked !== undefined ? 'Revoked' : 'None',
+                     userClaimAccount.patronStatus && userClaimAccount.patronStatus.revoked !== undefined ? 'Revoked' : 'none',
         lockedAmount: userClaimAccount.lockedAmount / 1e9,
         lockStartTimestamp: userClaimAccount.lockStartTimestamp,
         lockEndTimestamp: userClaimAccount.lockEndTimestamp,
@@ -163,8 +163,8 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Staker': return 'bg-blue-100 text-blue-800';
-      case 'Patron': return 'bg-purple-100 text-purple-800';
+      case 'staker': return 'bg-blue-100 text-blue-800';
+      case 'patron': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -216,7 +216,7 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(stakingData.role)}`}>
               {stakingData.role}
             </span>
-            {stakingData.patronStatus !== 'None' && (
+            {stakingData.patronStatus !== 'none' && (
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(stakingData.patronStatus)}`}>
                 {stakingData.patronStatus}
               </span>
@@ -352,7 +352,7 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
       </div>
 
       {/* Actions */}
-      {stakingData.role === 'Staker' && (
+      {stakingData.role === 'staker' && (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Actions</h3>
           <div className="flex space-x-4">
@@ -376,7 +376,7 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
       )}
 
       {/* Patron Info */}
-      {stakingData.role === 'Patron' && (
+      {stakingData.role === 'patron' && (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Patron Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,19 +1,43 @@
 
-import { useNavigate } from "react-router-dom";
+import React from "react";
 
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import SimpleWalletConnection from "../patron/components/SimpleWalletConnection";
+import WalletDisplay from "../../components/WalletDisplay";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWalletContext } from "../../contexts/WalletContext";
+import { useAppContext } from "../../contexts/AppContext";
 import { usePhantom } from "../../hooks/usePhantom";
 import './index.css';
+// icons
+import { ReactComponent as IconLeftLogo } from "../../svgs/logo-left.svg";
 
 function Home() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
-    const navigate = useNavigate();
     const { user } = useAuth();
-    const { connected } = useWalletContext();
+    const { connected, connect } = useWalletContext();
+    const { 
+        miningStatus, 
+        userProfile, 
+        tokenInfo, 
+        loading, 
+        error, 
+        showWalletWarning,
+        refreshData 
+    } = useAppContext();
+
+    // Calculate mining progress
+    const getMiningProgress = () => {
+        if (!miningStatus) return { percentage: 0, mined: 0, total: 1000000 };
+        
+        const total = 1000000; // 1M tweets target for Phase 1
+        const mined = miningStatus.total_phase1_mined || 0;
+        const percentage = Math.min((mined / total) * 100, 100);
+        
+        return { percentage, mined, total };
+    };
+
+    const { percentage, mined, total } = getMiningProgress();
 
     return (
         <div className="w-100 p-3" style={{ height: '100vh' }}>
@@ -23,170 +47,120 @@ function Home() {
                 {/* Menu End */}
                
                 <div className="custom-content">
-                    <div className="w-100">
+                    <div className="w-100 d-flex justify-space-between align-items-end">
                         <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                            🎮 DASHBOARD
+                            DASHBOARD
                         </div>
-                        <div className="fs-6 text-muted mb-3">
-                            Welcome back, {user?.twitter_username}! Here's your guide to Snake AI.
+                        <div className="fs-6 text-muted">
+                            Welcome back, {userProfile?.twitter_username || user?.twitter_username}!
                         </div>
-                        <hr className="border border-dashed border-black border-3 opacity-100" />
                     </div>
-                    
-                    <div className="custom-border-y custom-content-height">
-                        {/* Welcome Section */}
-                        <div className="row g-4 mb-4">
-                            <div className="col-lg-8">
-                                <div className="card border-3 border-dashed h-100">
-                                    <div className="card-body">
-                                        <h3 className="card-title mb-3">🚀 Getting Started Guide</h3>
-                                        <div className="row g-3">
-                                            <div className="col-md-6">
-                                                <div className={`card border-2 ${connected ? 'border-success bg-light-success' : 'border-warning'}`}>
-                                                    <div className="card-body text-center">
-                                                        <div className="fs-2 mb-2">{connected ? '✅' : '🔗'}</div>
-                                                        <h6 className="card-title">1. Connect Wallet</h6>
-                                                        <p className="small text-muted">Link your Phantom wallet to access all features</p>
-                                                        {!connected && <SimpleWalletConnection />}
-                                                        {connected && <span className="badge bg-success">✓ Wallet Connected</span>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-md-6">
-                                                <div className="card border-2 border-info" style={{ cursor: 'pointer' }} onClick={() => navigate('/tweet-mining')}>
-                                                    <div className="card-body text-center">
-                                                        <div className="fs-2 mb-2">🐦</div>
-                                                        <h6 className="card-title">2. Start Mining</h6>
-                                                        <p className="small text-muted">Tweet about Snake AI to earn tokens</p>
-                                                        <button className="btn btn-info btn-sm">Start Mining →</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-md-6">
-                                                <div className="card border-2 border-primary" style={{ cursor: 'pointer' }} onClick={() => navigate('/patron-framework')}>
-                                                    <div className="card-body text-center">
-                                                        <div className="fs-2 mb-2">👑</div>
-                                                        <h6 className="card-title">3. Choose Role</h6>
-                                                        <p className="small text-muted">Become a Staker or apply for Patron status</p>
-                                                        <button className="btn btn-primary btn-sm">Select Role →</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-md-6">
-                                                <div className="card border-2 border-success" style={{ cursor: 'pointer' }} onClick={() => navigate('/claim')}>
-                                                    <div className="card-body text-center">
-                                                        <div className="fs-2 mb-2">🎁</div>
-                                                        <h6 className="card-title">4. Claim Rewards</h6>
-                                                        <p className="small text-muted">Collect your earned Snake tokens</p>
-                                                        <button className="btn btn-success btn-sm">Claim Now →</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+
+                    {/* Wallet Warning */}
+                    {showWalletWarning && (
+                        <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 py-1 position-fixed" style={{top: '10px'}} role="alert">
+                            <i className="bi bi-exclamation-triangle-fill"></i>
+                            <div className="flex-grow-1">
+                                <strong>Wallet Required!</strong> Please connect your wallet to access all features.
                             </div>
-                            
-                            <div className="col-lg-4">
-                                <div className="card border-3 border-dashed h-100">
-                                    <div className="card-body">
-                                        <h3 className="card-title mb-3">📊 Your Status</h3>
-                                        <div className="mb-3">
-                                            <div className="d-flex justify-content-between align-items-center mb-2">
-                                                <span>🐦 Tweets Mined:</span>
-                                                <span className="badge bg-info">0</span>
-                                            </div>
-                                            <div className="d-flex justify-content-between align-items-center mb-2">
-                                                <span>🪙 Tokens Earned:</span>
-                                                <span className="badge bg-warning">0</span>
-                                            </div>
-                                            <div className="d-flex justify-content-between align-items-center mb-2">
-                                                <span>👑 Current Role:</span>
-                                                <span className="badge bg-secondary">None</span>
-                                            </div>
-                                            <div className="d-flex justify-content-between align-items-center">
-                                                <span>🔗 Wallet:</span>
-                                                <span className={`badge ${connected ? 'bg-success' : 'bg-danger'}`}>
-                                                    {connected ? 'Connected' : 'Not Connected'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <hr />
-                                        <h5 className="mb-3">⚡ Quick Actions</h5>
-                                        <div className="d-grid gap-2">
-                                            <button onClick={() => navigate('/tweet-mining')} className="btn btn-info btn-sm">
-                                                🐦 Tweet Mining
-                                            </button>
-                                            <button onClick={() => navigate('/patron-framework')} className="btn btn-warning btn-sm">
-                                                👑 Patron Framework
-                                            </button>
-                                            <button onClick={() => navigate('/meme-generation')} className="btn btn-primary btn-sm">
-                                                🎨 Generate Memes
-                                            </button>
-                                            <button onClick={() => navigate('/get-started')} className="btn btn-outline-secondary btn-sm">
-                                                📖 Learn More
-                                            </button>
-                                        </div>
-                                    </div>
+                            <button 
+                                className="btn btn-warning btn-sm"
+                                onClick={connect}
+                                disabled={loading}
+                            >
+                                Connect Wallet
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Loading State */}
+                    {loading && (
+                        <div className="text-center py-3">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <div className="mt-2">Loading mining data...</div>
+                        </div>
+                    )}
+
+                    {/* Error State */}
+                    {error && (
+                        <div className="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">
+                            <i className="bi bi-exclamation-circle-fill"></i>
+                            <div className="flex-grow-1">
+                                {error}
+                            </div>
+                            <button 
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={refreshData}
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    )}
+                    
+                    <div className="custom-border-y custom-content-height d-flex flex-column">
+                        {/* Welcome Section */}
+                        <div className="h-100 d-flex flex-column justify-content-center">
+                            <div className="text-center fs-2 fs-lg-4 fs-xl-7 fw-bold" >
+                                Play
+                            </div>
+                            <div className="d-flex justify-content-center align-items-center">
+                                <IconLeftLogo />
+                                <span className="fs-1 fs-lg-2 fs-xl-1 fw-bold">SNAKE.AI</span>
+                            </div>
+                            <div>
+                                <WalletDisplay />
+                            </div>
+                        </div>
+
+                        {/* Current Status */}
+                        <div className="d-flex align-items-center py-3 custom-border-top w-100">
+                            <div className="bg-black p-2 px-4 text-light-green-950 rounded-3" style={{ minWidth: '180px'}}>
+                                <div className="fs-4 fw-bold">
+                                    {miningStatus?.current_phase === 1 ? 'PHASE 1:' : 'PHASE 2:'}
+                                </div>
+                                <div className="fs-6">MINING EPOCH</div>
+                            </div>
+                            <div className="custom-border-left mx-3" style={{height: '70px'}} > </div>
+                            <div className="d-flex align-items-center">
+                                <div className="progress-bar-container rounded me-3">
+                                    <div 
+                                        className="progress-bar-fill" 
+                                        style={{ width: `${percentage}%` }}
+                                    ></div>
+                                </div>
+                                <div className="progress-container">
+                                    <div
+                                        className="progress-fill"
+                                        style={{ ['--progress' as any]: `${percentage}` }}
+                                    ></div>
+                                </div>
+                                <div className="ps-3 fs-6">
+                                    <b>MINING PROGRESS:</b> {mined.toLocaleString()} OUT OF {total.toLocaleString()} TWEETS MINED
                                 </div>
                             </div>
                         </div>
 
-                        {/* Mining Progress & Tips */}
-                        <div className="row g-4 mb-4">
-                            <div className="col-lg-8">
-                                <div className="card border-3 border-dashed">
-                                    <div className="card-body">
-                                        <h3 className="card-title mb-3">⛏️ Current Mining Phase</h3>
-                                        <div className="d-flex align-items-center">
-                                            <div className="bg-black p-3 px-4 text-white rounded-3 me-4" style={{ minWidth: '180px'}}>
-                                                <div className="fs-4 fw-bold">PHASE 1</div>
-                                                <div className="fs-6">MINING EPOCH</div>
-                                            </div>
-                                            <div className="flex-fill">
-                                                <div className="d-flex justify-content-between mb-2">
-                                                    <span><strong>Mining Progress:</strong></span>
-                                                    <span className="text-muted">5,000,031 / 1,000,000 tweets</span>
-                                                </div>
-                                                <div className="progress" style={{ height: '20px' }}>
-                                                    <div className="progress-bar bg-success" role="progressbar" style={{ width: "50%" }}>
-                                                        50%
-                                                    </div>
-                                                </div>
-                                                <div className="text-muted small mt-1">
-                                                    Phase 1 ends when 1M tweets are mined or time expires
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {/* User Stats */}
+                        {connected && userProfile && (
+                            <div className="d-flex gap-3 mt-3">
+                                <div className="bg-white-custom p-3 rounded flex-fill">
+                                    <div className="fs-6 text-muted">Your Tweets</div>
+                                    <div className="fs-4 fw-bold">{(userProfile.tweets || 0).toLocaleString()}</div>
                                 </div>
-                            </div>
-                            <div className="col-lg-4">
-                                <div className="card border-3 border-dashed">
-                                    <div className="card-body">
-                                        <h5 className="card-title mb-3">💡 Pro Tips</h5>
-                                        <ul className="list-unstyled">
-                                            <li className="mb-2">
-                                                <span className="badge bg-primary me-2">1</span>
-                                                <small>Tweet daily for consistent rewards</small>
-                                            </li>
-                                            <li className="mb-2">
-                                                <span className="badge bg-success me-2">2</span>
-                                                <small>Use hashtags like #SnakeAI for better engagement</small>
-                                            </li>
-                                            <li className="mb-2">
-                                                <span className="badge bg-warning me-2">3</span>
-                                                <small>Connect wallet before mining to save progress</small>
-                                            </li>
-                                            <li>
-                                                <span className="badge bg-info me-2">4</span>
-                                                <small>Apply for Patron status for exclusive benefits</small>
-                                            </li>
-                                        </ul>
-                                    </div>
+                                <div className="bg-white-custom p-3 rounded flex-fill">
+                                    <div className="fs-6 text-muted">Reward Balance</div>
+                                    <div className="fs-4 fw-bold">{(userProfile.reward_balance || 0).toFixed(4)} SNAKE</div>
                                 </div>
+                                {tokenInfo && (
+                                    <div className="bg-white-custom p-3 rounded flex-fill">
+                                        <div className="fs-6 text-muted">Token Balance</div>
+                                        <div className="fs-4 fw-bold">{(tokenInfo.balance || 0).toFixed(4)} SNAKE</div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

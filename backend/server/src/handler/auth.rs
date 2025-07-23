@@ -141,6 +141,17 @@ pub async fn check_reward_available(
     Ok(Json(None))
 }
 
+pub async fn get_reward(
+    State(state): State<AppState>,
+    Path(reward_id): Path<Uuid>,
+) -> Result<Json<types::model::Reward>, ApiError> {
+    if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
+        Ok(Json(reward))
+    } else {
+        Err(ApiError::NotFound("Reward not found".to_string()))
+    }
+}
+
 pub async fn get_qrcode(
     State(state): State<AppState>,
     Path(reward_id): Path<Uuid>,

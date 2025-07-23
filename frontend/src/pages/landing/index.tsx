@@ -50,7 +50,7 @@ function LandingPage({ page_status = 'game' }: LandingPageProps) {
         <>
             <LandingHeader />
             <AuthDebug />
-            <WalletTestPanel />
+            {/* <WalletTestPanel /> */}
             <div className='w-100 p-2 p-md-4 p-lg-4' style={{ height: '90vh' }}>
                 {
                     (() => {

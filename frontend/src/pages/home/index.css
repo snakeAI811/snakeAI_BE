@@ -1,15 +1,18 @@
-.progress-bar-container {
-  height: 20px;
-  width: 50px;
+.progress-container {
+  width: 80px;
+  height: 32px;
   background-color: transparent;
-  border: 2px solid black;
-  position: relative;
+  border-radius: 7px;
   overflow: hidden;
+  position: relative;
+  border: 2px solid black
 }
 
-.progress-bar-fill {
-  height: 100%;
+.progress-fill {
+  --progress: 50;
   background-color: black;
-  transition: width 0.3s ease;
-  position: relative;
+  width: calc(var(--progress) * 1%);
+  height: 30px;
+  clip-path: polygon(0 0, calc(100% - 15px) 0, calc(100% )  100% , 0% 100%);
+  transition: width 0.4s ease;
 }

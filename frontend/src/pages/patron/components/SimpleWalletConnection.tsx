@@ -41,17 +41,14 @@ const SimpleWalletConnection: React.FC = () => {
           <div style={{
             marginTop: '15px',
             padding: '15px',
-            background: '#fff',
+            background: 'transparent',
             borderRadius: '5px',
-            border: '1px solid #ddd'
+            border: '2px dashed #333'
           }}>
             <p style={{ margin: '5px 0', fontSize: '14px' }}>
-              <strong>Status:</strong> Connected
+              <strong>Wallet Address:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
             </p>
-            <p style={{ margin: '5px 0', fontSize: '14px' }}>
-              <strong>Public Key:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
-            </p>
-            <button 
+            {/* <button 
               onClick={disconnect} 
               style={{
                 background: '#ff4444',
@@ -64,7 +61,7 @@ const SimpleWalletConnection: React.FC = () => {
               }}
             >
               Disconnect
-            </button>
+            </button> */}
           </div>
         )}
       </div>

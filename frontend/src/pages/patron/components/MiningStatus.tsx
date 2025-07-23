@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { tokenApi } from '../services/apiService';
 
 interface MiningStatusData {
-  current_phase: 'Phase1' | 'Phase2';
+  current_phase: 1 | 2;
   phase1_tweet_count: number;
   phase2_tweet_count: number;
   total_phase1_mined: number;
@@ -99,10 +99,10 @@ function MiningStatus() {
           <div className="alert alert-info">
             <h6 className="alert-heading">Current Phase</h6>
             <div className="d-flex align-items-center">
-              <span className={`badge bg-${miningData.current_phase === 'Phase1' ? 'success' : 'primary'} fs-6 me-2`}>
+              <span className={`badge bg-${miningData.current_phase ===  1 ? 'success' : 'primary'} fs-6 me-2`}>
                 {miningData.current_phase}
               </span>
-              {miningData.current_phase === 'Phase2' && (
+              {miningData.current_phase === 2 && (
                 <small className="text-muted">
                   Started: {formatDate(miningData.phase2_start_date)}
                 </small>
@@ -159,12 +159,48 @@ function MiningStatus() {
           <div className="card border-info">
             <div className="card-body">
               <h6 className="card-title">📋 Phase Information</h6>
-              <ul className="mb-0">
+              <ul className="mb-2">
                 <li><small><strong>Phase 1:</strong> Basic mining rewards for Twitter engagement</small></li>
-                <li><small><strong>Phase 2:</strong> Enhanced rewards with improved mechanics</small></li>
-                <li><small>Your role affects mining multipliers and rewards</small></li>
-                <li><small>Higher roles unlock better mining opportunities</small></li>
+                <li><small><strong>Phase 2:</strong> Anyone can mine, but roles unlock enhanced benefits</small></li>
               </ul>
+              
+              {miningData.current_phase === 2 && (
+                <div className="mt-3">
+                  <h6 className="fs-6">🎭 Role Benefits in Phase 2:</h6>
+                  <div className="row g-2">
+                    <div className="col-12">
+                      <div className="card bg-light">
+                        <div className="card-body p-2">
+                          <div className="d-flex align-items-center">
+                            <span className="badge bg-secondary me-2">👤 None</span>
+                            <small>Standard mining rewards, can sell at TGE</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="card bg-light">
+                        <div className="card-body p-2">
+                          <div className="d-flex align-items-center">
+                            <span className="badge bg-primary me-2">🏦 Staker</span>
+                            <small>3-month lock, 5% APY rewards, enhanced mining</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="card bg-light">
+                        <div className="card-body p-2">
+                          <div className="d-flex align-items-center">
+                            <span className="badge bg-warning me-2">👑 Patron</span>
+                            <small>6-month commitment, DAO eligibility, OTC benefits</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

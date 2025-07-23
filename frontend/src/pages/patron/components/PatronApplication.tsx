@@ -8,72 +8,78 @@ interface PatronApplicationProps {
 
 interface Application {
   id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'none' | 'pending' | 'approved' | 'rejected';
   submitted_at: string;
-  reason?: string;
+  qualification_score: number;
 }
 
 function PatronApplication({ userRole }: PatronApplicationProps) {
   const [application, setApplication] = useState<Application | null>(null);
-  const [applicationReason, setApplicationReason] = useState('');
+  const [isCalculating, setIsCalculating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pendingApplications, setPendingApplications] = useState<Application[]>([]);
 
   useEffect(() => {
     fetchApplicationStatus();
-    if (userRole.role === 'Patron') {
+    if (userRole.role === 'patron') {
       fetchPendingApplications();
     }
   }, [userRole]);
 
   const fetchApplicationStatus = async () => {
     try {
-      // TODO: Replace with actual API call
-      // Mock data for now
-      setApplication({
-        id: '1',
-        status: 'approved',
-        submitted_at: new Date().toISOString(),
-        reason: 'Experienced community member with significant contributions'
-      });
+      const response = await patronApi.getApplicationStatus();
+      if (response.success && response.data) {
+        // If status is 'none', treat as no application
+        if (response.data.status === 'none') {
+          setApplication(null);
+        } else {
+          setApplication(response.data);
+        }
+      } else {
+        // No application found - user hasn't applied yet
+        setApplication(null);
+      }
     } catch (error) {
       console.error('Failed to fetch application status:', error);
+      setApplication(null);
     }
   };
 
   const fetchPendingApplications = async () => {
     try {
-      // TODO: Replace with actual API call for admins/patrons
-      // Mock data for now
-      setPendingApplications([
-        {
-          id: '2',
-          status: 'pending',
-          submitted_at: new Date().toISOString(),
-          reason: 'Active trader seeking governance participation'
-        },
-        {
-          id: '3',
-          status: 'pending',
-          submitted_at: new Date().toISOString(),
-          reason: 'Long-term holder wanting to contribute to ecosystem'
-        }
-      ]);
+      const response = await patronApi.getPendingApplications();
+      if (response.success && response.data) {
+        // Map the API response to match our interface
+        const mappedApplications = response.data.map(app => ({
+          ...app,
+          status: app.status as 'none' | 'pending' | 'approved' | 'rejected'
+        }));
+        setPendingApplications(mappedApplications);
+      } else {
+        setPendingApplications([]);
+      }
     } catch (error) {
       console.error('Failed to fetch pending applications:', error);
+      setPendingApplications([]);
     }
   };
 
   const handleApplyForPatron = async () => {
-    if (!applicationReason.trim()) return;
-
     setLoading(true);
+    setIsCalculating(true);
+    
     try {
-      const result = await patronApi.applyForPatron(applicationReason);
+      // Calculate wallet age (mock calculation - in real app, this would come from wallet connection)
+      const walletAgedays = 30; // Placeholder: could be calculated from user.created_at or wallet creation time
+      
+      // Calculate community score (mock calculation - could be based on tweets, likes, etc.)
+      const communityScore = Math.min(20, 10); // Placeholder: based on engagement metrics
+      
+      const result = await patronApi.applyForPatron(walletAgedays, communityScore);
 
       if (result.success) {
         console.log('Patron application transaction:', result.data);
-        setApplicationReason('');
         fetchApplicationStatus(); // Refresh application status
       } else {
         throw new Error(result.error || 'Failed to submit patron application');
@@ -82,6 +88,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
       console.error('Error applying for patron:', error);
     } finally {
       setLoading(false);
+      setIsCalculating(false);
     }
   };
 
@@ -129,6 +136,8 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
         return <span className="badge bg-danger">Rejected</span>;
       case 'pending':
         return <span className="badge bg-warning">Pending</span>;
+      case 'none':
+        return <span className="badge bg-secondary">Not Applied</span>;
       default:
         return <span className="badge bg-secondary">Unknown</span>;
     }
@@ -138,7 +147,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
     <div className="w-100">
       <h3 className="mb-4">👑 Patron Features</h3>
 
-      {userRole.role !== 'Patron' && !application && (
+      {userRole.role !== 'patron' && !application && (
         /* Apply for Patron */
         <div className="card border-warning mb-4">
           <div className="card-body">
@@ -149,15 +158,22 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
             </p>
 
             <div className="mb-3">
-              <label className="form-label">Application Reason</label>
-              <textarea
-                className="form-control"
-                rows={4}
-                placeholder="Explain why you want to become a Patron and how you'll contribute to the ecosystem..."
-                value={applicationReason}
-                onChange={(e) => setApplicationReason(e.target.value)}
-                disabled={loading}
-              />
+              <div className="alert alert-secondary">
+                <h6>📊 Automatic Qualification Assessment</h6>
+                <p className="mb-1">Your application will be automatically evaluated based on:</p>
+                <ul className="mb-0">
+                  <li>Wallet age and transaction history</li>
+                  <li>Community engagement and tweet count</li>
+                  <li>Current staking and token holdings</li>
+                  <li>Overall platform participation</li>
+                </ul>
+                {isCalculating && (
+                  <div className="mt-2">
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    <small>Calculating qualification score...</small>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="alert alert-info">
@@ -173,7 +189,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
             <button
               className="btn btn-warning btn-lg"
               onClick={handleApplyForPatron}
-              disabled={loading || !applicationReason.trim()}
+              disabled={loading}
             >
               {loading ? (
                 <>
@@ -202,14 +218,19 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
               </div>
             </div>
             <div className="mt-3">
-              <strong>Reason:</strong>
-              <p className="mt-2">{application.reason}</p>
+              <strong>Qualification Score:</strong>
+              <p className="mt-2">
+                <span className="badge bg-info fs-6">{application.qualification_score}</span>
+                <small className="text-muted ms-2">
+                  (Based on wallet age, community engagement, and other factors)
+                </small>
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {userRole.role === 'Patron' && (
+      {userRole.role === 'patron' && (
         /* Patron Exclusive Features */
         <div className="row g-4 mb-4">
           <div className="col-lg-6">
@@ -244,7 +265,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
         </div>
       )}
 
-      {userRole.role === 'Patron' && pendingApplications.length > 0 && (
+      {userRole.role === 'patron' && pendingApplications.length > 0 && (
         /* Approve Applications (for Patrons) */
         <div className="card border-warning">
           <div className="card-body">
@@ -257,7 +278,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
                   <tr>
                     <th>Application ID</th>
                     <th>Submitted</th>
-                    <th>Reason</th>
+                    <th>Qualification Score</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -267,9 +288,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
                       <td>#{app.id}</td>
                       <td>{new Date(app.submitted_at).toLocaleDateString()}</td>
                       <td>
-                        <div style={{ maxWidth: '300px' }}>
-                          {app.reason}
-                        </div>
+                        <span className="badge bg-info fs-6">{app.qualification_score}</span>
                       </td>
                       <td>
                         <div className="btn-group" role="group">

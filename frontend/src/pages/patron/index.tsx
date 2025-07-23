@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
+import WalletGuard from "../../components/WalletGuard";
 import RoleSelection from './components/RoleSelection';
 import TokenManagement from './components/TokenManagement';
 import PatronApplication from './components/PatronApplication';
@@ -7,9 +8,10 @@ import OTCTrading from './components/OTCTrading';
 import SimpleWalletConnection from './components/SimpleWalletConnection';
 import MiningStatus from './components/MiningStatus';
 import { roleApi } from './services/apiService';
+import { useAppContext } from '../../contexts/AppContext';
 
 export interface UserRole {
-  role: 'None' | 'Staker' | 'Patron';
+  role: 'none' | 'staker' | 'patron';
   status?: string;
   locked_until?: number;
   stake_amount?: number;
@@ -20,15 +22,21 @@ interface PatronFrameworkPageProps {
 }
 
 function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
-  const [userRole, setUserRole] = useState<UserRole>({ role: 'None' });
+  const { userRole: globalUserRole } = useAppContext();
+  const [userRole, setUserRole] = useState<UserRole>({ role: 'none' });
   const [activeTab, setActiveTab] = useState<'role' | 'tokens' | 'patron' | 'otc' | 'mining'>('role');
   const [loading, setLoading] = useState(false);
 
-  // Mock user data - replace with actual API calls
   useEffect(() => {
-    // TODO: Fetch user role from backend API
     fetchUserRole();
   }, []);
+
+  // Sync with global user role
+  useEffect(() => {
+    if (globalUserRole && globalUserRole.role !== userRole.role) {
+      setUserRole(globalUserRole);
+    }
+  }, [globalUserRole, userRole.role]);
 
   const fetchUserRole = async () => {
   setLoading(true);
@@ -37,19 +45,19 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
     if (response.success && response.data) {
       // Map backend role string to frontend UserRole
       const backendRole = response.data.role?.toLowerCase();
-      let mappedRole: UserRole['role'] = 'None';
-      if (backendRole === 'staker') mappedRole = 'Staker';
-      else if (backendRole === 'patron') mappedRole = 'Patron';
+      let mappedRole: UserRole['role'] = 'none';
+      if (backendRole === 'staker') mappedRole = 'staker';
+      else if (backendRole === 'patron') mappedRole = 'patron';
       // Add other mappings if needed
 
       setUserRole({ ...response.data, role: mappedRole });
     } else {
       console.error('Failed to fetch user role:', response.error);
-      setUserRole({ role: 'None' });
+      setUserRole({ role: 'none' });
     }
   } catch (error) {
     console.error('Failed to fetch user role:', error);
-    setUserRole({ role: 'None' });
+    setUserRole({ role: 'none' });
   } finally {
     setLoading(false);
   }
@@ -57,9 +65,9 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
 
   const handleRoleChange = (newRole: UserRole) => {
     setUserRole(newRole);
-    if (newRole.role === 'Patron') {
+    if (newRole.role === 'patron') {
       setActiveTab('patron');
-    } else if (newRole.role === 'Staker') {
+    } else if (newRole.role === 'staker') {
       setActiveTab('tokens');
     }
   };
@@ -124,7 +132,7 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
                         : 'bg-light text-dark border-secondary'
                     }`}
                     onClick={() => setActiveTab('tokens')}
-                    disabled={userRole.role === 'None'}
+                    disabled={userRole.role === 'none'}
                   >
                     💰 Token Management
                   </button>
@@ -136,7 +144,7 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
                         : 'bg-light text-dark border-secondary'
                     }`}
                     onClick={() => setActiveTab('patron')}
-                    disabled={userRole.role !== 'Patron'}
+                    disabled={userRole.role !== 'patron'}
                   >
                     👑 Patron Features
                   </button>
@@ -148,7 +156,7 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
                         : 'bg-light text-dark border-secondary'
                     }`}
                     onClick={() => setActiveTab('otc')}
-                    disabled={userRole.role === 'None'}
+                    disabled={userRole.role === 'none'}
                   >
                     🔄 OTC Trading
                   </button>
@@ -166,33 +174,36 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
                 </div>
               </div>
 
-              {/* Wallet Connection */}
-              <div className="w-100 mb-4">
-                <SimpleWalletConnection />
-              </div>
+              {/* Content with Wallet Guard */}
+              <WalletGuard>
+                {/* Wallet Connection */}
+                <div className="w-100 mb-4">
+                  <SimpleWalletConnection />
+                </div>
 
-              {/* Current Role Display */}
-              <div className="w-100 mb-4">
-                <div className="alert alert-info border border-3 border-dashed">
-                  <strong>Current Role:</strong> {userRole.role}
-                  {userRole.role !== 'None' && (
-                    <span className="ms-2 badge bg-success">Active</span>
+                {/* Current Role Display */}
+                <div className="w-100 mb-4">
+                  <div className="alert alert-info border border-3 border-dashed">
+                    <strong>Current Role:</strong> {userRole.role}
+                    {userRole.role !== 'none' && (
+                      <span className="ms-2 badge bg-success">Active</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="w-100 border border-3 border-dashed p-4" style={{ minHeight: '60vh' }}>
+                  {loading ? (
+                    <div className="text-center">
+                      <div className="spinner-border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    renderTabContent()
                   )}
                 </div>
-              </div>
-
-              {/* Tab Content */}
-              <div className="w-100 border border-3 border-dashed p-4" style={{ minHeight: '60vh' }}>
-                {loading ? (
-                  <div className="text-center">
-                    <div className="spinner-border" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : (
-                  renderTabContent()
-                )}
-              </div>
+              </WalletGuard>
             </div>
           </div>
         </div>

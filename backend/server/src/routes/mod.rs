@@ -1,8 +1,8 @@
 mod auth;
 mod user;
 
-use crate::{middleware::auth as auth_middleware, state::AppState, handler::{test, dev}};
-use axum::{Router, http::HeaderValue, middleware, routing::get};
+use crate::{middleware::auth as auth_middleware, state::AppState, handler::{dev}};
+use axum::{Router, http::HeaderValue, middleware, routing::{get, post}};
 use database::DatabasePool;
 use hyper::{
     Method,
@@ -25,14 +25,6 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
                     auth_middleware,
                 )));
         let public = Router::new().merge(auth::routes());
-        let test_routes = Router::new()
-            .route("/test/profile", get(test::test_profile))
-            .route("/test/token-info", get(test::test_token_info))
-            .route("/test/patron-application", get(test::test_patron_application))
-            .route("/test/active-swaps", get(test::test_active_swaps))
-            .route("/test/my-swaps", get(test::test_my_swaps))
-            .route("/test/vesting-info", get(test::test_vesting_info))
-            .route("/test/auth-token", get(test::test_auth_token));
         
         let dev_routes = Router::new()
             .route("/dev/login", get(dev::dev_login))
@@ -41,7 +33,6 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
         Router::new()
             .merge(protected)
             .merge(public)
-            .merge(test_routes)
             .merge(dev_routes)
             .with_state(app_state)
             .merge(Router::new().route("/health", get(|| async { "<h1>SNAKE AI BACKEND</h1>" })))

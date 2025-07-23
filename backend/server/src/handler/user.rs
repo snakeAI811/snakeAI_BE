@@ -343,6 +343,72 @@ pub async fn get_tweets(
 const REWARD_POOL_SEED: &[u8] = b"reward_pool";
 const USER_CLAIM_SEED: &[u8] = b"user_claim";
 
+// Get token information for the user
+pub async fn get_token_info(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let reward_balance = state.service.reward.get_reward_balance(&user.id).await?;
+    let mining_status = state.service.tweet.get_phase1_mining_count(&user.id).await? 
+        + state.service.tweet.get_phase2_mining_count(&user.id).await?;
+    
+    // In a real implementation, you would get locked, staked amounts from smart contract
+    Ok(Json(json!({
+        "balance": reward_balance,
+        "locked": user.locked_amount.unwrap_or(0),
+        "staked": 0, // Would come from smart contract
+        "rewards": reward_balance,
+        "mining_count": mining_status,
+        "lockEndDate": user.latest_claim_timestamp
+    })))
+}
+
+// Get patron application status
+pub async fn get_patron_application_status(
+    Extension(user): Extension<User>,
+    State(_state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(json!({
+        "id": user.id,
+        "status": user.patron_status.unwrap_or_else(|| "none".to_string()),
+        "submitted_at": user.created_at,
+        "qualification_score": user.patron_qualification_score.unwrap_or(0)
+    })))
+}
+
+// Get active OTC swaps
+pub async fn get_active_swaps(
+    Extension(_user): Extension<User>,
+    State(_state): State<AppState>,
+) -> Result<Json<Vec<Value>>, ApiError> {
+    // In a real implementation, this would query the database for active OTC swaps
+    // For now, return empty array as placeholder
+    Ok(Json(vec![]))
+}
+
+// Get user's OTC swaps
+pub async fn get_my_swaps(
+    Extension(_user): Extension<User>,
+    State(_state): State<AppState>,
+) -> Result<Json<Vec<Value>>, ApiError> {
+    // In a real implementation, this would query user's OTC swap history
+    Ok(Json(vec![]))
+}
+
+// Get vesting information
+pub async fn get_vesting_info(
+    Extension(user): Extension<User>,
+    State(_state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    Ok(Json(json!({
+        "amount": user.locked_amount.unwrap_or(0),
+        "role_type": user.selected_role.unwrap_or_else(|| "none".to_string()),
+        "created_at": user.created_at,
+        "lock_duration_months": user.lock_duration_months.unwrap_or(0),
+        "withdrawal_available": false // Would be calculated based on lock period
+    })))
+}
+
 pub async fn get_claim_tx(
     Extension(user): Extension<User>,
     State(state): State<AppState>,
@@ -483,7 +549,6 @@ pub async fn select_role_tx(
         _ => return Err(ApiError::BadRequest("Invalid role".to_string())),
     };
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let (user_claim, _) = Pubkey::find_program_address(
         &[USER_CLAIM_SEED, wallet.as_array()],
         &state.program.id(),
@@ -511,8 +576,7 @@ pub async fn select_role_tx(
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -529,7 +593,6 @@ pub async fn apply_patron_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let (user_claim, _) = Pubkey::find_program_address(
         &[USER_CLAIM_SEED, wallet.as_array()],
         &state.program.id(),
@@ -552,14 +615,13 @@ pub async fn apply_patron_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -604,7 +666,7 @@ pub async fn approve_patron_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let message = Message::new(&instructions, Some(&wallet));
+    let message = Message::new(&instructions, Some(&admin.pubkey()));
     let mut transaction = Transaction::new_unsigned(message);
     transaction.partial_sign(&[&admin], latest_blockhash);
     
@@ -687,7 +749,6 @@ pub async fn lock_tokens_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let (user_claim, _) = Pubkey::find_program_address(
         &[USER_CLAIM_SEED, wallet.as_array()],
@@ -724,8 +785,7 @@ pub async fn lock_tokens_tx(
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -741,7 +801,6 @@ pub async fn unlock_tokens_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let (user_claim, _) = Pubkey::find_program_address(
         &[USER_CLAIM_SEED, wallet.as_array()],
@@ -769,14 +828,13 @@ pub async fn unlock_tokens_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -792,7 +850,6 @@ pub async fn claim_yield_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
     // let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
@@ -820,14 +877,13 @@ pub async fn claim_yield_tx(
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(latest_blockhash) => latest_blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
@@ -1014,8 +1070,7 @@ pub async fn initiate_otc_swap_tx(
     };
 
     let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);

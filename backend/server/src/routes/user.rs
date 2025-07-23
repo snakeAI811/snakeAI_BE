@@ -3,6 +3,8 @@ use crate::{
         get_claim_tx, get_me, get_mining_status, get_profile, get_rewards, get_tweets, set_wallet_address,
         token_validation, get_user_mining_status, get_user_profile, set_user_wallet_address,
         update_patron_status, update_user_role, update_lock_details, get_user_phase2_tweets,
+        // Data endpoints
+        get_token_info, get_patron_application_status, get_active_swaps, get_my_swaps, get_vesting_info,
         // Smart contract interaction endpoints
         select_role_tx, apply_patron_tx, approve_patron_tx, claim_tokens_with_role_tx,
         lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
@@ -26,14 +28,12 @@ pub fn routes() -> Router<AppState> {
         .route("/rewards", get(get_rewards))
         .route("/tweets", get(get_tweets))
         .route("/claim_tx", post(get_claim_tx))
-        // New Patron Framework routes (by user ID)
-        .route("/{user_id}", get(get_user_profile))
-        .route("/{user_id}/mining_status", get(get_user_mining_status))
-        .route("/{user_id}/wallet", post(set_user_wallet_address))
-        .route("/{user_id}/patron_status", post(update_patron_status))
-        .route("/{user_id}/role", post(update_user_role))
-        .route("/{user_id}/lock_details", post(update_lock_details))
-        .route("/{user_id}/phase2_tweets", get(get_user_phase2_tweets))
+        // Data endpoints (replacing test endpoints)
+        .route("/token_info", get(get_token_info))
+        .route("/patron_application", get(get_patron_application_status))
+        .route("/active_swaps", get(get_active_swaps))
+        .route("/my_swaps", get(get_my_swaps))
+        .route("/vesting_info", get(get_vesting_info))
         // Smart contract interaction routes
         .route("/select_role", post(select_role_tx))
         .route("/apply_patron", post(apply_patron_tx))
@@ -48,4 +48,12 @@ pub fn routes() -> Router<AppState> {
         .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
         .route("/accept_otc_swap", post(accept_otc_swap_tx))
         .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
+        // User ID specific routes (must be at the end to avoid conflicts)
+        .route("/{user_id}", get(get_user_profile))
+        .route("/{user_id}/mining_status", get(get_user_mining_status))
+        .route("/{user_id}/wallet", post(set_user_wallet_address))
+        .route("/{user_id}/patron_status", post(update_patron_status))
+        .route("/{user_id}/role", post(update_user_role))
+        .route("/{user_id}/lock_details", post(update_lock_details))
+        .route("/{user_id}/phase2_tweets", get(get_user_phase2_tweets))
 }

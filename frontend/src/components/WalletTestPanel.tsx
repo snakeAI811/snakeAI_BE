@@ -32,6 +32,8 @@ const WalletTestPanel: React.FC = () => {
 
       if (result.success) {
         setTestResult('✅ Wallet successfully linked to authenticated account!');
+      } else if (result.error?.includes('already set') || result.error?.includes('already using')) {
+        setTestResult('ℹ️ Wallet address is already set for this account');
       } else {
         setTestResult(`❌ Failed to link wallet: ${result.error}`);
       }
@@ -56,7 +58,7 @@ const WalletTestPanel: React.FC = () => {
       
       <div style={{ marginBottom: '10px' }}>
         <p><strong>Auth Status:</strong> {isAuthenticated ? '✅ Logged in' : '❌ Not logged in'}</p>
-        <p><strong>User:</strong> {user?.twitter_username || 'None'}</p>
+        <p><strong>User:</strong> {user?.twitter_username || 'none'}</p>
         <p><strong>Wallet:</strong> {connected ? '✅ Connected' : '❌ Not connected'}</p>
         {publicKey && (
           <p><strong>Address:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}</p>

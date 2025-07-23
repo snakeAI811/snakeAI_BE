@@ -1,7 +1,7 @@
 -- Add patron framework fields to users table
 ALTER TABLE users
-ADD COLUMN role VARCHAR(50) DEFAULT 'None',
-ADD COLUMN patron_status VARCHAR(50) DEFAULT 'None',
+ADD COLUMN role VARCHAR(50) DEFAULT 'none',
+ADD COLUMN patron_status VARCHAR(50) DEFAULT 'none',
 ADD COLUMN locked_amount BIGINT DEFAULT 0,
 ADD COLUMN lock_start_timestamp TIMESTAMPTZ,
 ADD COLUMN lock_end_timestamp TIMESTAMPTZ,

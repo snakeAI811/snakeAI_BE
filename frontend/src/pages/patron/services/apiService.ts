@@ -19,6 +19,13 @@ function getSessionToken(): string | null {
   return null;
 }
 
+// Auth event handlers for session expiry
+let onAuthError: (() => void) | null = null;
+
+export function setAuthErrorHandler(handler: () => void) {
+  onAuthError = handler;
+}
+
 // Helper function to make authenticated API calls
 async function apiCall<T>(
   endpoint: string,
@@ -46,6 +53,22 @@ async function apiCall<T>(
       const data = await response.json();
       return { success: true, data };
     } else {
+      // Handle authentication errors
+      if (response.status === 401 || response.status === 403) {
+        if (onAuthError) {
+          onAuthError();
+        }
+        return { success: false, error: 'Session expired. Please log in again.' };
+      }
+      
+      // Handle wallet address already set error more gracefully
+      if (response.status === 400 && endpoint === '/user/wallet_address') {
+        const errorText = await response.text();
+        if (errorText.includes('already set') || errorText.includes('already using')) {
+          return { success: false, error: 'Wallet address already set' };
+        }
+      }
+      
       const errorText = await response.text();
       return { success: false, error: errorText || 'API call failed' };
     }
@@ -59,7 +82,7 @@ async function apiCall<T>(
 
 // Role Management API calls
 export const roleApi = {
-  selectRole: async (role: 'None' | 'Staker' | 'Patron') => {
+  selectRole: async (role: 'none' | 'staker' | 'patron') => {
     return apiCall<string>('/user/select_role', {
       method: 'POST',
       body: JSON.stringify({ role }),
@@ -67,7 +90,7 @@ export const roleApi = {
   },
 
   getUserRole: async () => {
-    return apiCall<{ role: string; status?: string }>('/test/profile', {
+    return apiCall<{ role: string; status?: string }>('/user/profile', {
       method: 'GET',
     });
   },
@@ -75,10 +98,10 @@ export const roleApi = {
 
 // Token Management API calls
 export const tokenApi = {
-  lockTokens: async (amount: number, role: string) => {
+  lockTokens: async (amount: number, durationMonths: number) => {
     return apiCall<string>('/user/lock_tokens', {
       method: 'POST',
-      body: JSON.stringify({ amount, role }),
+      body: JSON.stringify({ amount, duration_months: durationMonths }),
     });
   },
 
@@ -94,10 +117,10 @@ export const tokenApi = {
     });
   },
 
-  claimTokensWithRole: async (role: string) => {
+  claimTokensWithRole: async (role: string, amount?: number) => {
     return apiCall<string>('/user/claim_tokens_with_role', {
       method: 'POST',
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, amount: amount || 1000 }),
     });
   },
 
@@ -107,14 +130,16 @@ export const tokenApi = {
       locked: number;
       staked: number;
       rewards: number;
-    }>('/test/token-info', {
+      mining_count: number;
+      lockEndDate?: string;
+    }>('/user/token_info', {
       method: 'GET',
     });
   },
 
   getMiningStatus: async () => {
     return apiCall<{
-      current_phase: 'Phase1' | 'Phase2';
+      current_phase: 1 | 2;
       phase1_tweet_count: number;
       phase2_tweet_count: number;
       total_phase1_mined: number;
@@ -128,10 +153,10 @@ export const tokenApi = {
 
 // Patron Application API calls
 export const patronApi = {
-  applyForPatron: async (reason: string) => {
+  applyForPatron: async (wallet_age_days: number, community_score: number) => {
     return apiCall<string>('/user/apply_patron', {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ wallet_age_days, community_score }),
     });
   },
 
@@ -145,10 +170,10 @@ export const patronApi = {
   getApplicationStatus: async () => {
     return apiCall<{
       id: string;
-      status: 'pending' | 'approved' | 'rejected';
+      status: 'pending' | 'approved' | 'rejected' | 'none';
       submitted_at: string;
-      reason?: string;
-    }>('/test/patron-application', {
+      qualification_score: number;
+    }>('/user/patron_application', {
       method: 'GET',
     });
   },
@@ -158,7 +183,7 @@ export const patronApi = {
       id: string;
       status: string;
       submitted_at: string;
-      reason?: string;
+      qualification_score: number;
     }>>('/user/pending_patron_applications', {
       method: 'GET',
     });
@@ -202,7 +227,7 @@ export const otcApi = {
       buyer_role_required: string;
       status: string;
       created_at: string;
-    }>>('/test/active-swaps', {
+    }>>('/user/active_swaps', {
       method: 'GET',
     });
   },
@@ -216,7 +241,7 @@ export const otcApi = {
       buyer_role_required: string;
       status: string;
       created_at: string;
-    }>>('/test/my-swaps', {
+    }>>('/user/my_swaps', {
       method: 'GET',
     });
   },
@@ -243,7 +268,7 @@ export const vestingApi = {
       role_type: string;
       created_at: string;
       withdrawal_available: boolean;
-    }>('/test/vesting-info', {
+    }>('/user/vesting_info', {
       method: 'GET',
     });
   },
@@ -260,6 +285,71 @@ export const userApi = {
 
   getMe: async () => {
     return apiCall<any>('/user/me', {
+      method: 'GET',
+    });
+  },
+
+  getProfile: async () => {
+    return apiCall<{
+      twitter_username: string;
+      wallet_address: string;
+      latest_claim_timestamp: string | null;
+      reward_balance: number;
+      tweets: number;
+      likes: number;
+      replies: number;
+    }>('/user/profile', {
+      method: 'GET',
+    });
+  },
+
+  getRewards: async (offset?: number, limit?: number, available?: boolean) => {
+    const params = new URLSearchParams();
+    if (offset !== undefined) params.append('offset', offset.toString());
+    if (limit !== undefined) params.append('limit', limit.toString());
+    if (available !== undefined) params.append('available', available.toString());
+    
+    return apiCall<Array<{
+      id: string;
+      amount: number;
+      available: boolean;
+      created_at: string;
+    }>>(`/user/rewards${params.toString() ? '?' + params.toString() : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  getRewardById: async (rewardId: string) => {
+    return apiCall<{
+      id: string;
+      user_id: string;
+      tweet_id: string;
+      created_at: string;
+      available: boolean;
+      message_sent: boolean;
+      transaction_signature: string | null;
+      reward_amount: number;
+      wallet_address: string | null;
+      block_time: string | null;
+      media_id: string | null;
+      media_id_expires_at: string | null;
+      phase: string | null;
+    }>(`/reward/${rewardId}`, {
+      method: 'GET',
+    });
+  },
+
+  getTweets: async (offset?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (offset !== undefined) params.append('offset', offset.toString());
+    if (limit !== undefined) params.append('limit', limit.toString());
+    
+    return apiCall<Array<{
+      id: string;
+      content: string;
+      created_at: string;
+      mining_phase: string;
+    }>>(`/user/tweets${params.toString() ? '?' + params.toString() : ''}`, {
       method: 'GET',
     });
   },

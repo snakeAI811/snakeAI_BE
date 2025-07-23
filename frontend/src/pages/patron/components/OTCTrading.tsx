@@ -8,7 +8,7 @@ interface OTCTradingProps {
 
 interface OTCSwap {
   id: string;
-  seller: string;
+  seller?: string;
   token_amount: number;
   sol_rate: number;
   buyer_rebate: number;
@@ -36,53 +36,40 @@ function OTCTrading({ userRole }: OTCTradingProps) {
 
   const fetchActiveSwaps = async () => {
     try {
-      // TODO: Replace with actual API call
-      // Mock data for now
-      setActiveSwaps([
-        {
-          id: '1',
-          seller: 'ABC...XYZ',
-          token_amount: 1000,
-          sol_rate: 50,
-          buyer_rebate: 5,
-          buyer_role_required: 'staker',
-          status: 'active',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          seller: 'DEF...UVW',
-          token_amount: 5000,
-          sol_rate: 45,
-          buyer_rebate: 10,
-          buyer_role_required: 'patron',
-          status: 'active',
-          created_at: new Date().toISOString()
-        }
-      ]);
+      const response = await otcApi.getActiveSwaps();
+      if (response.success && response.data) {
+        // Map the API response to match our interface
+        const mappedSwaps = response.data.map(swap => ({
+          ...swap,
+          status: swap.status as 'active' | 'completed' | 'cancelled'
+        }));
+        setActiveSwaps(mappedSwaps);
+      } else {
+        setActiveSwaps([]);
+      }
     } catch (error) {
       console.error('Failed to fetch active swaps:', error);
+      setActiveSwaps([]);
     }
   };
 
   const fetchMySwaps = async () => {
     try {
-      // TODO: Replace with actual API call
-      // Mock data for now
-      setMySwaps([
-        {
-          id: '3',
-          seller: 'You',
-          token_amount: 2000,
-          sol_rate: 48,
-          buyer_rebate: 8,
-          buyer_role_required: 'staker',
-          status: 'active',
-          created_at: new Date().toISOString()
-        }
-      ]);
+      const response = await otcApi.getMySwaps();
+      if (response.success && response.data) {
+        // Map the API response to match our interface
+        const mappedSwaps = response.data.map(swap => ({
+          ...swap,
+          seller: (swap as any).seller || 'You', // Add seller field if missing
+          status: swap.status as 'active' | 'completed' | 'cancelled'
+        }));
+        setMySwaps(mappedSwaps);
+      } else {
+        setMySwaps([]);
+      }
     } catch (error) {
       console.error('Failed to fetch my swaps:', error);
+      setMySwaps([]);
     }
   };
 
@@ -158,8 +145,8 @@ function OTCTrading({ userRole }: OTCTradingProps) {
     setRequiredRole('none');
   };
 
-  const canCreateSwap = userRole.role !== 'None';
-  const canParticipate = userRole.role !== 'None';
+  const canCreateSwap = userRole.role !== 'none';
+  const canParticipate = userRole.role !== 'none';
 
   return (
     <div className="w-100">
@@ -331,8 +318,8 @@ function OTCTrading({ userRole }: OTCTradingProps) {
                   {activeSwaps.map((swap) => {
                     const canAccept = canParticipate && (
                       swap.buyer_role_required === 'none' ||
-                      (swap.buyer_role_required === 'staker' && ['Staker', 'Patron'].includes(userRole.role)) ||
-                      (swap.buyer_role_required === 'patron' && userRole.role === 'Patron')
+                      (swap.buyer_role_required === 'staker' && ['staker', 'patron'].includes(userRole.role)) ||
+                      (swap.buyer_role_required === 'patron' && userRole.role === 'patron')
                     );
 
                     const rebateAmount = (swap.token_amount * swap.buyer_rebate) / 100;
@@ -340,7 +327,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
 
                     return (
                       <tr key={swap.id}>
-                        <td>{swap.seller}</td>
+                        <td>{swap.seller || 'Unknown'}</td>
                         <td>{swap.token_amount.toLocaleString()} SNAKE</td>
                         <td>{swap.sol_rate} SOL</td>
                         <td>
@@ -364,14 +351,14 @@ function OTCTrading({ userRole }: OTCTradingProps) {
                           {canAccept ? (
                             <button
                               className="btn btn-success btn-sm"
-                              onClick={() => handleAcceptSwap(swap.id, swap.seller)}
+                              onClick={() => handleAcceptSwap(swap.id, swap.seller || '')}
                               disabled={loading}
                             >
                               {loading ? 'Processing...' : 'Accept'}
                             </button>
                           ) : (
                             <small className="text-muted">
-                              {userRole.role === 'None' ? 'Role required' : 'Role insufficient'}
+                              {userRole.role === 'none' ? 'Role required' : 'Role insufficient'}
                             </small>
                           )}
                         </td>
@@ -411,7 +398,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
               </div>
             </div>
             
-            {userRole.role === 'Patron' && (
+            {userRole.role === 'patron' && (
               <div className="alert alert-warning mt-3">
                 <strong>Patron Bonus:</strong> As a Patron, you receive additional rebates on all OTC trades!
               </div>

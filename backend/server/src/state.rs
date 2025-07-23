@@ -45,7 +45,7 @@ impl OAuth2Ctx {
 
     pub fn remove_expired_challenges(&mut self) {
         let now = Utc::now().timestamp();
-        self.challenges.retain(|_, challenge| challenge.exp < now);
+        self.challenges.retain(|_, challenge| challenge.exp > now);
     }
 }
 

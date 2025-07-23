@@ -8,7 +8,7 @@ interface TableMiningProgressProps {
 
 function TableMiningProgress({ container_height = '70vh', table = null }: TableMiningProgressProps) {
     return (
-        <div className="col-md-7 item-stretch" style={{ minHeight: container_height }}>
+        <div className="col-md-7 " style={{ minHeight: container_height }}>
             <div className="w-100">
                 <div className="d-flex justify-content-between align-items-center">
                     <div className="fs-1" style={{ lineHeight: 'normal' }}>Mining Progress</div>

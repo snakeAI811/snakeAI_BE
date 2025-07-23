@@ -56,8 +56,8 @@ const AuthDebug: React.FC = () => {
     }}>
       <h4>Auth Debug</h4>
       <p><strong>Authenticated:</strong> {isAuthenticated ? 'Yes' : 'No'}</p>
-      <p><strong>Session ID:</strong> {sessionId || 'None'}</p>
-      <p><strong>User:</strong> {user?.twitter_username || 'None'}</p>
+      <p><strong>Session ID:</strong> {sessionId || 'none'}</p>
+      <p><strong>User:</strong> {user?.twitter_username || 'none'}</p>
       
       {!isAuthenticated && (
         <button onClick={mockLogin} style={{ marginTop: '10px', backgroundColor: '#A9E000', border: 'none', padding: '5px 10px' }}>

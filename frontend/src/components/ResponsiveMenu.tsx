@@ -22,11 +22,13 @@ const menuItems: MenuItem[] = [
   { id: "home", label: "Home", icon: IconHome, path: "/home" },
   { id: "profile", label: "Profile", icon: IconProfile, path: "/profile" },
   { id: "mining", label: "Mining", icon: IconMining, path: "/tweet-mining" },
-  { id: "meme", label: "Memes", icon: IconProfile, path: "/meme-generation" },
-  { id: "patron", label: "Patron", icon: IconStaking, path: "/patron-framework" },
+  // { id: "meme", label: "Memes", icon: IconProfile, path: "/meme-generation" },
+  // { id: "roles", label: "Roles", icon: IconProfile, path: "/patron-framework/roles" },
+  { id: "staking", label: "Staking", icon: IconStaking, path: "/staking" },
   { id: "claim", label: "Claim", icon: IconClaim, path: "/claim" },
   { id: "swap", label: "Swap", icon: IconSwap, path: "/swap" },
-  { id: "dao", label: "DAO", icon: IconDao, path: "/dao" },
+  // { id: "mining-status", label: "Mining Status", icon: IconMining, path: "/patron-framework/mining" },
+  { id: "patron", label: "Patron", icon: IconDao, path: "/patron-framework/application" },
 ];
 
 interface ResponsiveMenuProps {
