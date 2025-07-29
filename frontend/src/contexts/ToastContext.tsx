@@ -45,7 +45,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     options?: { title?: string; duration?: number }
   ) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
-    const duration = options?.duration ?? 5000;
+    const duration = options?.duration ?? 8000;
     
     const newToast: Toast = {
       id,

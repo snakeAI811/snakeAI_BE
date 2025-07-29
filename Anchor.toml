@@ -7,18 +7,15 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-snake_contract = "GkRRA3Jhds6sxDr89wMneCjNDDmHof2zqnHdjaqP7kGU"
-
 [programs.devnet]
-snake_contract = "Aw4zQtbMuxCChXS923HeyhAMPakC8KMQa6tQmMS4pPYM"
+snake_contract = "3LUHFfbcSAc6D9qgYWLEtyxu1HE1PjHqSZgtsus3Pce6"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
-wallet = "~/.config/solana/id.json"
+cluster = "localnet"
+wallet = "/home/super/.config/solana/devnet.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/user_role_registry_tests.ts tests/patron_framework.ts tests/vesting_OTCswap.ts"
@@ -27,3 +24,6 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/user_role_registry
 members = [
   "programs/snake_contract"
 ]
+
+[profile.release]
+opt-level = "z"

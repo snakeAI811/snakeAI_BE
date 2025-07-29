@@ -12,7 +12,7 @@ import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web
 import { assert } from "chai";
 
 describe("🚀 Patron Framework Tests", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
+  anchor.setProvider(anchor.AnchorProvider.local());
   const program = anchor.workspace.SnakeContract as Program<SnakeContract>;
   const provider = anchor.getProvider();
   const wallet = provider.wallet.payer;

@@ -1,0 +1,185 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO users (twitter_id, twitter_username)\n            VALUES ($1, $2)\n            ON CONFLICT (twitter_id) DO UPDATE\n            SET twitter_username = EXCLUDED.twitter_username\n            RETURNING \n                id, twitter_id, twitter_username, wallet_address, latest_claim_timestamp, created_at, updated_at,\n                role, selected_role, patron_status, locked_amount, lock_start_timestamp, lock_end_timestamp,\n                lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,\n                initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,\n                total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "twitter_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "twitter_username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "wallet_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "latest_claim_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "selected_role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "patron_status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "locked_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "lock_start_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "lock_end_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "lock_duration_months",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "last_yield_claim_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "total_yield_claimed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "user_claim_pda",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "initialized",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 18,
+        "name": "vesting_pda",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 19,
+        "name": "has_vesting",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 20,
+        "name": "vesting_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 21,
+        "name": "vesting_role_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 22,
+        "name": "otc_swap_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 23,
+        "name": "total_burned",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 24,
+        "name": "dao_eligibility_revoked_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 25,
+        "name": "patron_qualification_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 26,
+        "name": "wallet_age_days",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 27,
+        "name": "community_score",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "3073c3537cd41cc2ab37c46f6aad857fa76fddf6cdf1501d6e0a268eff954f2f"
+}

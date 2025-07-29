@@ -47,7 +47,7 @@ function Home() {
                 {/* Menu End */}
                
                 <div className="custom-content">
-                    <div className="w-100 d-flex justify-space-between align-items-end">
+                    <div className="w-100 d-flex justify-space-between align-items-end custom-content-title">
                         <div className="fs-1" style={{ lineHeight: 'normal' }}>
                             DASHBOARD
                         </div>

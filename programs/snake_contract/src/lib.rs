@@ -3,17 +3,16 @@ use anchor_lang::prelude::*;
 mod constants;
 mod errors;
 mod events;
-mod instructions;
+pub mod instructions;
 pub mod state;
 
 use instructions::*;
-use state::{UserRole, VestingRoleType};
+use state::UserRole;
 use instructions::otc_swap_enhanced::SwapType;
 use instructions::otc_trading;
-use instructions::patron_exit;
-use instructions::dao_governance;
+use instructions::update_user_stats::UpdateUserStatsParams;
 
-declare_id!("GkRRA3Jhds6sxDr89wMneCjNDDmHof2zqnHdjaqP7kGU");
+declare_id!("3LUHFfbcSAc6D9qgYWLEtyxu1HE1PjHqSZgtsus3Pce6");
 
 #[program]
 pub mod snake_contract {
@@ -403,13 +402,13 @@ pub mod snake_contract {
 
     // ========== USER STATS & PATRON QUALIFICATION ==========
     
-    // /// Update user statistics for patron qualification
-    // pub fn update_user_stats(
-    //     ctx: Context<UpdateUserStats>,
-    //     params: UpdateUserStatsParams,
-    // ) -> Result<()> {
-    //     instructions::update_user_stats(ctx, params)
-    // }
+    /// Update user statistics for patron qualification
+    pub fn update_user_stats(
+        ctx: Context<UpdateUserStats>,
+        params: UpdateUserStatsParams,
+    ) -> Result<()> {
+        instructions::update_user_stats(ctx, params)
+    }
     
     // /// Batch update multiple users (placeholder - use multiple single calls for now)
     // pub fn batch_update_user_stats(

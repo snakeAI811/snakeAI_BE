@@ -45,9 +45,9 @@ function ApplicationPage() {
             <div className="fs-1" style={{ lineHeight: 'normal' }}>
               👑 Patron Features
             </div>
-            <div className="fs-6 text-muted">
+            {/* <div className="fs-6 text-muted">
               Apply for Patron status and access exclusive features
-            </div>
+            </div> */}
           </div>
 
           <div className="custom-border-y custom-content-height d-flex flex-column">

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rewards.id, tweets.tweet_id, rewards.media_id, rewards.media_id_expires_at FROM rewards JOIN tweets ON rewards.tweet_id = tweets.id WHERE rewards.available = true AND rewards.message_sent = false",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tweet_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "media_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "media_id_expires_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "e1b52165a03d4a8ddfef1875d30d29037736453d63bc8f7cf4eac4ba7594d96f"
+}

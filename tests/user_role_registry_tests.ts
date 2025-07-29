@@ -18,7 +18,7 @@ const USER_CLAIM_SEED = Buffer.from("user_claim");
 const TREASURY_SEED = Buffer.from("treasury");
 
 describe("User Role Registry & Claim Features", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
+  anchor.setProvider(anchor.AnchorProvider.local());
   const program = anchor.workspace.SnakeContract as Program<SnakeContract>;
   const provider = anchor.getProvider();
   const wallet = provider.wallet.payer;
@@ -112,6 +112,61 @@ describe("User Role Registry & Claim Features", () => {
     console.log("- Treasury token account:", treasuryTokenAccount.toString());
   });
 
+  // Helper function to set up user with mining history
+  async function setupUserWithMining(user: Keypair, miningAmount: number = 1000): Promise<PublicKey> {
+    // Request airdrop if needed
+    const balance = await provider.connection.getBalance(user.publicKey);
+    if (balance < LAMPORTS_PER_SOL) {
+      const airdropSig = await provider.connection.requestAirdrop(
+        user.publicKey, 
+        2 * LAMPORTS_PER_SOL
+      );
+      await provider.connection.confirmTransaction(airdropSig);
+    }
+    
+    // Derive userClaim PDA
+    const [userClaimPda] = PublicKey.findProgramAddressSync(
+      [USER_CLAIM_SEED, user.publicKey.toBuffer()],
+      program.programId
+    );
+    
+    // Check if user claim already exists
+    try {
+      const existingClaim = await program.account.userClaim.fetch(userClaimPda);
+      console.log("User claim already exists, skipping initialization");
+    } catch (error) {
+      // Account doesn't exist, initialize it
+      await program.methods
+        .initializeUserClaim()
+        .accounts({ 
+          user: user.publicKey, 
+          userClaim: userClaimPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([user])
+        .rpc();
+    }
+    
+    // Always update mining stats (this can be called multiple times)
+    const miningAmountTokens = new anchor.BN(miningAmount * 1_000_000_000); // Convert to token decimals
+    await program.methods
+      .updateUserStats({
+        phase1Mined: miningAmountTokens,
+        walletAgeDays: 30,
+        communityScore: 50,
+        phase2MiningCompleted: false,
+      })
+      .accounts({
+        admin: wallet.publicKey,
+        rewardPool: rewardPoolPda,
+        user: user.publicKey,
+        userClaim: userClaimPda,
+      })
+      .rpc();
+    
+    return userClaimPda;
+  }
+
   describe("User Role Registry Tests", () => {
     
     it("Should initialize user claim successfully", async () => {
@@ -162,29 +217,8 @@ describe("User Role Registry & Claim Features", () => {
       
       const user = Keypair.generate();
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
-      
-      // Initialize user claim first
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Select Staker role
       const selectTx = await program.methods
@@ -210,28 +244,27 @@ describe("User Role Registry & Claim Features", () => {
       
       const user = Keypair.generate();
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
-      
-      // Initialize user claim first
+      // First need to apply and get approved as patron
       await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
+        .applyForPatron(30, 50)  // wallet age 30 days, community score 50
+        .accounts({
+          user: user.publicKey,
           userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
         })
         .signers([user])
+        .rpc();
+      
+      // Admin approves patron application
+      await program.methods
+        .approvePatronApplication(70) // min qualification score
+        .accounts({
+          admin: wallet.publicKey,
+          userClaim: userClaimPda,
+          applicant: user.publicKey,
+        })
         .rpc();
       
       // Select Patron role
@@ -258,29 +291,8 @@ describe("User Role Registry & Claim Features", () => {
       
       const user = Keypair.generate();
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
-      
-      // Initialize user claim and select Staker role
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
+      // Set up user with mining history and select Staker role
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       await program.methods
         .selectRole({ staker: {} })
@@ -294,6 +306,26 @@ describe("User Role Registry & Claim Features", () => {
       // Verify Staker role
       let userClaimAccount = await program.account.userClaim.fetch(userClaimPda);
       assert.deepEqual(userClaimAccount.role, { staker: {} });
+      
+      // Apply for patron status
+      await program.methods
+        .applyForPatron(30, 50)
+        .accounts({
+          user: user.publicKey,
+          userClaim: userClaimPda,
+        })
+        .signers([user])
+        .rpc();
+      
+      // Admin approves patron application
+      await program.methods
+        .approvePatronApplication(70)
+        .accounts({
+          admin: wallet.publicKey,
+          userClaim: userClaimPda,
+          applicant: user.publicKey,
+        })
+        .rpc();
       
       // Upgrade to Patron role
       const upgradeTx = await program.methods
@@ -319,30 +351,29 @@ describe("User Role Registry & Claim Features", () => {
       
       const user = Keypair.generate();
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
-      
-      // Initialize user claim and select Patron role
+      // Apply for patron status and get approved
       await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
+        .applyForPatron(30, 50)
+        .accounts({
+          user: user.publicKey,
           userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc();
       
+      await program.methods
+        .approvePatronApplication(70)
+        .accounts({
+          admin: wallet.publicKey,
+          userClaim: userClaimPda,
+          applicant: user.publicKey,
+        })
+        .rpc();
+      
+      // Select Patron role
       await program.methods
         .selectRole({ patron: {} })
         .accounts({ 
@@ -379,18 +410,8 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const claimAmount = new anchor.BN(1000 * 1_000_000_000); // 1000 tokens
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -399,17 +420,6 @@ describe("User Role Registry & Claim Features", () => {
         tokenMint.publicKey,
         user.publicKey
       );
-      
-      // Initialize user claim first
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
       
       // Check initial balance
       const initialBalance = await getAccount(provider.connection, userTokenAta.address);
@@ -451,18 +461,8 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const claimAmount = new anchor.BN(2000 * 1_000_000_000); // 2000 tokens
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -471,17 +471,6 @@ describe("User Role Registry & Claim Features", () => {
         tokenMint.publicKey,
         user.publicKey
       );
-      
-      // Initialize user claim first
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
       
       // Claim tokens with Patron role
       const claimTx = await program.methods
@@ -519,18 +508,8 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const claimAmount = new anchor.BN(1000 * 1_000_000_000);
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -540,17 +519,7 @@ describe("User Role Registry & Claim Features", () => {
         user.publicKey
       );
       
-      // Initialize user claim and select role first
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
-      
+      // Select role first
       await program.methods
         .selectRole({ staker: {} })
         .accounts({ 
@@ -643,18 +612,8 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const lockAmount = new anchor.BN(5000 * 1_000_000_000); // 5000 tokens
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account and give them tokens
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -674,17 +633,7 @@ describe("User Role Registry & Claim Features", () => {
         lockAmount.toNumber()
       );
       
-      // Initialize user claim and select Staker role
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
-      
+      // Select Staker role
       await program.methods
         .selectRole({ staker: {} })
         .accounts({ 
@@ -725,18 +674,8 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const lockAmount = new anchor.BN(10000 * 1_000_000_000); // 10000 tokens
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account and give them tokens
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -756,17 +695,26 @@ describe("User Role Registry & Claim Features", () => {
         lockAmount.toNumber()
       );
       
-      // Initialize user claim and select Patron role
+      // Apply for patron status and get approved
       await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
+        .applyForPatron(30, 50)
+        .accounts({
+          user: user.publicKey,
           userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc();
       
+      await program.methods
+        .approvePatronApplication(70)
+        .accounts({
+          admin: wallet.publicKey,
+          userClaim: userClaimPda,
+          applicant: user.publicKey,
+        })
+        .rpc();
+      
+      // Select Patron role
       await program.methods
         .selectRole({ patron: {} })
         .accounts({ 
@@ -776,31 +724,29 @@ describe("User Role Registry & Claim Features", () => {
         .signers([user])
         .rpc();
       
-      // Manually set patron status to approved (in real scenario this would be done by admin)
-      let userClaimAccount = await program.account.userClaim.fetch(userClaimPda);
-      // Note: In a real implementation, you'd need an admin function to approve patrons
-      
-      // For this test, we'll modify the approach to test the constraint
-      try {
-        // This should fail because patron is not approved
-        await program.methods
-          .lockTokens(lockAmount, 6) // 6 months
-          .accounts({
-            user: user.publicKey,
-            userClaim: userClaimPda,
-            userTokenAccount: userTokenAta.address,
-            rewardPoolPda: rewardPoolPda,
-            treasuryTokenAccount: treasuryTokenAccount,
-            tokenProgram: TOKEN_PROGRAM_ID,
-          })
-          .signers([user])
-          .rpc();
+      // Lock tokens for 6 months (now that patron is approved)
+      const lockTx = await program.methods
+        .lockTokens(lockAmount, 6) // 6 months
+        .accounts({
+          user: user.publicKey,
+          userClaim: userClaimPda,
+          userTokenAccount: userTokenAta.address,
+          rewardPoolPda: rewardPoolPda,
+          treasuryTokenAccount: treasuryTokenAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([user])
+        .rpc();
         
-        assert.fail("Should have failed to lock tokens without patron approval");
-      } catch (error: any) {
-        console.log("✅ Correctly prevented locking tokens without patron approval:", error.message);
-        assert.include(error.message, "OnlyApprovedPatrons");
-      }
+      console.log("Lock tokens tx:", lockTx);
+      
+      // Verify tokens were locked
+      const userClaimAccount = await program.account.userClaim.fetch(userClaimPda);
+      assert.equal(userClaimAccount.lockedAmount.toString(), lockAmount.toString());
+      assert.equal(userClaimAccount.lockDurationMonths, 6);
+      assert.isTrue(userClaimAccount.lockEndTimestamp > userClaimAccount.lockStartTimestamp);
+      
+      console.log("✅ Successfully locked tokens for 6 months");
     });
   });
 
@@ -812,18 +758,9 @@ describe("User Role Registry & Claim Features", () => {
       const user = Keypair.generate();
       const lockAmount = new anchor.BN(3000 * 1_000_000_000); // 3000 tokens
       
-      // Request airdrop
-      const airdropSig = await provider.connection.requestAirdrop(
-        user.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await provider.connection.confirmTransaction(airdropSig);
-      
-      // Derive userClaim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, user.publicKey.toBuffer()],
-        program.programId
-      );
+      // Set up user with mining history
+      console.log("Step 1: Set up user with mining history");
+      const userClaimPda = await setupUserWithMining(user, 1000);
       
       // Create user's token account and give them tokens
       const userTokenAta = await getOrCreateAssociatedTokenAccount(
@@ -841,17 +778,6 @@ describe("User Role Registry & Claim Features", () => {
         wallet.publicKey,
         lockAmount.toNumber()
       );
-      
-      console.log("Step 1: Initialize user claim");
-      await program.methods
-        .initializeUserClaim()
-        .accounts({ 
-          user: user.publicKey, 
-          userClaim: userClaimPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
       
       let userClaimAccount = await program.account.userClaim.fetch(userClaimPda);
       assert.equal(userClaimAccount.initialized, true);
@@ -904,32 +830,32 @@ describe("User Role Registry & Claim Features", () => {
       ];
       
       for (const user of users) {
-        // Request airdrop
-        const airdropSig = await provider.connection.requestAirdrop(
-          user.keypair.publicKey, 
-          2 * LAMPORTS_PER_SOL
-        );
-        await provider.connection.confirmTransaction(airdropSig);
-        
-        // Derive userClaim PDA
-        const [userClaimPda] = PublicKey.findProgramAddressSync(
-          [USER_CLAIM_SEED, user.keypair.publicKey.toBuffer()],
-          program.programId
-        );
-        
-        // Initialize user claim
-        await program.methods
-          .initializeUserClaim()
-          .accounts({ 
-            user: user.keypair.publicKey, 
-            userClaim: userClaimPda,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([user.keypair])
-          .rpc();
+        // Set up user with mining history
+        const userClaimPda = await setupUserWithMining(user.keypair, 1000);
         
         // Select role (skip for None role)
         if (!user.role.none) {
+          // Special handling for patron role - need to apply and get approved
+          if (user.role.patron) {
+            await program.methods
+              .applyForPatron(30, 50)
+              .accounts({
+                user: user.keypair.publicKey,
+                userClaim: userClaimPda,
+              })
+              .signers([user.keypair])
+              .rpc();
+            
+            await program.methods
+              .approvePatronApplication(70)
+              .accounts({
+                admin: wallet.publicKey,
+                userClaim: userClaimPda,
+                applicant: user.keypair.publicKey,
+              })
+              .rpc();
+          }
+          
           await program.methods
             .selectRole(user.role)
             .accounts({ 

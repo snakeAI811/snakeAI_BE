@@ -16,7 +16,7 @@ pub enum SwapType {
 // ========== INITIATE OTC SWAP (ENHANCED) ==========
 
 #[derive(Accounts)]
-#[instruction(token_amount: u64, swap_type: SwapType)]
+#[instruction(token_amount: u64, sol_rate: u64, buyer_rebate: u64, swap_type: SwapType)]
 pub struct InitiateOtcSwapEnhanced<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -24,7 +24,6 @@ pub struct InitiateOtcSwapEnhanced<'info> {
     #[account(
         mut,
         constraint = seller_claim.initialized @ SnakeError::Unauthorized,
-        constraint = seller_claim.role != UserRole::None @ SnakeError::Unauthorized,
         seeds = [b"user_claim", seller.key().as_ref()],
         bump,
     )]

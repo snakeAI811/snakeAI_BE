@@ -1,5 +1,7 @@
 // Mining Service for Tweet Mining Operations
-import { tokenApi, userApi } from '../pages/patron/services/apiService';
+import * as apiService from '../pages/patron/services/apiService';
+
+const { tokenApi, userApi } = apiService;
 
 export interface MiningJob {
   id: string;

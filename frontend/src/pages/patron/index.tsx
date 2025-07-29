@@ -3,6 +3,7 @@ import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
 import RoleSelection from './components/RoleSelection';
 import TokenManagement from './components/TokenManagement';
+import VestingManagement from './components/VestingManagement';
 import PatronApplication from './components/PatronApplication';
 import OTCTrading from './components/OTCTrading';
 import SimpleWalletConnection from './components/SimpleWalletConnection';
@@ -24,7 +25,7 @@ interface PatronFrameworkPageProps {
 function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
   const { userRole: globalUserRole } = useAppContext();
   const [userRole, setUserRole] = useState<UserRole>({ role: 'none' });
-  const [activeTab, setActiveTab] = useState<'role' | 'tokens' | 'patron' | 'otc' | 'mining'>('role');
+  const [activeTab, setActiveTab] = useState<'role' | 'tokens' | 'vesting' | 'patron' | 'otc' | 'mining'>('role');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -75,9 +76,11 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'role':
-        return <RoleSelection userRole={userRole} onRoleChange={handleRoleChange} />;
+        // return <RoleSelection userRole={userRole} onRoleChange={handleRoleChange} />;
       case 'tokens':
         return <TokenManagement userRole={userRole} />;
+      case 'vesting':
+        return <VestingManagement userRole={userRole} />;
       case 'patron':
         return <PatronApplication userRole={userRole} />;
       case 'otc':
@@ -85,7 +88,7 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
       case 'mining':
         return <MiningStatus />;
       default:
-        return <RoleSelection userRole={userRole} onRoleChange={handleRoleChange} />;
+        // return <RoleSelection userRole={userRole} onRoleChange={handleRoleChange} />;
     }
   };
 
@@ -135,6 +138,18 @@ function PatronFrameworkPage({ page_number = 1 }: PatronFrameworkPageProps) {
                     disabled={userRole.role === 'none'}
                   >
                     💰 Token Management
+                  </button>
+                  
+                  <button
+                    className={`btn border border-2 px-3 py-2 ${
+                      activeTab === 'vesting' 
+                        ? 'bg-dark text-white border-dark' 
+                        : 'bg-light text-dark border-secondary'
+                    }`}
+                    onClick={() => setActiveTab('vesting')}
+                    disabled={userRole.role === 'none'}
+                  >
+                    🏦 Vesting
                   </button>
                   
                   <button

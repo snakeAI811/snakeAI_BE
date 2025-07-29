@@ -3,10 +3,20 @@ import { UserRole } from '../index';
 import { roleApi, tokenApi, userApi } from '../services/apiService';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAppContext } from '../../../contexts/AppContext';
+import { useWalletContext } from '../../../contexts/WalletContext';
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  clusterApiUrl
+} from '@solana/web3.js';
+import { useErrorHandler } from '../../../hooks/useErrorHandler';
 
 interface RoleSelectionProps {
     userRole: UserRole;
     onRoleChange: (role: UserRole) => void;
+    tokenBalance: TokenBalance;
+    userStats: UserStats;
 }
 
 interface TokenBalance {
@@ -23,56 +33,54 @@ interface UserStats {
     patron_qualification_score: number;
 }
 
-function RoleSelection({ userRole, onRoleChange }: RoleSelectionProps) {
+function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: RoleSelectionProps) {
     const { showSuccess, showError, showInfo, showWarning } = useToast();
     const { updateUserRole } = useAppContext();
+    const { connected, publicKey } = useWalletContext();
+    const { handleError, isUserRejection } = useErrorHandler();
     const [selectedRole, setSelectedRole] = useState<'none' | 'staker' | 'patron'>(userRole.role);
     const [loading, setLoading] = useState(false);
-    const [tokenBalance, setTokenBalance] = useState<TokenBalance>({ balance: 0, locked: 0, staked: 0, rewards: 0 });
-    const [userStats, setUserStats] = useState<UserStats>({
-        total_mined_phase1: 0,
-        wallet_age_days: 0,
-        community_score: 0,
-        patron_qualification_score: 0
-    });
+
+    // Connection to Solana network
+    const connection = new Connection(process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
     // Constants from smart contract
     const MINIMUM_STAKER_TOKENS = 500; // 500 SNAKE tokens (STAKE_AMOUNT)
     const MINIMUM_PATRON_QUALIFICATION_SCORE = 50; // Minimum score needed
     const MINIMUM_PATRON_MINED_TOKENS = 100; // 100 SNAKE tokens minimum mined in Phase 1
 
-    useEffect(() => {
-        fetchUserData();
-    }, []);
+    // useEffect(() => {
+    //     fetchUserData();
+    // }, []);
 
-    const fetchUserData = async () => {
-        try {
-            // Fetch token balance
-            const tokenResponse = await tokenApi.getTokenInfo();
-            if (tokenResponse.success && tokenResponse.data) {
-                setTokenBalance({
-                    balance: tokenResponse.data.balance || 0,
-                    locked: tokenResponse.data.locked || 0,
-                    staked: tokenResponse.data.staked || 0,
-                    rewards: tokenResponse.data.rewards || 0,
-                });
-            }
+    // const fetchUserData = async () => {
+    //     try {
+    //         // Fetch token balance
+    //         const tokenResponse = await tokenApi.getTokenInfo();
+    //         if (tokenResponse.success && tokenResponse.data) {
+    //             setTokenBalance({
+    //                 balance: tokenResponse.data.balance || 0,
+    //                 locked: tokenResponse.data.locked || 0,
+    //                 staked: tokenResponse.data.staked || 0,
+    //                 rewards: tokenResponse.data.rewards || 0,
+    //             });
+    //         }
 
-            // Fetch user profile for stats
-            const profileResponse = await userApi.getProfile();
-            if (profileResponse.success && profileResponse.data) {
-                // For now use available data, these fields might need to be added to backend
-                setUserStats({
-                    total_mined_phase1: profileResponse.data.reward_balance || 0, // Use reward balance as proxy for now
-                    wallet_age_days: 30, // Default assumption - could be calculated from user creation date
-                    community_score: Math.min(profileResponse.data.tweets + profileResponse.data.likes, 30), // Based on engagement
-                    patron_qualification_score: 0, // Will be calculated client-side
-                });
-            }
-        } catch (error) {
-            console.error('Failed to fetch user data:', error);
-        }
-    };
+    //         // Fetch user profile for stats
+    //         const profileResponse = await userApi.getProfile();
+    //         if (profileResponse.success && profileResponse.data) {
+    //             // For now use available data, these fields might need to be added to backend
+    //             setUserStats({
+    //                 total_mined_phase1: profileResponse.data.reward_balance || 0, // Use reward balance as proxy for now
+    //                 wallet_age_days: 30, // Default assumption - could be calculated from user creation date
+    //                 community_score: Math.min(profileResponse.data.tweets + profileResponse.data.likes, 30), // Based on engagement
+    //                 patron_qualification_score: 0, // Will be calculated client-side
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Failed to fetch user data:', error);
+    //     }
+    // };
 
     // Calculate patron qualification score (from smart contract logic)
     const calculatePatronScore = () => {
@@ -160,47 +168,115 @@ function RoleSelection({ userRole, onRoleChange }: RoleSelectionProps) {
         }
     };
 
+    // Set up connection globally (you can also use useMemo/useEffect if needed)
+
     const handleRoleSelect = async () => {
         if (selectedRole === userRole.role) return;
 
-        // Validate requirements before attempting role change
-        const requirements = getRoleRequirements(selectedRole);
-        if (!requirements.valid) {
-            showError(`Cannot select ${selectedRole} role: ${requirements.message}`);
-            setSelectedRole(userRole.role); // Reset to current role
+        if (!connected || !publicKey) {
+            showError('Please connect your wallet first');
             return;
         }
 
-        // Show additional warnings for commitment requirements
+        const requirements = getRoleRequirements(selectedRole);
+        if (!requirements.valid) {
+            showError(`Cannot select ${selectedRole} role: ${requirements.message}`);
+            setSelectedRole(userRole.role);
+            return;
+        }
+
         if (selectedRole === 'staker') {
-            showWarning('Staker role requires locking tokens for 3 months. You can unlock after the period.');
+            showWarning('Staker role requires locking tokens for 3 months.');
         } else if (selectedRole === 'patron') {
-            showWarning('Patron role requires 6-month commitment and has a 20% burn penalty if you exit early.');
+            showWarning('Patron role requires 6-month commitment and 20% burn penalty if you exit early.');
         }
 
         setLoading(true);
         showInfo(`Processing role change to ${selectedRole}...`);
 
         try {
+            // 1. Get transaction from backend (as base64)
             const result = await roleApi.selectRole(selectedRole);
 
-            if (result.success) {
-                const newRole = { role: selectedRole };
-                onRoleChange(newRole);
-                updateUserRole(newRole); // Update global app context
-                showSuccess(`Successfully changed role to ${selectedRole}!`);
-                await fetchUserData(); // Refresh data after role change
-            } else {
-                throw new Error(result.error || 'Failed to select role');
+            if (!result.success || !result.data) {
+                throw new Error(result.error || 'Failed to get role selection transaction');
             }
+
+            // 2. Decode base64 transaction
+            const txBytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
+            const transaction = Transaction.from(txBytes);
+
+            // 3. Fetch latest blockhash
+            const latest = await connection.getLatestBlockhash('confirmed');
+            transaction.recentBlockhash = latest.blockhash;
+            transaction.feePayer = new PublicKey(publicKey);
+
+            // 4. Sign with Phantom
+            if (!(window as any).solana?.signTransaction) {
+                throw new Error('Phantom wallet not found or not connected');
+            }
+
+            const signedTx = await (window as any).solana.signTransaction(transaction);
+
+            // 5. Send and confirm
+            showInfo('Submitting transaction...');
+            const sig = await connection.sendRawTransaction(signedTx.serialize(), {
+                skipPreflight: false,
+                preflightCommitment: 'confirmed'
+            });
+
+            showInfo('Confirming transaction...');
+            await connection.confirmTransaction(
+                {
+                    signature: sig,
+                    blockhash: latest.blockhash,
+                    lastValidBlockHeight: latest.lastValidBlockHeight
+                },
+                'confirmed'
+            );
+
+            console.log('✅ Role selection confirmed:', sig);
+
+            // 6. Persist to backend
+            await saveRoleToDatabase(selectedRole, sig);
+            const newRole = { role: selectedRole };
+            onRoleChange(newRole);
+            updateUserRole(newRole);
+            showSuccess(`Successfully changed role to ${selectedRole}!`);
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to select role';
-            showError(errorMessage);
+            if (!isUserRejection(error)) {
+                handleError(error, 'Failed to select role');
+            }
             console.error('Error selecting role:', error);
-            // Reset selection on error
             setSelectedRole(userRole.role);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Save role selection to database after successful transaction
+    const saveRoleToDatabase = async (role: string, transactionSignature: string) => {
+        try {
+            showInfo('Saving role information to database...');
+
+            // Call backend API to save role information
+            const saveResult = await userApi.saveRoleSelection({
+                role,
+                transaction_signature: transactionSignature,
+                timestamp: new Date().toISOString()
+            });
+
+            if (saveResult.success) {
+                console.log('✅ Role saved to database successfully');
+            } else {
+                console.warn('⚠️ Failed to save role to database:', saveResult.error);
+                // Don't throw error here as the blockchain transaction was successful
+                showWarning('Role selected successfully but failed to save to database. This may cause display issues.');
+            }
+        } catch (error) {
+            console.error('❌ Error saving role to database:', error);
+            // Don't throw error here as the blockchain transaction was successful
+            showWarning('Role selected successfully but failed to save to database. This may cause display issues.');
         }
     };
 
@@ -217,7 +293,7 @@ function RoleSelection({ userRole, onRoleChange }: RoleSelectionProps) {
                         <div key={role} className="col-lg-4">
                             <div
                                 className={`card h-100 border-3 ${selectedRole === role ? 'border-dark bg-light' :
-                                        !requirements.valid ? 'border-danger' : 'border-secondary'
+                                    !requirements.valid ? 'border-danger' : 'border-secondary'
                                     }`}
                                 style={{
                                     cursor: requirements.valid ? 'pointer' : 'not-allowed',

@@ -1,408 +1,395 @@
-
 import React, { useState, useEffect } from 'react';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
-import TableMiningProgress from "../../partials/mining-progress-table";
-import MiningStatus from "../patron/components/MiningStatus";
-import DemoMode from "../../components/DemoMode";
-
-import CustomTable from "../../components/custom-table";
-import MessageTable from '../../components/message-table';
-import MiningInstructions from '../../components/MiningInstructions';
-
-import { ReactComponent as IconSmallSearch } from '../../svgs/search-small.svg';
-import { ReactComponent as IconPause } from '../../svgs/pause.svg';
-import { ReactComponent as IconStop } from '../../svgs/stop.svg';
-import { ReactComponent as IconHourGlass } from '../../svgs/hourglass.svg';
-
-import { tokenApi, userApi } from '../patron/services/apiService';
 import { useAuth } from '../../contexts/AuthContext';
-import miningService, { MiningJob, TweetSearchParams } from '../../services/miningService';
+import { userApi } from '../patron/services/apiService';
+import { Transaction, Connection, clusterApiUrl } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
-interface TweetMiningPageProps {
-    page_number?: number
+interface Tweet {
+    id: string;
+    tweet_id: string;
+    content: string;
+    created_at: string;
+    rewarded: boolean;
+    reward_amount?: number;
 }
 
-interface MiningState {
-    isActive: boolean;
-    isPaused: boolean;
-    searchQuery: string;
-    miningData: any;
-    tweets: any[];
-    currentJob: MiningJob | null;
-    stats: any;
-    showInstructions: boolean;
+interface MiningStats {
+    current_stage: string;
+    total_reward_amount: number;
+    new_reward_amount: number;
+    total_tweets: number;
+    rewarded_tweets: number;
+    pending_tweets: number;
 }
 
-function TweetMiningPage({ page_number = 1 }: TweetMiningPageProps) {
+function TweetMiningPage() {
     const { user } = useAuth();
-    const [miningState, setMiningState] = useState<MiningState>({
-        isActive: false,
-        isPaused: false,
-        searchQuery: '',
-        miningData: null,
-        tweets: [],
-        currentJob: null,
-        stats: null,
-        showInstructions: true
-    });
-    const [loading, setLoading] = useState(false);
+    const [tweets, setTweets] = useState<Tweet[]>([]);
+    const [miningStats, setMiningStats] = useState<MiningStats | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isMining, setIsMining] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
-    // Load mining status and tweets on component mount
     useEffect(() => {
         if (user) {
-            loadMiningData();
-            loadTweets();
             loadMiningStats();
+            loadUserTweets();
         }
     }, [user]);
 
-    // Update mining job status periodically
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const currentJob = miningService.getCurrentJob();
-            if (currentJob) {
-                setMiningState(prev => ({
-                    ...prev,
-                    currentJob,
-                    isActive: currentJob.status === 'active',
-                    isPaused: currentJob.status === 'paused'
-                }));
-            }
-        }, 2000); // Update every 2 seconds
-
-        return () => clearInterval(interval);
-    }, [miningState.isActive]);
-
-    const loadMiningData = async () => {
-        try {
-            const response = await tokenApi.getMiningStatus();
-            if (response.success) {
-                setMiningState(prev => ({ ...prev, miningData: response.data }));
-            }
-        } catch (err) {
-            console.error('Failed to load mining data:', err);
-        }
-    };
-
-    const loadTweets = async () => {
-        try {
-            const response = await userApi.getTweets(0, 10);
-            if (response.success) {
-                setMiningState(prev => ({ ...prev, tweets: response.data || [] }));
-            }
-        } catch (err) {
-            console.error('Failed to load tweets:', err);
-        }
-    };
-
     const loadMiningStats = async () => {
         try {
-            const response = await miningService.getMiningStats();
-            if (response.success) {
-                setMiningState(prev => ({ ...prev, stats: response.stats }));
+            const response = await userApi.getTweetMiningStatus();
+            if (response.success && response.data) {
+                setMiningStats({
+                    current_stage: "Phase 2", // Current mining phase
+                    total_reward_amount: response.data.total_rewards_claimed * 1000000000, // Convert to lamports
+                    new_reward_amount: response.data.pending_rewards * 1000000000,
+                    total_tweets: response.data.total_tweets,
+                    rewarded_tweets: response.data.total_rewards_claimed,
+                    pending_tweets: response.data.pending_rewards
+                });
             }
         } catch (err) {
             console.error('Failed to load mining stats:', err);
         }
     };
 
-    const handleSearch = async () => {
-        const validation = miningService.validateSearchQuery(miningState.searchQuery);
-        if (!validation.valid) {
-            setError(validation.error || 'Invalid search query');
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
+    const loadUserTweets = async () => {
         try {
-            const searchParams: TweetSearchParams = {
-                query: miningState.searchQuery,
-                hashtags: miningState.searchQuery.match(/#\w+/g) || [],
-                mentions: miningState.searchQuery.match(/@\w+/g) || []
-            };
-
-            const result = await miningService.searchTweets(searchParams);
-
-            if (result.success) {
-                setMiningState(prev => ({ ...prev, tweets: result.tweets || [] }));
-                setError(null);
-            } else {
-                setError(result.error || 'Search failed');
+            const response = await userApi.getTweets(0, 50);
+            if (response.success && response.data) {
+                const tweetsData = response.data.map(tweet => ({
+                    id: tweet.id,
+                    tweet_id: tweet.tweet_id,
+                    content: tweet.content || `Tweet content from @${tweet.twitter_username}`,
+                    created_at: tweet.created_at,
+                    rewarded: false, // Will be updated based on rewards data
+                    reward_amount: 1000000000 // 1 token in lamports
+                }));
+                setTweets(tweetsData);
             }
         } catch (err) {
-            setError('Search failed. Please try again.');
-        } finally {
-            setLoading(false);
+            console.error('Failed to load tweets:', err);
         }
     };
 
     const handleStartMining = async () => {
-        if (miningState.isActive) return;
+        if (!user?.twitter_username) {
+            setError('Please authenticate with Twitter/X first');
+            return;
+        }
 
-        // Use default search query if none provided
-        const searchQuery = miningState.searchQuery || '#MineTheSnake';
-
-        setLoading(true);
+        setIsLoading(true);
+        setIsMining(true);
         setError(null);
+        setSuccess(null);
 
         try {
-            const searchParams: TweetSearchParams = {
-                query: searchQuery,
-                hashtags: searchQuery.match(/#\w+/g) || ['#MineTheSnake'],
-                mentions: searchQuery.match(/@\w+/g) || ['@playSnakeAI']
-            };
-
-            const result = await miningService.startMining(searchParams);
-
-            if (result.success) {
-                const currentJob = miningService.getCurrentJob();
-                setMiningState(prev => ({
-                    ...prev,
-                    isActive: true,
-                    isPaused: false,
-                    currentJob,
-                    searchQuery
-                }));
-                setError(null);
+            // Simulate fetching tweets from Twitter API
+            const response = await userApi.startTweetMining();
+            
+            if (response.success) {
+                setSuccess(`Successfully started mining! Found ${response.data?.tweets_found || 0} tweets.`);
+                await loadUserTweets();
+                await loadMiningStats();
             } else {
-                setError(result.error || 'Failed to start mining');
+                setError(response.error || 'Failed to start mining');
             }
         } catch (err) {
             setError('Failed to start mining. Please try again.');
         } finally {
-            setLoading(false);
+            setIsLoading(false);
+            setIsMining(false);
         }
     };
 
-    const handlePauseMining = () => {
-        if (miningState.isPaused) {
-            miningService.resumeMining();
-        } else {
-            miningService.pauseMining();
+    const handleClaimReward = async (tweetId: string) => {
+        setIsLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const response = await userApi.claimTweetReward(tweetId);
+            
+            if (response.success && response.data) {
+                // Decode the base64 transaction
+                const transactionData = response.data;
+                
+                // Check if Phantom wallet is available
+                const solana = (window as any).solana;
+                if (!solana || !solana.isPhantom) {
+                    throw new Error('Phantom wallet not found. Please install Phantom wallet.');
+                }
+
+                // Ensure wallet is connected
+                if (!solana.isConnected) {
+                    await solana.connect();
+                }
+
+                // Decode base64 transaction
+                const transactionBuffer = Buffer.from(transactionData, 'base64');
+                
+                setSuccess('Transaction received. Signing with wallet...');
+                
+                try {
+                    // Create Solana connection (use devnet for development, mainnet-beta for production)
+                    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+                    
+                    // Deserialize the transaction
+                    const transaction = Transaction.from(transactionBuffer);
+                    
+                    // Sign the transaction with Phantom wallet
+                    const signedTransaction = await solana.signTransaction(transaction);
+                    
+                    // Submit the signed transaction to Solana network
+                    const signature = await connection.sendRawTransaction(
+                        signedTransaction.serialize(),
+                        {
+                            skipPreflight: false,
+                            preflightCommitment: 'confirmed'
+                        }
+                    );
+                    
+                    setSuccess(`Reward claimed successfully! Transaction: ${signature}`);
+                    console.log('Transaction signature:', signature);
+                    
+                    // Wait for confirmation
+                    await connection.confirmTransaction(signature, 'confirmed');
+                    
+                    // Update local state to mark as rewarded
+                    setTweets(prev => prev.map(tweet => 
+                        tweet.tweet_id === tweetId 
+                            ? { ...tweet, rewarded: true }
+                            : tweet
+                    ));
+                    
+                    await loadMiningStats();
+                } catch (walletError: any) {
+                    console.error('Wallet signing error:', walletError);
+                    setError(`Failed to process transaction: ${walletError?.message || walletError}`);
+                }
+            } else {
+                setError(response.error || 'Failed to claim reward');
+            }
+        } catch (err) {
+            console.log(err)
+            setError('Failed to claim reward. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
-
-        setMiningState(prev => ({
-            ...prev,
-            isPaused: !prev.isPaused,
-            currentJob: miningService.getCurrentJob()
-        }));
     };
 
-    const handleStopMining = async () => {
-        await miningService.stopMining();
-        setMiningState(prev => ({
-            ...prev,
-            isActive: false,
-            isPaused: false,
-            currentJob: null
-        }));
+    const formatTokenAmount = (lamports: number) => {
+        return (lamports / 1000000000).toFixed(2);
     };
-
-    const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setMiningState(prev => ({
-            ...prev,
-            searchQuery: e.target.value
-        }));
-    };
-
-    const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
-
-    // Transform tweets data for the table
-    const transformedTweets = miningState.tweets.map((tweet, index) => ({
-        text: tweet.content || `Tweet #${index + 1}`,
-        date: new Date(tweet.created_at).toLocaleDateString() || 'Unknown'
-    }));
-
-    // Mock message data for Phase 3 display
-    const mockMessages = [
-        {
-            icon: '../../images/image1.png',
-            username: user?.twitter_username || 'User',
-            userid: `@${user?.twitter_username || 'user'}`,
-            message: `Mining with #MineTheSnake - Join the SnakeAI revolution! 🐍⚡`
-        }
-    ];
 
     return (
         <div className="w-100 p-3" style={{ height: "100vh" }}>
             <div className="d-flex gap-4" style={{ height: "calc(100vh-60px)", paddingTop: '55px' }}>
-                {/* Menu Begin */}
                 <ResponsiveMenu />
-                {/* Menu End */}
-                <div className="custom-content" >
+                
+                <div className="custom-content">
                     <div className="w-100">
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="fs-1" style={{ lineHeight: 'normal' }}>Mine Tweets</div>
-                            {/* {!miningState.showInstructions && (
-                                <button 
-                                    className="btn btn-outline-primary btn-sm"
-                                    onClick={() => setMiningState(prev => ({ ...prev, showInstructions: true }))}
-                                >
-                                    📚 Show Instructions
-                                </button>
-                            )}  */}
+                        <div className="d-flex justify-content-between align-items-center ">
+                            <div className="fs-1" style={{ lineHeight: 'normal' }}>
+                                MINE TWEETS
+                            </div>
+                            <div className="text-end">
+                                <div className="fs-6 text-muted">
+                                    Connected: @{user?.twitter_username || 'Not authenticated'}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="custom-border-y custom-content-height d-flex flex-column px-3">
-                        <WalletGuard>
-                            {/* Mining Instructions */}
-                            {/* {miningState.showInstructions && (
-                                <div className="mb-3">
-                                    <MiningInstructions 
-                                        onClose={() => setMiningState(prev => ({ ...prev, showInstructions: false }))}
-                                    />
-                                </div>
-                            )} */}
 
-                            <div className="w-100 d-flex justify-content-center gap-4">
-                                <div className=" w-100" >
-                                    <div className="w-100 border border-5 border-dashed p-3 text-center" style={{ height: '35vh' }}>
-                                        {/* Search Section */}
-                                        <div className='d-flex justify-content-center mb-2 text-center'>
-                                            <input
-                                                type='text'
-                                                placeholder='Search using keywords or hashtags (e.g., #MineTheSnake)'
-                                                className='py-1 py-xl-3 px-3'
-                                                style={{ width: 'calc(100% - 75px)' }}
-                                                value={miningState.searchQuery}
-                                                onChange={handleSearchInputChange}
-                                                onKeyPress={handleSearchKeyPress}
-                                                disabled={loading}
-                                            />
+                    <div className="custom-border-y custom-content-height d-flex flex-column p-3">
+                        <WalletGuard>
+                            {/* Mining Stats Panel */}
+                            {miningStats && (
+                                <div className="row mb-4">
+                                    <div className="col-12">
+                                        <div className="card bg-light">
+                                            <div className="card-body">
+                                                <h5 className="card-title"> Mining Statistics</h5>
+                                                <div className="row">
+                                                    <div className="col-md-3">
+                                                        <div className="text-center">
+                                                            <div className="fs-4 fw-bold text-primary">
+                                                                {miningStats.current_stage}
+                                                            </div>
+                                                            <small className="text-muted">Current Stage</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-md-3">
+                                                        <div className="text-center">
+                                                            <div className="fs-4 fw-bold text-success">
+                                                                {formatTokenAmount(miningStats.total_reward_amount)} SNAKE
+                                                            </div>
+                                                            <small className="text-muted">Total Rewards</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-md-3">
+                                                        <div className="text-center">
+                                                            <div className="fs-4 fw-bold text-warning">
+                                                                {formatTokenAmount(miningStats.new_reward_amount)} SNAKE
+                                                            </div>
+                                                            <small className="text-muted">Pending Rewards</small>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-md-3">
+                                                        <div className="text-center">
+                                                            <div className="fs-4 fw-bold text-info">
+                                                                {miningStats.total_tweets}
+                                                            </div>
+                                                            <small className="text-muted">Total Tweets</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Start Mining Section */}
+                            <div className="row mb-4">
+                                <div className="col-12">
+                                    <div className="card">
+                                        <div className="card-body text-center">
+                                            <h5 className="card-title"> Tweet Mining Control</h5>
+                                            <p className="card-text">
+                                                Start mining to fetch your recent tweets and earn SNAKE tokens for each tweet!
+                                            </p>
+                                            
+                                            {error && (
+                                                <div className="alert alert-danger" role="alert">
+                                                    {error}
+                                                </div>
+                                            )}
+                                            
+                                            {success && (
+                                                <div className="alert alert-success" role="alert">
+                                                    {success}
+                                                </div>
+                                            )}
+
                                             <button
-                                                className='text-center text-white bg-black border border-0 search-button'
-                                                aria-label="Search"
-                                                onClick={handleSearch}
-                                                disabled={loading}
+                                                className={`btn btn-lg ${isMining ? 'btn-warning' : 'btn-primary'}`}
+                                                onClick={handleStartMining}
+                                                disabled={isLoading || !user?.twitter_username}
                                             >
-                                                <IconSmallSearch />
+                                                {isLoading ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                        Mining...
+                                                    </>
+                                                ) : isMining ? (
+                                                    '⚡ Mining Active'
+                                                ) : (
+                                                    ' Start Mining'
+                                                )}
+                                            </button>
+                                            
+                                            {!user?.twitter_username && (
+                                                <div className="mt-3">
+                                                    <small className="text-muted">
+                                                        Please authenticate with Twitter/X to start mining
+                                                    </small>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tweets List */}
+                            <div className="row">
+                                <div className="col-12">
+                                    <div className="card">
+                                        <div className="card-header d-flex justify-content-between align-items-center">
+                                            <h5 className="mb-0">Your Tweets ({tweets.length})</h5>
+                                            <button 
+                                                className="btn btn-outline-primary btn-sm"
+                                                onClick={loadUserTweets}
+                                                disabled={isLoading}
+                                            >
+                                                🔄 Refresh
                                             </button>
                                         </div>
-
-                                        {/* Quick Search Suggestions */}
-                                        {!miningState.searchQuery && (
-                                            <div className="mb-2">
-                                                <small className="text-muted">Quick suggestions:</small>
-                                                <div className="d-flex flex-wrap gap-1 justify-content-center">
-                                                    {miningService.getRecommendedQueries().slice(0, 3).map((query, index) => (
-                                                        <button
-                                                            key={index}
-                                                            className="btn btn-outline-secondary btn-sm"
-                                                            onClick={() => setMiningState(prev => ({ ...prev, searchQuery: query }))}
-                                                            disabled={loading}
-                                                        >
-                                                            {query}
-                                                        </button>
+                                        <div className="card-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                            {tweets.length > 0 ? (
+                                                <div className="row">
+                                                    {tweets.map((tweet, index) => (
+                                                        <div key={tweet.id} className="col-12 mb-3">
+                                                            <div className={`card ${tweet.rewarded ? 'border-success' : 'border-primary'}`}>
+                                                                <div className="card-body">
+                                                                    <div className="d-flex justify-content-between align-items-start">
+                                                                        <div className="flex-grow-1">
+                                                                            <h6 className="card-title mb-2">
+                                                                                Tweet #{index + 1}
+                                                                                {tweet.rewarded && (
+                                                                                    <span className="badge bg-success ms-2">Rewarded</span>
+                                                                                )}
+                                                                            </h6>
+                                                                            <p className="card-text mb-2">{tweet.content}</p>
+                                                                            <small className="text-muted">
+                                                                                {new Date(tweet.created_at).toLocaleString()} • 
+                                                                                ID: {tweet.tweet_id}
+                                                                            </small>
+                                                                        </div>
+                                                                        <div className="d-flex flex-column gap-2 ms-3">
+                                                                            <button
+                                                                                className={`btn btn-sm ${
+                                                                                    tweet.rewarded 
+                                                                                        ? 'btn-success disabled' 
+                                                                                        : 'btn-outline-success'
+                                                                                }`}
+                                                                                onClick={() => handleClaimReward(tweet.tweet_id)}
+                                                                                disabled={isLoading || tweet.rewarded}
+                                                                                title={
+                                                                                    tweet.rewarded 
+                                                                                        ? 'Reward already claimed' 
+                                                                                        : `Claim ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
+                                                                                }
+                                                                            >
+                                                                                {tweet.rewarded ? (
+                                                                                    '✅ Claimed'
+                                                                                ) : (
+                                                                                    `💰 Claim ${formatTokenAmount(tweet.reward_amount || 0)}`
+                                                                                )}
+                                                                            </button>
+                                                                            <a
+                                                                                href={`https://twitter.com/intent/retweet?tweet_id=${tweet.tweet_id}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="btn btn-outline-primary btn-sm"
+                                                                                title="Retweet"
+                                                                            >
+                                                                                🔄 RT
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
-
-                                        {/* Current Job Status */}
-                                        {miningState.currentJob && (
-                                            <div className="alert alert-info mb-2" role="alert">
-                                                <small>
-                                                    <strong>Current Job:</strong> {miningState.currentJob.searchQuery} |
-                                                    <strong> Found:</strong> {miningState.currentJob.tweetsFound} tweets |
-                                                    <strong> Earned:</strong> {miningState.currentJob.tokensEarned} tokens
-                                                </small>
-                                            </div>
-                                        )}
-
-                                        {/* Error Display */}
-                                        {error && (
-                                            <div className="alert alert-danger mb-2" role="alert">
-                                                {error}
-                                            </div>
-                                        )}
-
-                                        {/* Mining Control Button */}
-                                        <button
-                                            className={`border border-black border-3 ${miningState.isActive && !miningState.isPaused
-                                                    ? 'bg-light-green-950'
-                                                    : miningState.isActive && miningState.isPaused
-                                                        ? 'bg-warning'
-                                                        : 'bg-gray-300'
-                                                } fs-6 fs-xxl-13 px-3`}
-                                            style={{ lineHeight: 'normal', height: '60px', width: 'calc(100% - 20px)' }}
-                                            onClick={handleStartMining}
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                    Loading...
-                                                </>
-                                            ) : miningState.isActive && !miningState.isPaused ? (
-                                                <>Mining Active <IconHourGlass /></>
-                                            ) : miningState.isActive && miningState.isPaused ? (
-                                                'Mining Paused'
                                             ) : (
-                                                'Start Mining'
-                                            )}
-                                        </button>
-
-                                        {/* Pause/Stop Controls */}
-                                        {miningState.isActive && (
-                                            <>
-                                                <hr className="border border-dashed border-black border-3 opacity-100"></hr>
-                                                <div className="d-flex justify-content-around align-items-center gap-1">
-                                                    <button
-                                                        className="fs-6 fs-xxl-15 bg-green-960 border border-0 py-2 px-2 text-light-green-950"
-                                                        onClick={handlePauseMining}
-                                                    >
-                                                        {miningState.isPaused ? 'Resume' : 'Pause'} <IconPause />
-                                                    </button>
-                                                    <button
-                                                        className="fs-6 fs-xxl-15 bg-green-960 border border-0 py-2 px-2 text-light-green-950"
-                                                        onClick={handleStopMining}
-                                                    >
-                                                        Stop <IconStop />
-                                                    </button>
+                                                <div className="text-center py-5">
+                                                    <div className="fs-1 mb-3">🐦</div>
+                                                    <h5 className="text-muted">No tweets found</h5>
+                                                    <p className="text-muted">
+                                                        Click "Start Mining" to fetch your recent tweets and start earning rewards!
+                                                    </p>
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Mining Status or Messages */}
-                                    {page_number === 3 ? (
-                                        <MessageTable height='38vh' data={mockMessages} />
-                                    ) : (
-                                        <div className="w-100">
-                                            <div className="mb-3">
-                                                <div className="fs-4 fw-bold mb-3">⛏️ Mining Status & Progress</div>
-                                                <hr className="border border-dashed border-black border-2 opacity-100" />
-                                            </div>
-                                            <div className="border border-3 border-dashed p-3" style={{ minHeight: '30vh' }}>
-                                                <MiningStatus />
-                                            </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
-
-                                {/* Mined Tweets Table */}
-                                <TableMiningProgress
-                                    container_height="100%"
-                                    table={
-                                        <CustomTable
-                                            height=""
-                                            title="Mined Tweets"
-                                            data={transformedTweets.length > 0 ? transformedTweets : [
-                                                { text: 'No tweets mined yet', date: '-' },
-                                                { text: 'Start mining to see results', date: '-' }
-                                            ]}
-                                            action_icons={['retweet', 'delete']}
-                                        />
-                                    }
-                                />
                             </div>
                         </WalletGuard>
                     </div>

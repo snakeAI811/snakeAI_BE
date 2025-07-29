@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { useWalletContext } from '../../contexts/WalletContext';
 import { tokenApi, userApi } from '../patron/services/apiService';
+import WalletGuard from "../../components/WalletGuard";
 import { UserRole } from '../patron/index';
 
 interface ClaimPageProps {
@@ -24,10 +25,10 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { connected, publicKey, connect } = useWalletContext();
-  
+
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole['role']>('none');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -36,14 +37,14 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
     try {
       setLoading(true);
       setError(null);
-      
+
       if (!id) {
         setError('No reward ID provided');
         return;
       }
 
       const response = await userApi.getRewardById(id);
-      
+
       if (response.success && response.data) {
         const rewardData = response.data;
         const claimData: ClaimData = {
@@ -75,15 +76,15 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
 
   const handleClaim = async () => {
     if (!claimData || !connected || !publicKey) return;
-    
+
     setClaiming(true);
     setError(null);
-    
+
     try {
       if (!claimData) return;
-      
+
       const response = await tokenApi.claimTokensWithRole(selectedRole, claimData.amount);
-      
+
       if (response.success) {
         setSuccess(true);
         setClaimData(prev => prev ? { ...prev, claimed: true } : null);
@@ -162,232 +163,230 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
         {/* Menu Begin */}
         <ResponsiveMenu />
         {/* Menu End */}
-        
-        <div className="item-stretch" style={{ width: '100%' }}>
-          <div className="w-100 d-flex justify-content-between gap-4">
-            <div className="item-stretch w-100" style={{ minHeight: '86vh' }}>
-              
-              {/* Header */}
-              <div className="w-100">
-                <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                  🎁 Claim Your Twitter Mining Reward
-                </div>
-                <div className="fs-6 text-muted mb-3">
-                  Your tweet qualified for Snake AI token rewards! Connect your wallet and claim your tokens.
-                </div>
-                {claimData?.tweetId && (
-                  <div className="alert alert-info mb-3">
-                    <div className="d-flex align-items-center">
-                      <span className="me-2">🐦</span>
-                      <div>
-                        <strong>Qualifying Tweet:</strong>{' '}
-                        <a 
-                          href={`https://twitter.com/i/status/${claimData.tweetId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-decoration-none"
-                        >
-                          View on Twitter →
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <hr className="border border-dashed border-black border-3 opacity-100" />
-              </div>
+        <div className="custom-content" >
+          <div className="w-100">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="fs-1" style={{ lineHeight: 'normal' }}>🎁 Claim Your Twitter Mining Reward</div>
+            </div>
+          </div>
+          <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+            <WalletGuard>
+              <div className="w-100" style={{ minHeight: '86vh' }}>
 
-              {/* Wallet Connection */}
-              {!connected ? (
-                <div className="w-100 mb-4">
-                  <div className="alert alert-warning text-center">
-                    <h4>Connect Your Wallet</h4>
-                    <p>Please connect your wallet to claim your Snake AI tokens</p>
-                    <button className="btn btn-primary btn-lg" onClick={connect}>
-                      Connect Wallet
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-100 mb-4">
-                  <div className="alert alert-success">
-                    <strong>Wallet Connected:</strong> {publicKey?.slice(0, 8)}...{publicKey?.slice(-8)}
-                  </div>
-                </div>
-              )}
-
-              {/* Success Message */}
-              {success && (
-                <div className="w-100 mb-4">
-                  <div className="alert alert-success">
-                    <h4>🎉 Claim Successful!</h4>
-                    <p>Your tokens have been claimed successfully and your role has been updated.</p>
-                    <button className="btn btn-outline-success" onClick={() => navigate('/patron-framework')}>
-                      Go to Patron Framework
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Main Content */}
-              {claimData && connected && !success && (
-                <div className="row g-4">
-                  {/* Role Selection */}
-                  <div className="col-lg-6">
-                    <div className="card border-3 border-dashed h-100">
-                      <div className="card-body">
-                        <h3 className="card-title mb-4">🎭 Select Your Role</h3>
-                        
-                        <div className="row g-3">
-                          {(['none', 'staker', 'patron'] as UserRole['role'][]).map((role) => (
-                            <div key={role} className="col-12">
-                              <div 
-                                className={`card border-2 ${
-                                  selectedRole === role 
-                                    ? `border-${getRoleColor(role)} bg-light` 
-                                    : 'border-secondary'
-                                }`}
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => setSelectedRole(role)}
-                              >
-                                <div className="card-body">
-                                  <div className="d-flex align-items-center mb-2">
-                                    <span className="fs-4 me-3">{getRoleIcon(role)}</span>
-                                    <div>
-                                      <h6 className="card-title mb-0">{role === 'none' ? 'No Role' : role}</h6>
-                                      {selectedRole === role && (
-                                        <small className="text-success">✓ Selected</small>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="mt-2">
-                                    <small className="text-muted">Benefits:</small>
-                                    <ul className="list-unstyled mt-1">
-                                      {getRoleBenefits(role).map((benefit, index) => (
-                                        <li key={index}>
-                                          <small>• {benefit}</small>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                {/* Header */}
+                <div className="w-100">
+                  {claimData?.tweetId && (
+                    <div className="alert alert-info mb-3">
+                      <div className="d-flex align-items-center">
+                        <span className="me-2">🐦</span>
+                        <div>
+                          <strong>Qualifying Tweet:</strong>{' '}
+                          <a
+                            href={`https://twitter.com/i/status/${claimData.tweetId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-decoration-none"
+                          >
+                            View on Twitter →
+                          </a>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Claim Summary */}
-                  <div className="col-lg-6">
-                    <div className="card border-3 border-dashed h-100">
-                      <div className="card-body">
-                        <h3 className="card-title mb-4">📊 Claim Summary</h3>
-                        
-                        <div className="mb-4">
-                          <div className="row g-2">
-                            <div className="col-6">
-                              <div className="card bg-light">
-                                <div className="card-body text-center">
-                                  <div className="fs-2 fw-bold text-primary">{claimData.amount}</div>
-                                  <small className="text-muted">SNAKE Tokens</small>
+                {/* Wallet Connection */}
+                {!connected ? (
+                  <div className="w-100 mb-4">
+                    <div className="alert alert-warning text-center">
+                      <h4>Connect Your Wallet</h4>
+                      <p>Please connect your wallet to claim your Snake AI tokens</p>
+                      <button className="btn btn-primary btn-lg" onClick={connect}>
+                        Connect Wallet
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-100 mb-4">
+                    <div className="alert alert-success">
+                      <strong>Wallet Connected:</strong> {publicKey?.slice(0, 8)}...{publicKey?.slice(-8)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {success && (
+                  <div className="w-100 mb-4">
+                    <div className="alert alert-success">
+                      <h4>🎉 Claim Successful!</h4>
+                      <p>Your tokens have been claimed successfully and your role has been updated.</p>
+                      <button className="btn btn-outline-success" onClick={() => navigate('/patron-framework')}>
+                        Go to Patron Framework
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Main Content */}
+                {claimData && connected && !success && (
+                  <div className="row g-4">
+                    {/* Role Selection */}
+                    <div className="col-lg-6">
+                      <div className="card border-3 border-dashed h-100">
+                        <div className="card-body">
+                          <h3 className="card-title mb-4">🎭 Select Your Role</h3>
+
+                          <div className="row g-3">
+                            {(['none', 'staker', 'patron'] as UserRole['role'][]).map((role) => (
+                              <div key={role} className="col-12">
+                                <div
+                                  className={`card border-2 ${selectedRole === role
+                                      ? `border-${getRoleColor(role)} bg-light`
+                                      : 'border-secondary'
+                                    }`}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => setSelectedRole(role)}
+                                >
+                                  <div className="card-body">
+                                    <div className="d-flex align-items-center mb-2">
+                                      <span className="fs-4 me-3">{getRoleIcon(role)}</span>
+                                      <div>
+                                        <h6 className="card-title mb-0">{role === 'none' ? 'No Role' : role}</h6>
+                                        {selectedRole === role && (
+                                          <small className="text-success">✓ Selected</small>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="mt-2">
+                                      <small className="text-muted">Benefits:</small>
+                                      <ul className="list-unstyled mt-1">
+                                        {getRoleBenefits(role).map((benefit, index) => (
+                                          <li key={index}>
+                                            <small>• {benefit}</small>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="col-6">
-                              <div className="card bg-light">
-                                <div className="card-body text-center">
-                                  <div className={`badge bg-${claimData.phase === 'Phase1' ? 'success' : 'info'} fs-6`}>
-                                    {claimData.phase}
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Claim Summary */}
+                    <div className="col-lg-6">
+                      <div className="card border-3 border-dashed h-100">
+                        <div className="card-body">
+                          <h3 className="card-title mb-4">📊 Claim Summary</h3>
+
+                          <div className="mb-4">
+                            <div className="row g-2">
+                              <div className="col-6">
+                                <div className="card bg-light">
+                                  <div className="card-body text-center">
+                                    <div className="fs-2 fw-bold text-primary">{claimData.amount}</div>
+                                    <small className="text-muted">SNAKE Tokens</small>
                                   </div>
-                                  <div><small className="text-muted">Mining Phase</small></div>
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="card bg-light">
+                                  <div className="card-body text-center">
+                                    <div className={`badge bg-${claimData.phase === 'Phase1' ? 'success' : 'info'} fs-6`}>
+                                      {claimData.phase}
+                                    </div>
+                                    <div><small className="text-muted">Mining Phase</small></div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="mb-4">
-                          <div className="card bg-light">
-                            <div className="card-body">
-                              <h6>Selected Role: {getRoleIcon(selectedRole)} {selectedRole === 'none' ? 'No Role' : selectedRole}</h6>
-                              <div className="mt-2">
-                                <small className="text-muted">Benefits:</small>
-                                <ul className="list-unstyled mt-1">
-                                  {getRoleBenefits(selectedRole).map((benefit, index) => (
-                                    <li key={index}>
-                                      <small>• {benefit}</small>
-                                    </li>
-                                  ))}
+                          <div className="mb-4">
+                            <div className="card bg-light">
+                              <div className="card-body">
+                                <h6>Selected Role: {getRoleIcon(selectedRole)} {selectedRole === 'none' ? 'No Role' : selectedRole}</h6>
+                                <div className="mt-2">
+                                  <small className="text-muted">Benefits:</small>
+                                  <ul className="list-unstyled mt-1">
+                                    {getRoleBenefits(selectedRole).map((benefit, index) => (
+                                      <li key={index}>
+                                        <small>• {benefit}</small>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Error Display */}
+                          {error && (
+                            <div className="alert alert-danger">
+                              <strong>Error:</strong> {error}
+                            </div>
+                          )}
+
+                          {/* Claim Button */}
+                          <div className="d-grid">
+                            <button
+                              className={`btn btn-${getRoleColor(selectedRole)} btn-lg`}
+                              onClick={handleClaim}
+                              disabled={claiming || claimData.claimed}
+                            >
+                              {claiming ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-2" role="status" />
+                                  Claiming...
+                                </>
+                              ) : claimData.claimed ? (
+                                'Already Claimed'
+                              ) : (
+                                `Claim ${claimData.amount} SNAKE Tokens`
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Twitter Mining Info */}
+                          <div className="mt-4">
+                            <div className="card border-info">
+                              <div className="card-body">
+                                <h6 className="card-title">🐦 How Twitter Mining Works</h6>
+                                <ul className="mb-0">
+                                  <li><small>1. Follow @playSnakeAI on Twitter</small></li>
+                                  <li><small>2. Tweet mentioning @playSnakeAI with #MineTheSnake</small></li>
+                                  <li><small>3. Our system automatically detects qualifying tweets</small></li>
+                                  <li><small>4. You get a claim link sent to you on Twitter</small></li>
+                                  <li><small>5. One reward per 24 hours per user</small></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Important Notes */}
+                          <div className="mt-3">
+                            <div className="card border-warning">
+                              <div className="card-body">
+                                <h6 className="card-title">⚠️ Important Notes</h6>
+                                <ul className="mb-0">
+                                  <li><small>Role changes affect token lock periods</small></li>
+                                  <li><small>Staker and Patron roles require token commitment</small></li>
+                                  <li><small>Locked tokens earn additional rewards</small></li>
+                                  <li><small>This action requires blockchain confirmation</small></li>
                                 </ul>
                               </div>
                             </div>
                           </div>
                         </div>
-
-                        {/* Error Display */}
-                        {error && (
-                          <div className="alert alert-danger">
-                            <strong>Error:</strong> {error}
-                          </div>
-                        )}
-
-                        {/* Claim Button */}
-                        <div className="d-grid">
-                          <button
-                            className={`btn btn-${getRoleColor(selectedRole)} btn-lg`}
-                            onClick={handleClaim}
-                            disabled={claiming || claimData.claimed}
-                          >
-                            {claiming ? (
-                              <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status" />
-                                Claiming...
-                              </>
-                            ) : claimData.claimed ? (
-                              'Already Claimed'
-                            ) : (
-                              `Claim ${claimData.amount} SNAKE Tokens`
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Twitter Mining Info */}
-                        <div className="mt-4">
-                          <div className="card border-info">
-                            <div className="card-body">
-                              <h6 className="card-title">🐦 How Twitter Mining Works</h6>
-                              <ul className="mb-0">
-                                <li><small>1. Follow @playSnakeAI on Twitter</small></li>
-                                <li><small>2. Tweet mentioning @playSnakeAI with #MineTheSnake</small></li>
-                                <li><small>3. Our system automatically detects qualifying tweets</small></li>
-                                <li><small>4. You get a claim link sent to you on Twitter</small></li>
-                                <li><small>5. One reward per 24 hours per user</small></li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Important Notes */}
-                        <div className="mt-3">
-                          <div className="card border-warning">
-                            <div className="card-body">
-                              <h6 className="card-title">⚠️ Important Notes</h6>
-                              <ul className="mb-0">
-                                <li><small>Role changes affect token lock periods</small></li>
-                                <li><small>Staker and Patron roles require token commitment</small></li>
-                                <li><small>Locked tokens earn additional rewards</small></li>
-                                <li><small>This action requires blockchain confirmation</small></li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </WalletGuard>
           </div>
         </div>
       </div>

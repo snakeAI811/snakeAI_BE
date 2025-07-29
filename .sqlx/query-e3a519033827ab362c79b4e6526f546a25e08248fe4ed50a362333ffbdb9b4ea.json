@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * from values WHERE key = 'latest_transaction_signature'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "value",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e3a519033827ab362c79b4e6526f546a25e08248fe4ed50a362333ffbdb9b4ea"
+}

@@ -2,6 +2,7 @@ mod handler;
 mod middleware;
 mod routes;
 mod state;
+pub mod utils2;
 
 use database::DatabasePool;
 use routes::routes;

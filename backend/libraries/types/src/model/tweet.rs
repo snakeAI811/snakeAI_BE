@@ -9,6 +9,8 @@ pub struct Tweet {
     pub tweet_id: String,
     pub created_at: DateTime<Utc>,
     pub mining_phase: Option<i16>,
+    pub rewarded: Option<bool>,
+    pub reward_amount: Option<i64>,
 }
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
@@ -19,4 +21,7 @@ pub struct TweetWithUser {
     pub tweet_id: String,
     pub created_at: DateTime<Utc>,
     pub mining_phase: Option<i16>,
+    pub content: Option<String>,
+    pub rewarded: Option<bool>,
+    pub reward_amount: Option<i64>,
 }

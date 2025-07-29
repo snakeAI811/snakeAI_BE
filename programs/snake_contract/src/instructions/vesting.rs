@@ -27,7 +27,7 @@ pub struct CreateVesting<'info> {
     #[account(
         init,
         payer = user,
-        space = VestingSchedule::INIT_SPACE,
+        space = 8 + VestingSchedule::INIT_SPACE,
         seeds = [b"vesting", user.key().as_ref()],
         bump
     )]

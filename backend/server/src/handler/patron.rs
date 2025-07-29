@@ -69,8 +69,7 @@ pub async fn get_select_role_tx(
     let role = match payload.role.as_str() {
         "staker" => snake_contract::UserRole::Staker {},
         "patron" => snake_contract::UserRole::Patron {},
-        "seller" => snake_contract::UserRole::Seller {},
-        _ => return Err(ApiError::BadRequest("Invalid role".to_string())),
+        _ => return Err(ApiError::BadRequest("Invalid role. Valid roles are: staker, patron".to_string())),
     };
 
     let instructions = match state
@@ -381,7 +380,7 @@ async fn generate_transaction(
     instructions: Vec<anchor_client::solana_sdk::instruction::Instruction>,
     wallet: Pubkey,
 ) -> Result<Json<String>, ApiError> {
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
+    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(blockhash) => blockhash,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
@@ -389,7 +388,7 @@ async fn generate_transaction(
     let message = Message::new(&instructions, Some(&wallet));
     let transaction = Transaction::new_unsigned(message);
     let mut transaction_with_blockhash = transaction;
-    transaction_with_blockhash.message.recent_blockhash = latest_blockhash;
+    transaction_with_blockhash.message.recent_blockhash = _latest_blockhash;
     
     let serialized_transaction = bincode::serialize(&transaction_with_blockhash).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);

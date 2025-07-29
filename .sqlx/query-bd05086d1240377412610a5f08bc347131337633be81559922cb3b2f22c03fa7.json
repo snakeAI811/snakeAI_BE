@@ -1,0 +1,186 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET lock_duration_months = $1, locked_amount = $2 WHERE id = $3 RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "twitter_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "twitter_username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "wallet_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "latest_claim_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "selected_role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "patron_qualification_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "wallet_age_days",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "community_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "patron_status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "locked_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 14,
+        "name": "lock_start_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "lock_end_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 16,
+        "name": "lock_duration_months",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 17,
+        "name": "last_yield_claim_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 18,
+        "name": "total_yield_claimed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 19,
+        "name": "user_claim_pda",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 20,
+        "name": "initialized",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 21,
+        "name": "vesting_pda",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 22,
+        "name": "has_vesting",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 23,
+        "name": "vesting_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 24,
+        "name": "vesting_role_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 25,
+        "name": "otc_swap_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 26,
+        "name": "total_burned",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 27,
+        "name": "dao_eligibility_revoked_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "bd05086d1240377412610a5f08bc347131337633be81559922cb3b2f22c03fa7"
+}

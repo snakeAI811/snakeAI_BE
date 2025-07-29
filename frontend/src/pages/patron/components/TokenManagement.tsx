@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { UserRole } from '../index';
 import { tokenApi } from '../services/apiService';
 import { useToast } from '../../../contexts/ToastContext';
+import { useWalletContext } from '../../../contexts/WalletContext';
+import { Connection, Transaction, PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { SOLANA_RPC_URL, TOKEN_MINT } from '../../../config/program';
+import { parseSmartContractError } from '../../../utils/errorParser';
 
 interface TokenManagementProps {
     userRole: UserRole;
@@ -17,6 +22,48 @@ interface TokenInfo {
 
 function TokenManagement({ userRole }: TokenManagementProps) {
     const { showSuccess, showError, showInfo } = useToast();
+    const { publicKey, connected } = useWalletContext();
+    
+    // Create connection with proper configuration and fallback RPC
+    const getRpcUrl = () => {
+        const primaryRpc = SOLANA_RPC_URL;
+        
+        console.log('🔗 Primary RPC URL:', primaryRpc);
+        console.log('💡 If you experience connection issues, try these alternatives:');
+        console.log('   - Helius: https://devnet.helius-rpc.com/?api-key=YOUR_API_KEY');
+        console.log('   - Alchemy: https://solana-devnet.g.alchemy.com/v2/YOUR_API_KEY');
+        console.log('   - QuickNode: https://your-endpoint.solana-devnet.quiknode.pro/YOUR_TOKEN/');
+        
+        return primaryRpc;
+    };
+
+    const connection = new Connection(getRpcUrl(), {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 120000, // Increase timeout to 2 minutes
+        disableRetryOnRateLimit: false,
+    });
+    
+    // Debug: Log the RPC URL being used and test connectivity
+    console.log('🔗 Using Solana RPC URL:', SOLANA_RPC_URL);
+    console.log('🪙 Using Token Mint:', TOKEN_MINT.toString());
+    
+    // Test RPC connectivity on component mount
+    React.useEffect(() => {
+        const testRpcConnection = async () => {
+            try {
+                console.log('🧪 Testing RPC connection...');
+                const version = await connection.getVersion();
+                console.log('✅ RPC connection successful. Solana version:', version);
+            } catch (error) {
+                console.error('❌ RPC connection test failed:', error);
+                console.warn('⚠️ This may cause issues with token operations');
+            }
+        };
+        
+        if (connected) {
+            testRpcConnection();
+        }
+    }, [connected]);
     const [tokenInfo, setTokenInfo] = useState<TokenInfo>({
         balance: 0,
         locked: 0,
@@ -80,6 +127,12 @@ function TokenManagement({ userRole }: TokenManagementProps) {
     const handleLockTokens = async () => {
         const numAmount = Number(lockAmount);
 
+        // Check if wallet is connected
+        if (!connected || !publicKey) {
+            showError('Please connect your wallet first');
+            return;
+        }
+
         // Validation checks
         if (!lockAmount || numAmount <= 0) {
             showError('Please enter a valid amount to lock');
@@ -98,23 +151,220 @@ function TokenManagement({ userRole }: TokenManagementProps) {
 
         setLoading(true);
         setActiveAction('lock');
-        showInfo(`Processing lock ${numAmount.toLocaleString()} tokens for ${lockPeriod} months...`);
+        showInfo(`Preparing transaction to lock ${numAmount.toLocaleString()} tokens for ${lockPeriod} months...`);
 
         try {
-            const result = await tokenApi.lockTokens(
+            // Step 1: Check user's token account before proceeding
+            showInfo('Checking your token account...');
+            const userTokenAccount = await getAssociatedTokenAddress(TOKEN_MINT, new PublicKey(publicKey));
+            console.log('🏦 User token account:', userTokenAccount.toString());
+            
+            try {
+                // Add retry logic for RPC calls
+                const getAccountInfoWithRetry = async (retries = 3) => {
+                    for (let i = 0; i < retries; i++) {
+                        try {
+                            console.log(`🔄 Attempt ${i + 1}/${retries} to fetch account info...`);
+                            const accountInfo = await connection.getAccountInfo(userTokenAccount);
+                            return accountInfo;
+                        } catch (error) {
+                            console.warn(`⚠️ Attempt ${i + 1} failed:`, error);
+                            if (i === retries - 1) throw error;
+                            // Wait before retry
+                            await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+                        }
+                    }
+                };
+
+                const accountInfo = await getAccountInfoWithRetry();
+                if (!accountInfo) {
+                    throw new Error(`You don't have a SNAKE token account yet.\n\nTo get SNAKE tokens:\n1. Make sure the SNAKE token is deployed (check TOKEN_MINT in config)\n2. Get SNAKE tokens from the project admin\n3. Or mint some if you have permissions`);
+                }
+                
+                console.log('✅ Account found, checking balance...');
+                const tokenBalance = await connection.getTokenAccountBalance(userTokenAccount);
+                const actualBalance = tokenBalance.value.uiAmount || 0;
+                console.log('💰 Current token balance:', actualBalance);
+                
+                if (actualBalance < numAmount) {
+                    throw new Error(`Insufficient SNAKE tokens. You have ${actualBalance} tokens but trying to lock ${numAmount} tokens.`);
+                }
+                
+                if (actualBalance === 0) {
+                    throw new Error('You have 0 SNAKE tokens in your wallet. Please get SNAKE tokens before attempting to lock.');
+                }
+                
+                showInfo('Token account verified. Creating lock transaction...');
+            } catch (accountError) {
+                console.error('❌ Token account check failed:', accountError);
+                
+                // Provide more helpful error messages
+                if (accountError instanceof Error) {
+                    if (accountError.message.includes('Failed to fetch')) {
+                        throw new Error('Network connection error. Please check your internet connection and try again. If the problem persists, the Solana network might be experiencing issues.');
+                    }
+                    if (accountError.message.includes('503') || accountError.message.includes('502')) {
+                        throw new Error('Solana RPC server is temporarily unavailable. Please try again in a few moments.');
+                    }
+                }
+                throw accountError;
+            }
+            
+            // Step 2: Try to get the lock transaction from backend
+            let result = await tokenApi.lockTokens(
                 numAmount * 1000000000, // Convert to lamports
                 lockPeriod
             );
 
-            if (result.success) {
-                showSuccess(
-                    `Successfully locked ${numAmount.toLocaleString()} tokens for ${lockPeriod} months!`
-                );
-                setLockAmount('');
-                setShowBalanceWarning(false);
-                fetchTokenInfo(); // Refresh token info
+            // Step 3: Check if we need to initialize user claim account first
+            if (!result.success && result.error && result.error.includes('AccountNotFound')) {
+                console.log('🔧 User claim account not found, initializing...');
+                showInfo('Setting up your account for the first time...');
+                
+                try {
+                    const initResult = await tokenApi.initializeUserClaim();
+                    
+                    if (initResult.success && initResult.data) {
+                        showInfo('Please approve the account setup transaction in your wallet...');
+                        
+                        // Decode and sign the initialization transaction
+                        const initTxBytes = Uint8Array.from(atob(initResult.data), c => c.charCodeAt(0));
+                        const initTransaction = Transaction.from(initTxBytes);
+                        
+                        // Update with fresh blockhash
+                        const { blockhash } = await connection.getLatestBlockhash('confirmed');
+                        initTransaction.recentBlockhash = blockhash;
+                        initTransaction.feePayer = new PublicKey(publicKey);
+                        
+                        // Sign and send initialization transaction
+                        if (typeof window !== 'undefined' && (window as any).solana) {
+                            const signedInitTx = await (window as any).solana.signTransaction(initTransaction);
+                            
+                            showInfo('Submitting account setup transaction...');
+                            const initSignature = await connection.sendRawTransaction(signedInitTx.serialize(), {
+                                skipPreflight: false,
+                                preflightCommitment: 'confirmed'
+                            });
+                            
+                            showInfo('Waiting for account setup confirmation...');
+                            await connection.confirmTransaction({
+                                signature: initSignature,
+                                blockhash: initTransaction.recentBlockhash!,
+                                lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+                            }, 'confirmed');
+                            
+                            console.log('✅ User claim account initialized successfully');
+                            showInfo('Account setup complete. Proceeding with token lock...');
+                            
+                            // Retry the lock transaction now that account is initialized
+                            result = await tokenApi.lockTokens(
+                                numAmount * 1000000000, // Convert to lamports
+                                lockPeriod
+                            );
+                        } else {
+                            throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
+                        }
+                    } else {
+                        throw new Error(`Failed to initialize user claim account: ${initResult.error}`);
+                    }
+                } catch (initError) {
+                    console.error('❌ Failed to initialize user claim account:', initError);
+                    throw new Error(`Failed to set up your account: ${initError instanceof Error ? initError.message : 'Unknown error'}`);
+                }
+            }
+
+            if (result.success && result.data) {
+                // Check if this requires wallet signature
+                if ('requiresWalletSignature' in result && result.requiresWalletSignature) {
+                    showInfo('Please approve the transaction in your wallet...');
+                    
+                    // Step 3: Decode the base64 transaction (using Uint8Array instead of Buffer)
+                    const transactionBytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
+                    const transaction = Transaction.from(transactionBytes);
+                    
+                    console.log('🔍 Transaction decoded successfully. Fee payer:', transaction.feePayer?.toString());
+                    console.log('🔍 Original blockhash:', transaction.recentBlockhash);
+                    
+                    // Step 4: Update with fresh blockhash (backend blockhash may have expired)
+                    showInfo('Getting fresh blockhash for transaction...');
+                    try {
+                        const getBlockhashWithRetry = async (retries = 3) => {
+                            for (let i = 0; i < retries; i++) {
+                                try {
+                                    console.log(`🔄 Attempt ${i + 1}/${retries} to get blockhash...`);
+                                    return await connection.getLatestBlockhash('confirmed');
+                                } catch (error) {
+                                    console.warn(`⚠️ Blockhash attempt ${i + 1} failed:`, error);
+                                    if (i === retries - 1) throw error;
+                                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+                                }
+                            }
+                            throw new Error('Failed to get blockhash after retries');
+                        };
+
+                        const { blockhash } = await getBlockhashWithRetry();
+                        transaction.recentBlockhash = blockhash;
+                        transaction.feePayer = new PublicKey(publicKey);
+                        console.log('🔍 Updated with fresh blockhash:', blockhash);
+                    } catch (rpcError) {
+                        console.error('❌ RPC Connection Error:', rpcError);
+                        console.error('🔗 Attempted RPC URL:', SOLANA_RPC_URL);
+                        
+                        if (rpcError instanceof Error && rpcError.message.includes('Failed to fetch')) {
+                            throw new Error(`Network connection error while getting transaction data. Please check your internet connection and try again.`);
+                        }
+                        throw new Error(`Failed to connect to Solana network. Please check your internet connection and try again.`);
+                    }
+                    
+                    // Step 5: Sign and send transaction using Phantom wallet
+                    if (typeof window !== 'undefined' && (window as any).solana) {
+                        showInfo('Please approve the transaction in your Phantom wallet...');
+                        
+                        try {
+                            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+                            console.log('✅ Transaction signed by wallet');
+                            
+                            showInfo('Submitting transaction to blockchain...');
+                            const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+                                skipPreflight: false,
+                                preflightCommitment: 'confirmed'
+                            });
+                            console.log('📤 Transaction submitted with signature:', signature);
+                            
+                            showInfo('Waiting for blockchain confirmation...');
+                            await connection.confirmTransaction({
+                                signature,
+                                blockhash: transaction.recentBlockhash!,
+                                lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+                            }, 'confirmed');
+                            
+                            console.log('✅ Transaction confirmed on blockchain');
+                        } catch (txError) {
+                            console.error('❌ Transaction Error:', txError);
+                            const errorMessage = parseSmartContractError(txError);
+                            throw new Error(errorMessage);
+                        }
+                    } else {
+                        throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
+                    }
+                    
+                    showSuccess(
+                        `Successfully locked ${numAmount.toLocaleString()} tokens for ${lockPeriod} months!`
+                    );
+                    setLockAmount('');
+                    setShowBalanceWarning(false);
+                    fetchTokenInfo(); // Refresh token info
+                } else {
+                    // Old behavior for non-transaction responses
+                    showSuccess(
+                        `Successfully locked ${numAmount.toLocaleString()} tokens for ${lockPeriod} months!`
+                    );
+                    setLockAmount('');
+                    setShowBalanceWarning(false);
+                    fetchTokenInfo();
+                }
             } else {
-                throw new Error(result.error || 'Failed to lock tokens');
+                throw new Error('error' in result ? result.error : 'Failed to lock tokens');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to lock tokens';
@@ -179,7 +429,6 @@ function TokenManagement({ userRole }: TokenManagementProps) {
 
     return (
         <div className="w-100">
-            <h3 className="mb-4">💰 Token Management</h3>
 
             {/* Token Overview */}
             <div className="row g-4 mb-4">

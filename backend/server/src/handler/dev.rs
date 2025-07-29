@@ -3,6 +3,7 @@ use axum::{Json, extract::State};
 use axum_extra::{TypedHeader, headers::UserAgent, extract::{CookieJar, cookie::Cookie}};
 use types::error::ApiError;
 use serde_json::json;
+use crate::utils2::initializer::initialize_reward_pool_backend;
 
 /// Development-only endpoint to create a mock user session
 /// This bypasses Twitter OAuth for local testing
@@ -89,4 +90,11 @@ pub async fn dev_session_info(
             "wallet_address": user.wallet_address
         }
     })))
+}
+
+pub async fn init_reward_pool(State(state): State<AppState>) -> Json<serde_json::Value> {
+    match crate::utils2::initializer::initialize_reward_pool_backend(&state).await {
+        Ok(_) => Json(json!({ "status": "success", "message": "Reward pool initialized" })),
+        Err(e) => Json(json!({ "status": "error", "message": format!("Initialization failed: {}", e) })),
+    }
 }

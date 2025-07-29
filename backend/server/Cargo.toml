@@ -27,3 +27,4 @@ types.path = "../libraries/types"
 snake_contract = { path = "../../programs/snake_contract", features = [
     "no-entrypoint",
 ] }
+anyhow.workspace = true

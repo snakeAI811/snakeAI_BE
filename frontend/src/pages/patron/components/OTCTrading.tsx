@@ -28,6 +28,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
   const [solRate, setSolRate] = useState('');
   const [buyerRebate, setBuyerRebate] = useState('');
   const [requiredRole, setRequiredRole] = useState<'none' | 'staker' | 'patron'>('none');
+  const [swapType, setSwapType] = useState<'NormalToPatron' | 'NormalToStaker' | 'PatronToPatron' | 'TreasuryBuyback' | 'AnyToAny'>('NormalToPatron');
 
   useEffect(() => {
     fetchActiveSwaps();

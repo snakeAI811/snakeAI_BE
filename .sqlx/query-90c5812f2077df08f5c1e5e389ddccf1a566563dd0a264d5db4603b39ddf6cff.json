@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM tweets",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "90c5812f2077df08f5c1e5e389ddccf1a566563dd0a264d5db4603b39ddf6cff"
+}

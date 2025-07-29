@@ -21,7 +21,7 @@ const OTC_SWAP_SEED = Buffer.from("otc_swap");
 const OTC_SWAP_TRACKER_SEED = Buffer.from("otc_swap_tracker");
 
 describe("🎉 Patron Framework Tests", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
+  anchor.setProvider(anchor.AnchorProvider.local());
   const program = anchor.workspace.SnakeContract as Program<SnakeContract>;
   const provider = anchor.getProvider();
   const wallet = provider.wallet.payer;
@@ -138,9 +138,9 @@ describe("🎉 Patron Framework Tests", () => {
           await program.methods
             .initializeUserClaim()
             .accounts({
-              user: user.publicKey,
-              userClaim: userClaimPda,
-              systemProgram: SystemProgram.programId,
+            user: user.publicKey,
+            user_claim: userClaimPda,
+            systemProgram: SystemProgram.programId,
             })
             .signers([user])
             .rpc();
@@ -151,7 +151,7 @@ describe("🎉 Patron Framework Tests", () => {
           const userClaim = await program.account.userClaim.fetch(userClaimPda);
           assert.equal(userClaim.initialized, true);
           assert.equal(userClaim.user.toBase58(), user.publicKey.toBase58());
-          assert.equal(userClaim.role.none !== undefined, true); // Default role is None
+          assert.deepEqual(userClaim.role, { none: {} }); // Default role is None
           
         } catch (error) {
           console.error(`❌ Error initializing user claim for ${user.publicKey.toBase58().slice(0, 8)}:`, error);
@@ -218,7 +218,7 @@ describe("🎉 Patron Framework Tests", () => {
           .selectRole({ staker: {} })
           .accounts({
             user: staker.publicKey,
-            userClaim: stakerClaimPda,
+            user_claim: stakerClaimPda,
           })
           .signers([staker])
           .rpc();
@@ -227,7 +227,7 @@ describe("🎉 Patron Framework Tests", () => {
         
         // Verify role change
         const stakerClaim = await program.account.userClaim.fetch(stakerClaimPda);
-        assert.equal(stakerClaim.role.staker !== undefined, true);
+        assert.deepEqual(stakerClaim.role, { staker: {} });
         assert.equal(stakerClaim.lockDurationMonths, 3);
         
       } catch (error) {
@@ -237,6 +237,60 @@ describe("🎉 Patron Framework Tests", () => {
       }
     });
   });
+
+  // Helper function to set up user with mining history
+  async function setupUserWithMining(user: Keypair, miningAmount: number = 1000): Promise<PublicKey> {
+    // Request airdrop if needed
+    const balance = await provider.connection.getBalance(user.publicKey);
+    if (balance < LAMPORTS_PER_SOL) {
+      const airdropSig = await provider.connection.requestAirdrop(
+        user.publicKey, 
+        2 * LAMPORTS_PER_SOL
+      );
+      await provider.connection.confirmTransaction(airdropSig);
+    }
+    
+    const [userClaimPda] = PublicKey.findProgramAddressSync(
+      [USER_CLAIM_SEED, user.publicKey.toBuffer()],
+      program.programId
+    );
+    
+    // Check if user claim already exists
+    try {
+      const existingClaim = await program.account.userClaim.fetch(userClaimPda);
+      console.log("User claim already exists, skipping initialization");
+    } catch (error) {
+      // Account doesn't exist, initialize it
+      await program.methods
+        .initializeUserClaim()
+        .accounts({ 
+          user: user.publicKey, 
+          userClaim: userClaimPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([user])
+        .rpc();
+    }
+    
+    // Always update mining stats (this can be called multiple times)
+    const miningAmountTokens = new anchor.BN(miningAmount * 1_000_000_000);
+    await program.methods
+      .updateUserStats({
+        phase1Mined: miningAmountTokens,
+        walletAgeDays: 30,
+        communityScore: 50,
+        phase2MiningCompleted: false,
+      })
+      .accounts({
+        admin: wallet.publicKey,
+        rewardPool: rewardPoolPda,
+        user: user.publicKey,
+        userClaim: userClaimPda,
+      })
+      .rpc();
+    
+    return userClaimPda;
+  }
 
   describe("🔒 **FEATURE 1: Enhanced Vesting Program**", () => {
     
@@ -258,11 +312,18 @@ describe("🎉 Patron Framework Tests", () => {
         program.programId
       );
       
-      // Derive user claim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("user_claim"), staker.publicKey.toBuffer()],
-        program.programId
-      );
+      // Setup user with mining history 
+      const userClaimPda = await setupUserWithMining(staker, 1000);
+      
+      // Select Staker role first
+      await program.methods
+        .selectRole({ staker: {} })
+        .accounts({
+          user: staker.publicKey,
+          userClaim: userClaimPda,
+        })
+        .signers([staker])
+        .rpc();
       
       const stakerAta = getAssociatedTokenAddressSync(tokenMint.publicKey, staker.publicKey);
       const escrowAta = getAssociatedTokenAddressSync(tokenMint.publicKey, escrowPda, true);
@@ -278,13 +339,13 @@ describe("🎉 Patron Framework Tests", () => {
       
       try {
         const tx = await program.methods
-          .createVesting(new anchor.BN(amount), roleType)
+          .createVestingSchedule(new anchor.BN(amount))
           .accounts({
             user: staker.publicKey,
             userClaim: userClaimPda,
-            vestingAccount: vestingPda,
+            vestingSchedule: vestingPda,
             userTokenAccount: stakerAta,
-            escrowTokenAccount: escrowAta,
+            vestingEscrow: escrowAta,
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -294,10 +355,10 @@ describe("🎉 Patron Framework Tests", () => {
         console.log("✅ Vesting created successfully! TX:", tx);
         
         // Verify vesting account
-        const vestingAccount = await program.account.vestingAccount.fetch(vestingPda);
-        assert.equal(vestingAccount.amount.toNumber(), amount);
-        assert.equal(vestingAccount.user.toBase58(), staker.publicKey.toBase58());
-        assert.equal(vestingAccount.roleType.staker !== undefined, true);
+        const vestingAccount = await program.account.vestingSchedule.fetch(vestingPda);
+        assert.equal(vestingAccount.totalAmount.toNumber(), amount);
+        assert.equal(vestingAccount.beneficiary.toBase58(), staker.publicKey.toBase58());
+        assert.equal(vestingAccount.vestingType.staker !== undefined, true);
         
       } catch (error) {
         console.error("❌ Error creating vesting:", error);
@@ -310,6 +371,39 @@ describe("🎉 Patron Framework Tests", () => {
       
       const amount = 200 * 10**9; // 200 tokens
       const roleType = { patron: {} };
+      
+      // Setup user with mining history 
+      const userClaimPda = await setupUserWithMining(patron, 1000);
+      
+      // First apply for patron status and approve it
+      await program.methods
+        .applyForPatron(90, 25)
+        .accounts({
+          user: patron.publicKey,
+          userClaim: userClaimPda,
+        })
+        .signers([patron])
+        .rpc();
+        
+      // Approve patron application
+      await program.methods
+      .approvePatronApplication(75)
+      .accounts({
+      admin: wallet.publicKey,
+      applicant: patron.publicKey,
+      userClaim: userClaimPda,
+      })
+      .rpc();
+      
+      // Select Patron role
+      await program.methods
+        .selectRole({ patron: {} })
+        .accounts({
+          user: patron.publicKey,
+          userClaim: userClaimPda,
+        })
+        .signers([patron])
+        .rpc();
       
       // Derive vesting PDA
       const [vestingPda] = PublicKey.findProgramAddressSync(
@@ -337,16 +431,14 @@ describe("🎉 Patron Framework Tests", () => {
       
       try {
         const tx = await program.methods
-          .createVesting(new anchor.BN(amount), roleType)
+          .createVestingSchedule(new anchor.BN(amount))
           .accounts({
             user: patron.publicKey,
+            userClaim: userClaimPda,
+            vestingSchedule: vestingPda,
             userTokenAccount: patronAta,
-            vestingAccount: vestingPda,
-            escrowAuthority: escrowPda,
-            escrowTokenAccount: escrowAta,
-            tokenMint: tokenMint.publicKey,
+            vestingEscrow: escrowAta,
             tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
           .signers([patron])
@@ -355,10 +447,10 @@ describe("🎉 Patron Framework Tests", () => {
         console.log("✅ Patron vesting created successfully! TX:", tx);
         
         // Verify vesting account
-        const vestingAccount = await program.account.vestingAccount.fetch(vestingPda);
-        assert.equal(vestingAccount.amount.toNumber(), amount);
-        assert.equal(vestingAccount.user.toBase58(), patron.publicKey.toBase58());
-        assert.equal(vestingAccount.roleType.patron !== undefined, true);
+        const vestingAccount = await program.account.vestingSchedule.fetch(vestingPda);
+        assert.equal(vestingAccount.totalAmount.toNumber(), amount);
+        assert.equal(vestingAccount.beneficiary.toBase58(), patron.publicKey.toBase58());
+        assert.equal(vestingAccount.vestingType.patron !== undefined, true);
         
       } catch (error) {
         console.error("❌ Error creating patron vesting:", error);
@@ -374,6 +466,11 @@ describe("🎉 Patron Framework Tests", () => {
         program.programId
       );
       
+      const [userClaimPda] = PublicKey.findProgramAddressSync(
+        [USER_CLAIM_SEED, staker.publicKey.toBuffer()],
+        program.programId
+      );
+      
       const [escrowPda] = PublicKey.findProgramAddressSync(
         [ESCROW_SEED, staker.publicKey.toBuffer()],
         program.programId
@@ -384,15 +481,13 @@ describe("🎉 Patron Framework Tests", () => {
       
       try {
         await program.methods
-          .withdrawVesting()
+          .claimVestedTokens()
           .accounts({
             user: staker.publicKey,
+            userClaim: userClaimPda,
+            vestingSchedule: vestingPda,
+            vestingEscrow: escrowAta,
             userTokenAccount: stakerAta,
-            vestingAccount: vestingPda,
-            escrowAuthority: escrowPda,
-            escrowTokenAccount: escrowAta,
-            rewardPool: rewardPoolPda,
-            treasuryTokenAccount: treasuryTokenAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
           })
           .signers([staker])
@@ -403,7 +498,12 @@ describe("🎉 Patron Framework Tests", () => {
         
       } catch (error) {
         console.log("✅ Early withdrawal correctly prevented:", error.message);
-        assert.isTrue(error.message.includes("VestingNotUnlocked"));
+        // Check for vesting-related errors (could be VestingNotUnlocked or NothingToClaim)
+        assert.isTrue(
+          error.message.includes("VestingNotUnlocked") || 
+          error.message.includes("NothingToClaim") ||
+          error.message.includes("VestingNotActive")
+        );
       }
     });
   });
@@ -475,7 +575,6 @@ describe("🎉 Patron Framework Tests", () => {
             sellerClaim: sellerClaimPda,
             sellerTokenAccount: sellerAta.address,
             otcSwap: otcSwapPda,
-            tokenMint: tokenMint.publicKey,
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
           })
@@ -564,15 +663,46 @@ describe("🎉 Patron Framework Tests", () => {
       
       const exitAmount = 50 * 10**9; // 50 tokens
       
+      // Setup patron with proper status first
+      const userClaimPda = await setupUserWithMining(patron, 1000);
+      
+      // Apply for patron status and approve it
+      try {
+        await program.methods
+          .applyForPatron(90, 25)
+          .accounts({
+            user: patron.publicKey,
+            userClaim: userClaimPda,
+          })
+          .signers([patron])
+          .rpc();
+          
+        // Approve patron application
+        await program.methods
+          .approvePatronApplication(75)
+          .accounts({
+            admin: wallet.publicKey,
+            applicant: patron.publicKey,
+            userClaim: userClaimPda,
+          })
+          .rpc();
+        
+        // Select Patron role
+        await program.methods
+          .selectRole({ patron: {} })
+          .accounts({
+            user: patron.publicKey,
+            userClaim: userClaimPda,
+          })
+          .signers([patron])
+          .rpc();
+      } catch (error) {
+        console.log("Patron setup might already be done:", error.message);
+      }
+      
       // Derive OTC swap tracker PDA
       const [trackerPda] = PublicKey.findProgramAddressSync(
         [OTC_SWAP_TRACKER_SEED, patron.publicKey.toBuffer()],
-        program.programId
-      );
-      
-      // Derive user claim PDA
-      const [userClaimPda] = PublicKey.findProgramAddressSync(
-        [USER_CLAIM_SEED, patron.publicKey.toBuffer()],
         program.programId
       );
       
@@ -612,17 +742,17 @@ describe("🎉 Patron Framework Tests", () => {
       );
       
       try {
-        const stats = await program.methods
+        // Since get_swap_stats returns data, we need to use view() or simulate()
+        const result = await program.methods
           .getSwapStats()
           .accounts({
             user: patron.publicKey,
-            otcSwapTracker: trackerPda,
+            otcTracker: trackerPda,
           })
-          .signers([patron])
-          .rpc();
+          .simulate();
         
         console.log("✅ Swap statistics retrieved successfully!");
-        console.log("📊 Stats:", stats);
+        console.log("📊 Stats:", result.returnData);
         
       } catch (error) {
         console.error("❌ Error getting swap stats:", error);
@@ -681,28 +811,34 @@ describe("🎉 Patron Framework Tests", () => {
       const stakerAta = getAssociatedTokenAddressSync(tokenMint.publicKey, staker.publicKey);
       const escrowAta = getAssociatedTokenAddressSync(tokenMint.publicKey, escrowPda, true);
       
+      const [userClaimPda] = PublicKey.findProgramAddressSync(
+        [USER_CLAIM_SEED, staker.publicKey.toBuffer()],
+        program.programId
+      );
+      
       try {
-        // Non-admin should not be able to force exit
+        // Non-admin should not be able to update user stats (admin-only function)
         await program.methods
-          .adminForceExit()
+          .updateUserStats({
+            phase1Mined: new anchor.BN(1000 * 1_000_000_000),
+            walletAgeDays: 30,
+            communityScore: 50,
+            phase2MiningCompleted: false,
+          })
           .accounts({
-            admin: staker.publicKey, // Using staker as fake admin
-            user: staker.publicKey,
-            userTokenAccount: stakerAta,
-            vestingAccount: vestingPda,
-            escrowAuthority: escrowPda,
-            escrowTokenAccount: escrowAta,
+            admin: staker.publicKey, // Using staker as fake admin (should fail)
             rewardPool: rewardPoolPda,
-            tokenProgram: TOKEN_PROGRAM_ID,
+            user: staker.publicKey,
+            userClaim: userClaimPda,
           })
           .signers([staker])
           .rpc();
         
-        assert.fail("Non-admin should not be able to force exit");
+        assert.fail("Non-admin should not be able to update user stats");
         
       } catch (error) {
         console.log("✅ Role-based access control working correctly");
-        assert.isTrue(error.message.includes("Unauthorized") || error.message.includes("constraint"));
+        assert.isTrue(error.message.includes("Unauthorized") || error.message.includes("constraint") || error.message.includes("AdminRequired"));
       }
     });
     

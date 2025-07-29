@@ -84,7 +84,7 @@ impl Env {
         let solana_rpc_url = std::env::var("SOLANA_RPC_URL").expect("SOLANA_RPC_URL must be set");
 
         let play_snake_ai_id =
-            std::env::var("PLAY_SNAKE_AI_id").expect("PLAY_SNAKE_AI_id must be set");
+            std::env::var("PLAY_SNAKE_AI_ID").expect("PLAY_SNAKE_AI_ID must be set");
 
         let phase2_start_date = std::env::var("PHASE2_START_DATE")
             .ok()

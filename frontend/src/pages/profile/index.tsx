@@ -5,7 +5,7 @@ import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { useAuth } from "../../contexts/AuthContext";
 import { useWalletContext } from "../../contexts/WalletContext";
 import { usePhantom } from "../../hooks/usePhantom";
-import { userApi, roleApi } from "../patron/services/apiService";
+import { userApi, roleApi, tokenApi } from "../patron/services/apiService";
 import RoleSelection from "../patron/components/RoleSelection";
 import SimpleWalletConnection from "../patron/components/SimpleWalletConnection";
 import { UserRole } from "../patron/index";
@@ -27,6 +27,20 @@ interface UserDetails {
     selected_role: string | null;
     patron_status: string | null;
     ranking?: number; // Based on token count
+}
+
+interface TokenBalance {
+    balance: number;
+    locked: number;
+    staked: number;
+    rewards: number;
+}
+
+interface UserStats {
+    total_mined_phase1: number;
+    wallet_age_days: number;
+    community_score: number;
+    patron_qualification_score: number;
 }
 
 // Simple ranking calculation based on token balance
@@ -55,43 +69,67 @@ function Profile() {
         seconds: 12,
     })
 
+    const [tokenBalance, setTokenBalance] = useState<TokenBalance>({
+        balance: 0, locked: 0, staked: 0, rewards: 0
+    });
+
+    const [userStats, setUserStats] = useState<UserStats>({
+        total_mined_phase1: 0,
+        wallet_age_days: 0,
+        community_score: 0,
+        patron_qualification_score: 0
+    });
+
     // Fetch profile data on component mount and when wallet connects
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
                 setLoading(true);
-                
-                // Fetch profile data
-                const profileResponse = await userApi.getProfile();
+
+                const [profileResponse, userResponse, roleResponse, tokenResponse] = await Promise.all([
+                    userApi.getProfile(),
+                    userApi.getMe(),
+                    roleApi.getUserRole(),
+                    tokenApi.getTokenInfo()
+                ]);
+
                 if (profileResponse.success && profileResponse.data) {
                     setProfileData(profileResponse.data);
+                    const tweets = profileResponse.data.tweets || 0;
+                    const likes = profileResponse.data.likes || 0;
+                    const mined = profileResponse.data.reward_balance || 0;
+
+                    setUserStats({
+                        total_mined_phase1: mined,
+                        wallet_age_days: 30, // Replace with real date logic
+                        community_score: Math.min(tweets + likes, 30),
+                        patron_qualification_score: 0 // calculated in RoleSelection
+                    });
                 }
 
-                // Only fetch role-related data if wallet is connected
-                if (connected) {
-                    // Fetch user details
-                    const userResponse = await userApi.getMe();
-                    if (userResponse.success && userResponse.data) {
-                        setUserDetails({
-                            selected_role: userResponse.data.selected_role,
-                            patron_status: userResponse.data.patron_status,
-                            ranking: calculateRanking(profileResponse.data?.reward_balance || 0)
-                        });
-                    }
+                if (userResponse.success && userResponse.data) {
+                    setUserDetails({
+                        selected_role: userResponse.data.selected_role,
+                        patron_status: userResponse.data.patron_status,
+                        ranking: calculateRanking(profileResponse.data?.reward_balance || 0)
+                    });
+                }
 
-                    // Fetch user role
-                    const roleResponse = await roleApi.getUserRole();
-                    if (roleResponse.success && roleResponse.data) {
-                        const backendRole = roleResponse.data.role?.toLowerCase();
-                        let mappedRole: UserRole['role'] = 'none';
-                        if (backendRole === 'staker') mappedRole = 'staker';
-                        else if (backendRole === 'patron') mappedRole = 'patron';
-                        setUserRole({ ...roleResponse.data, role: mappedRole });
-                    }
-                } else {
-                    // Reset role data when wallet is disconnected
-                    setUserRole({ role: 'none' });
-                    setUserDetails(null);
+                if (roleResponse.success && roleResponse.data) {
+                    const backendRole = roleResponse.data.role?.toLowerCase();
+                    let mappedRole: UserRole['role'] = 'none';
+                    if (backendRole === 'staker') mappedRole = 'staker';
+                    else if (backendRole === 'patron') mappedRole = 'patron';
+                    setUserRole({ ...roleResponse.data, role: mappedRole });
+                }
+
+                if (tokenResponse.success && tokenResponse.data) {
+                    setTokenBalance({
+                        balance: tokenResponse.data.balance || 0,
+                        locked: tokenResponse.data.locked || 0,
+                        staked: tokenResponse.data.staked || 0,
+                        rewards: tokenResponse.data.rewards || 0
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching profile data:', error);
@@ -127,14 +165,14 @@ function Profile() {
         setUserRole(newRole);
         // Refresh user details when role changes
         setUserDetails(prev => prev ? { ...prev, selected_role: newRole.role } : null);
-        
+
         // Refresh profile data to get updated information
         try {
             const profileResponse = await userApi.getProfile();
             if (profileResponse.success && profileResponse.data) {
                 setProfileData(profileResponse.data);
             }
-            
+
             const userResponse = await userApi.getMe();
             if (userResponse.success && userResponse.data) {
                 setUserDetails({
@@ -180,14 +218,14 @@ function Profile() {
 
                     <div className="custom-border-y custom-content-height d-flex flex-column px-3">
                         {/* Wallet Connection */}
-                            <div className="mb-1">
-                                <SimpleWalletConnection />
-                            </div>
+                        <div className="mb-1">
+                            <SimpleWalletConnection />
+                        </div>
                         <div className="custom-border-bottom fs-2 mt-4" >USER PROFILE</div>
                         <div className="row ">
                             {/* Left Column - Profile Info */}
                             <div className="col-12 col-lg-7 custom-border mt-4">
-                                <div className="profile-section p-5">
+                                <div className="profile-section p-3">
                                     <div className="row align-items-center gap-4">
                                         <div className="col-auto">
                                             <div className="avatar-container">
@@ -205,8 +243,8 @@ function Profile() {
                                                 <div className="mb-2">
                                                     <span className="retro-text-small">WALLET:</span>
                                                     <div className="retro-text text-xs">
-                                                        {profileData?.wallet_address ? 
-                                                            `${profileData.wallet_address.slice(0, 4)}...${profileData.wallet_address.slice(-4)}` : 
+                                                        {profileData?.wallet_address ?
+                                                            `${profileData.wallet_address.slice(0, 4)}...${profileData.wallet_address.slice(-4)}` :
                                                             'Not Connected'
                                                         }
                                                     </div>
@@ -214,7 +252,7 @@ function Profile() {
                                                 <div className="mb-2">
                                                     <span className="retro-text-small">ROLE:</span>
                                                     <div className="retro-text">
-                                                        {userRole.role.toUpperCase()} 
+                                                        {userRole.role.toUpperCase()}
                                                         {userDetails?.patron_status === 'approved' && '♥'}
                                                     </div>
                                                 </div>
@@ -224,7 +262,7 @@ function Profile() {
                                                         #{userDetails?.ranking?.toLocaleString() || 'N/A'}
                                                     </div>
                                                 </div>
-                                            </div>  
+                                            </div>
                                         </div>
                                         {/* <button className="btn proposal-btn bg-light-green-950">PROPOSAL SUBMISSION FORM →</button> */}
                                     </div>
@@ -234,14 +272,14 @@ function Profile() {
                                 <div className="d-flex flex-column gap-3 pt-3">
                                     <div className="custom-border-bottom ">REWARD BALANCE:</div>
                                     <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
-                                        <span className="fs-5">{loading ? '...' : (profileData?.reward_balance?.toLocaleString() || '0')}</span> 
+                                        <span className="fs-5">{loading ? '...' : (profileData?.reward_balance?.toLocaleString() || '0')}</span>
                                         &nbsp;&nbsp;&nbsp;<span className="fs-6">snakes</span>
                                     </div>
                                 </div>
                                 <div className="d-flex flex-column gap-3 pt-3">
                                     <div className="custom-border-bottom ">ENGAGEMENT METRICS:</div>
                                     <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
-                                        <span className="fs-5">{loading ? '...' : (profileData?.tweets || '0')}</span> 
+                                        <span className="fs-5">{loading ? '...' : (profileData?.tweets || '0')}</span>
                                         &nbsp;&nbsp;&nbsp;<span className="fs-6">tweets</span>
                                     </div>
                                 </div>
@@ -251,7 +289,12 @@ function Profile() {
                         {/* Role Selection Section */}
                         {connected ? (
                             <div className="border border-3 border-dashed mt-4 p-3">
-                                <RoleSelection userRole={userRole} onRoleChange={handleRoleChange} />
+                                <RoleSelection
+                                    userRole={userRole}
+                                    onRoleChange={handleRoleChange}
+                                    tokenBalance={tokenBalance}
+                                    userStats={userStats}
+                                />
                             </div>
                         ) : (
                             <div className="border border-3 border-dashed mt-4 p-3 text-center">

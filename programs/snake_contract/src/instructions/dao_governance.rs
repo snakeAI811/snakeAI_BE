@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::state::{UserClaim, UserRole, PatronStatus};
+use crate::state::{UserClaim, UserRole};
 use crate::events::{DAOSeatAllocated, DAOSeatRevoked};
 use crate::errors::SnakeError;
 

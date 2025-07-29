@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO tweets (user_id, tweet_id, created_at, mining_phase)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id, user_id, tweet_id, created_at, mining_phase, false as rewarded, 0::bigint as reward_amount\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tweet_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "mining_phase",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 5,
+        "name": "rewarded",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "reward_amount",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Timestamptz",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "125cd8d37c1a85776036e2d2d7a2211f036a8ef97d82c83ccea8f659643041ff"
+}

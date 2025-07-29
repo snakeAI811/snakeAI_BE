@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, Connection } from '@solana/web3.js';
-import { Program, AnchorProvider, web3, utils, BN } from '@project-serum/anchor';
+import { Program, web3 } from '@project-serum/anchor';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 interface UserStakingData {
   role: 'none' | 'staker' | 'patron';
@@ -20,25 +21,20 @@ interface UserStakingData {
   patronQualificationScore: number;
   totalMinedPhase1: number;
 }
-
+ 
 interface StakingDashboardProps {
   program: Program<any>;
   connection: Connection;
 }
 
 const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection }) => {
-  const { publicKey } = useWallet();
+  const { publicKey, sendTransaction } = useWallet();
   const [stakingData, setStakingData] = useState<UserStakingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [claimingYield, setClaimingYield] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
 
-  useEffect(() => {
-    if (publicKey) {
-      fetchStakingData();
-    }
-  }, [publicKey]);
-
-  const fetchStakingData = async () => {
+  const fetchStakingData = useCallback(async () => {
     if (!publicKey) return;
     
     try {
@@ -93,7 +89,13 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicKey, program]);
+
+  useEffect(() => {
+    if (publicKey) {
+      fetchStakingData();
+    }
+  }, [publicKey, fetchStakingData]);
 
   const checkPhase2Mining = async (walletAddress: string): Promise<boolean> => {
     try {
@@ -122,25 +124,91 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
         program.programId
       );
 
-      // This would need to be implemented based on your vesting contract
-      // const tx = await program.methods
-      //   .claimVestedTokens()
-      //   .accounts({
-      //     user: publicKey,
-      //     userClaim: userClaimPda,
-      //     vestingSchedule: vestingSchedulePda,
-      //     // ... other accounts
-      //   })
-      //   .transaction();
+      // Get or create user token account
+      const tokenMint = new PublicKey(process.env.REACT_APP_TOKEN_MINT || "ByaTZDyJPHArKWJGHuW73LHGb9KvQpCG5cZKk66zxEQz");
+      const userTokenAccount = await getAssociatedTokenAddress(tokenMint, publicKey);
 
-      // await sendTransaction(tx, connection);
+      // Get vesting escrow account - this should be the token account holding the vested tokens
+      const [vestingEscrowPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('vesting_escrow'), publicKey.toBuffer()],
+        program.programId
+      );
+
+      const tx = await program.methods
+        .claimVestedTokens()
+        .accounts({
+          user: publicKey,
+          userClaim: userClaimPda,
+          vestingSchedule: vestingSchedulePda,
+          vestingEscrow: vestingEscrowPda,
+          userTokenAccount: userTokenAccount,
+          tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        })
+        .transaction();
+
+      // Send the transaction using wallet adapter
+      if (sendTransaction) {
+        const txid = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(txid);
+        console.log('Transaction successful:', txid);
+      } else {
+        throw new Error('Wallet not connected or does not support sending transactions');
+      }
       
-      // For now, just refresh the data
+      // Refresh the data after successful claim
       await fetchStakingData();
     } catch (error) {
       console.error('Error claiming yield:', error);
+      alert('Failed to claim yield: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setClaimingYield(false);
+    }
+  };
+
+  const unlockTokens = async () => {
+    if (!publicKey || !stakingData || !stakingData.canUnlock) return;
+    
+    try {
+      setUnlocking(true);
+      
+      const [userClaimPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('user_claim'), publicKey.toBuffer()],
+        program.programId
+      );
+
+      // Get user token account
+      const tokenMint = new PublicKey(process.env.REACT_APP_TOKEN_MINT || "ByaTZDyJPHArKWJGHuW73LHGb9KvQpCG5cZKk66zxEQz");
+      const userTokenAccount = await getAssociatedTokenAddress(tokenMint, publicKey);
+
+      // Call unlock_tokens instruction (assuming it exists in your contract)
+      const tx = await program.methods
+        .unlockTokens()
+        .accounts({
+          user: publicKey,
+          userClaim: userClaimPda,
+          userTokenAccount: userTokenAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: web3.SystemProgram.programId,
+        })
+        .transaction();
+
+      // Send the transaction
+      if (sendTransaction) {
+        const txid = await sendTransaction(tx, connection);
+        await connection.confirmTransaction(txid);
+        console.log('Unlock transaction successful:', txid);
+        alert('Tokens unlocked successfully!');
+      } else {
+        throw new Error('Wallet not connected');
+      }
+      
+      // Refresh the data after successful unlock
+      await fetchStakingData();
+    } catch (error) {
+      console.error('Error unlocking tokens:', error);
+      alert('Failed to unlock tokens: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setUnlocking(false);
     }
   };
 
@@ -365,10 +433,11 @@ const StakingDashboard: React.FC<StakingDashboardProps> = ({ program, connection
             </button>
             {stakingData.canUnlock && (
               <button
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-                onClick={() => {/* Implement unlock logic */}}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white px-4 py-2 rounded-md transition-colors"
+                onClick={unlockTokens}
+                disabled={unlocking}
               >
-                Unlock Tokens
+                {unlocking ? 'Unlocking...' : 'Unlock Tokens'}
               </button>
             )}
           </div>

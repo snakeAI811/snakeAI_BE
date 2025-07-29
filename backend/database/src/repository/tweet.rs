@@ -32,7 +32,7 @@ impl TweetRepository {
             r#"
             INSERT INTO tweets (user_id, tweet_id, created_at, mining_phase)
             VALUES ($1, $2, $3, $4)
-            RETURNING *
+            RETURNING id, user_id, tweet_id, created_at, mining_phase, false as rewarded, 0::bigint as reward_amount
             "#,
             user_id,
             tweet_id,
@@ -68,7 +68,7 @@ impl TweetRepository {
             filters.push(format!("user_id = ${index}"));
         }
 
-        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, tweets.mining_phase, users.twitter_id, users.twitter_username FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
+        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, tweets.mining_phase, users.twitter_id, users.twitter_username, CONCAT('Tweet #', tweets.tweet_id) as content, tweets.rewarded, tweets.reward_amount FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
 
         if !filters.is_empty() {
             query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
@@ -128,7 +128,8 @@ impl TweetRepository {
                 let tweets = sqlx::query_as!(
                     Tweet,
                     r#"
-                    SELECT * FROM tweets 
+                    SELECT id, user_id, tweet_id, created_at, mining_phase, false as rewarded, 0::bigint as reward_amount
+                    FROM tweets 
                     WHERE user_id = $1 AND mining_phase = $2
                     ORDER BY created_at DESC
                     "#,
@@ -144,7 +145,8 @@ impl TweetRepository {
                 let tweets = sqlx::query_as!(
                     Tweet,
                     r#"
-                    SELECT * FROM tweets 
+                    SELECT id, user_id, tweet_id, created_at, mining_phase, false as rewarded, 0::bigint as reward_amount
+                    FROM tweets 
                     WHERE mining_phase = $1
                     ORDER BY created_at DESC
                     "#,

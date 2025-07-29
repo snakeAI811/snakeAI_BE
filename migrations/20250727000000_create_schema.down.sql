@@ -1,0 +1,6 @@
+-- Drop all tables
+DROP TABLE IF EXISTS rewards;
+DROP TABLE IF EXISTS tweets;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS values;

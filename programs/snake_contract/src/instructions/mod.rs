@@ -58,7 +58,7 @@ pub use patron_exit::*;
 pub mod dao_governance;
 pub use dao_governance::*;
 
-// // DAO instructions
+// DAO instructions (old version - now in dao_governance.rs)
 // pub mod initialize_dao_registry;
 // pub use initialize_dao_registry::*;
 
@@ -71,20 +71,20 @@ pub use dao_governance::*;
 // pub mod return_dao_seat;
 // pub use return_dao_seat::*;
 
-// // View functions
+// View functions
 // pub mod view_functions;
 // pub use view_functions::*;
 
-// // ========== MILESTONE 3: GOVERNANCE ==========
+// ========== MILESTONE 3: GOVERNANCE ==========
 // pub mod governance;
 // pub use governance::*;
 
 // pub mod governance_views;
 // pub use governance_views::*;
 
-// // ========== NEW FEATURES: USER STATS & DASHBOARD ==========
-// pub mod update_user_stats;
-// pub use update_user_stats::*;
+// ========== NEW FEATURES: USER STATS & DASHBOARD ==========
+pub mod update_user_stats;
+pub use update_user_stats::*;
 
 // pub mod dashboard_views;
 // pub use dashboard_views::*;
