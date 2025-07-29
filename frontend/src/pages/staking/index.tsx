@@ -1,48 +1,17 @@
 import React, { useMemo } from 'react';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import StakingDashboard from '../dashboard/StakingDashboard';
+import SimpleStakingDashboard from '../dashboard/SimpleStakingDashboard';
 import WalletGuard from "../../components/WalletGuard";
-import { useWallet } from '@solana/wallet-adapter-react';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { Program, AnchorProvider } from '@project-serum/anchor';
-import snakeContractIdl from '../../services/snake_contract.json';
+import { useWalletContext } from '../../contexts/WalletContext';
+import { Connection } from '@solana/web3.js';
 
 function StakingPage() {
-  const { wallet, publicKey, signTransaction, signAllTransactions } = useWallet();
+  const { connected, publicKey } = useWalletContext();
   
   const connection = useMemo(() => 
     new Connection(process.env.REACT_APP_RPC_URL || 'https://api.devnet.solana.com'),
     []
   );
-  
-  const programId = useMemo(() => 
-    new PublicKey(process.env.REACT_APP_PROGRAM_ID || '7atsSKAcDXELnLGjvNX27ke8wdC8XUpsG1bJciCj1pQZ'),
-    []
-  );
-
-  const { program } = useMemo(() => {
-    if (!wallet || !publicKey || !signTransaction || !signAllTransactions) {
-      return { provider: null, program: null };
-    }
-
-    const walletAdapter = {
-      publicKey,
-      signTransaction,
-      signAllTransactions,
-    };
-
-    const provider = new AnchorProvider(connection, walletAdapter as any, { 
-      preflightCommitment: "processed" 
-    });
-
-    const program = new Program(
-      snakeContractIdl as any,
-      programId,
-      provider
-    );
-
-    return { program };
-  }, [wallet, publicKey, signTransaction, signAllTransactions, connection, programId]);
 
   return (
     <div className="w-100 p-3" style={{ height: "100vh" }}>
@@ -59,15 +28,15 @@ function StakingPage() {
           <div className="custom-border-y custom-content-height d-flex flex-column px-3">
             <WalletGuard>
               <div className="item-stretch w-100" style={{ minHeight: '86vh' }}>
-                {program ? (
-                  <StakingDashboard program={program} connection={connection} />
+                {connected && publicKey ? (
+                  <SimpleStakingDashboard connection={connection} />
                 ) : (
                   <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
                     <div className="text-center">
                       <div className="spinner-border text-primary mb-3" role="status">
                         <span className="visually-hidden">Loading...</span>
                       </div>
-                      <p>Connecting to Solana network...</p>
+                      <p>Please connect your wallet to view staking dashboard...</p>
                     </div>
                   </div>
                 )}

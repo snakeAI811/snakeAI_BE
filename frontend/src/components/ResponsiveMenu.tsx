@@ -24,7 +24,7 @@ const menuItems: MenuItem[] = [
   { id: "mining", label: "Mining", icon: IconMining, path: "/tweet-mining" },
   // { id: "meme", label: "Memes", icon: IconProfile, path: "/meme-generation" },
   { id: "staking", label: "Staking", icon: IconStaking, path: "/staking" },
-  { id: "claim", label: "Claim", icon: IconClaim, path: "/claim" },
+  // { id: "claim", label: "Claim", icon: IconClaim, path: "/claim" },
   { id: "swap", label: "Swap", icon: IconSwap, path: "/swap" },
   // { id: "mining-status", label: "Mining Status", icon: IconMining, path: "/patron-framework/mining" },
   { id: "patron", label: "Patron", icon: IconDao, path: "/dao" },
