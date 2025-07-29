@@ -328,11 +328,13 @@ pub async fn get_tweets(
     Query(opts): Query<GetTweetsQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<TweetWithUser>>, ApiError> {
-    let user_id = if user.twitter_id == state.env.play_snake_ai_id {
-        None
-    } else {
-        Some(user.id)
-    };
+    // let user_id = if user.twitter_id == state.env.play_snake_ai_id {
+    //     None
+    // } else {
+    //     Some(user.id)
+    // };
+
+    let user_id = Some(user.id);
 
     let tweets = state
         .service
@@ -999,71 +1001,71 @@ pub async fn claim_tweet_reward_tx(
 }
 
 /// Start tweet mining - fetch user's tweets from Twitter and store them
-pub async fn start_tweet_mining(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-) -> Result<Json<Value>, ApiError> {
-    if user.twitter_username.is_none() {
-        return Err(ApiError::BadRequest("Twitter authentication required".to_string()));
-    }
+// pub async fn start_tweet_mining(
+//     Extension(user): Extension<User>,
+//     State(state): State<AppState>,
+// ) -> Result<Json<Value>, ApiError> {
+//     if user.twitter_username.is_none() {
+//         return Err(ApiError::BadRequest("Twitter authentication required".to_string()));
+//     }
 
-    let twitter_username = user.twitter_username.as_ref().unwrap();
-    let mut tweets_found = 0;
-    let mut new_tweets = 0;
+//     let twitter_username = user.twitter_username.as_ref().unwrap();
+//     let mut tweets_found = 0;
+//     let mut new_tweets = 0;
 
-    // Simulate fetching tweets from Twitter API
-    // In a real implementation, this would call Twitter API
-    let mock_tweets = vec![
-        format!("Just discovered @SnakeAI - the future of AI gaming! 🐍🚀 #MineTheSnake #AI #Gaming"),
-        format!("Mining some serious tokens with SnakeAI! Who else is joining the revolution? 🐍⚡ #SnakeAI #Crypto"),
-        format!("The SnakeAI ecosystem is growing fast! Love the community 💪 #MineTheSnake #Blockchain"),
-        format!("SnakeAI is changing the game! 🎮🐍 #SnakeAI #Innovation #Web3"),
-        format!("Earned my first tokens on SnakeAI! This platform is amazing 🔥 #MineTheSnake #Rewards"),
-    ];
+//     // Simulate fetching tweets from Twitter API
+//     // In a real implementation, this would call Twitter API
+//     let mock_tweets = vec![
+//         format!("Just discovered @SnakeAI - the future of AI gaming! 🐍🚀 #MineTheSnake #AI #Gaming"),
+//         format!("Mining some serious tokens with SnakeAI! Who else is joining the revolution? 🐍⚡ #SnakeAI #Crypto"),
+//         format!("The SnakeAI ecosystem is growing fast! Love the community 💪 #MineTheSnake #Blockchain"),
+//         format!("SnakeAI is changing the game! 🎮🐍 #SnakeAI #Innovation #Web3"),
+//         format!("Earned my first tokens on SnakeAI! This platform is amazing 🔥 #MineTheSnake #Rewards"),
+//     ];
 
-    for (index, content) in mock_tweets.iter().enumerate() {
-        let tweet_id = format!("{}_{}", chrono::Utc::now().timestamp(), index);
-        let created_at = chrono::Utc::now() - chrono::Duration::hours(index as i64);
+//     for (index, content) in mock_tweets.iter().enumerate() {
+//         let tweet_id = format!("{}_{}", chrono::Utc::now().timestamp(), index);
+//         let created_at = chrono::Utc::now() - chrono::Duration::hours(index as i64);
         
-        // Check if tweet already exists
-        let existing_tweets = state
-            .service
-            .tweet
-            .get_tweets(&Some(user.id), Some(0), Some(1000))
-            .await?;
+//         // Check if tweet already exists
+//         let existing_tweets = state
+//             .service
+//             .tweet
+//             .get_tweets(&Some(user.id), Some(0), Some(1000))
+//             .await?;
         
-        let tweet_exists = existing_tweets
-            .iter()
-            .any(|t| t.tweet_id == tweet_id);
+//         let tweet_exists = existing_tweets
+//             .iter()
+//             .any(|t| t.tweet_id == tweet_id);
         
-        if !tweet_exists {
-            // Insert new tweet
-            let tweet = state
-                .service
-                .tweet
-                .insert_tweet(&user.id, &tweet_id, &created_at, "Phase2")
-                .await?;
+//         if !tweet_exists {
+//             // Insert new tweet
+//             let tweet = state
+//                 .service
+//                 .tweet
+//                 .insert_tweet(&user.id, &tweet_id, &created_at, "Phase2")
+//                 .await?;
             
-            // Create reward entry for this tweet
-            let _reward = state
-                .service
-                .reward
-                .insert_reward_with_phase(&user.id, &tweet.id, 2)
-                .await?;
+//             // Create reward entry for this tweet
+//             let _reward = state
+//                 .service
+//                 .reward
+//                 .insert_reward_with_phase(&user.id, &tweet.id, 2)
+//                 .await?;
             
-            new_tweets += 1;
-        }
+//             new_tweets += 1;
+//         }
         
-        tweets_found += 1;
-    }
+//         tweets_found += 1;
+//     }
 
-    Ok(Json(json!({
-        "tweets_found": tweets_found,
-        "new_tweets": new_tweets,
-        "status": "success",
-        "message": format!("Found {} tweets, {} are new", tweets_found, new_tweets)
-    })))
-}
+//     Ok(Json(json!({
+//         "tweets_found": tweets_found,
+//         "new_tweets": new_tweets,
+//         "status": "success",
+//         "message": format!("Found {} tweets, {} are new", tweets_found, new_tweets)
+//     })))
+// }
 
 /// Apply for patron status
 pub async fn apply_patron_tx(

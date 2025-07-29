@@ -39,6 +39,19 @@ function Home() {
 
     const { percentage, mined, total } = getMiningProgress();
 
+    if (loading) {
+        return (
+            <div className="w-100 p-3 d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <div className="text-center">
+                    <div className="fs-3 mb-3">Loading Profile...</div>
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-100 p-3" style={{ height: '100vh' }}>
             <div className="d-flex gap-3" style={{ height: "calc(100vh-60px)", paddingTop: '35px' }}>
@@ -70,16 +83,6 @@ function Home() {
                             >
                                 Connect Wallet
                             </button>
-                        </div>
-                    )}
-
-                    {/* Loading State */}
-                    {loading && (
-                        <div className="text-center py-3">
-                            <div className="spinner-border text-primary" role="status">
-                                <span className="visually-hidden">Loading...</span>
-                            </div>
-                            <div className="mt-2">Loading mining data...</div>
                         </div>
                     )}
 

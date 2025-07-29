@@ -62,30 +62,33 @@ impl TweetRepository {
         let offset = offset.unwrap_or_default();
         let limit = limit.unwrap_or(10);
 
-        let mut filters = vec![];
-        let index = 3;
-        if user_id.is_some() {
-            filters.push(format!("user_id = ${index}"));
-        }
+        let base_query = "
+            SELECT 
+                tweets.id, tweets.tweet_id, tweets.created_at, tweets.mining_phase, 
+                users.twitter_id, users.twitter_username, 
+                CONCAT('Tweet #', tweets.tweet_id) AS content, 
+                tweets.rewarded, tweets.reward_amount 
+            FROM tweets 
+            JOIN users ON tweets.user_id = users.id
+        ";
 
-        let mut query = "SELECT tweets.id, tweets.tweet_id, tweets.created_at, tweets.mining_phase, users.twitter_id, users.twitter_username, CONCAT('Tweet #', tweets.tweet_id) as content, tweets.rewarded, tweets.reward_amount FROM tweets JOIN users ON tweets.user_id = users.id".to_string();
-
-        if !filters.is_empty() {
-            query.push_str(&format!(" WHERE {}", filters.join(" AND ")));
-        }
-
-        query.push_str(" ORDER BY tweets.created_at DESC LIMIT $1 OFFSET $2");
-
-        let mut sql_query = sqlx::query_as::<_, TweetWithUser>(&query)
-            .bind(limit)
-            .bind(offset);
+        let mut query = String::from(base_query);
+        let sql_query;
 
         if let Some(user_id) = user_id {
-            sql_query = sql_query.bind(user_id);
+            query.push_str(" WHERE tweets.user_id = $1 ORDER BY tweets.created_at DESC LIMIT $2 OFFSET $3");
+            sql_query = sqlx::query_as::<_, TweetWithUser>(&query)
+                .bind(user_id)
+                .bind(limit)
+                .bind(offset);
+        } else {
+            query.push_str(" ORDER BY tweets.created_at DESC LIMIT $1 OFFSET $2");
+            sql_query = sqlx::query_as::<_, TweetWithUser>(&query)
+                .bind(limit)
+                .bind(offset);
         }
 
         let tweets = sql_query.fetch_all(self.db_conn.get_pool()).await?;
-
         Ok(tweets)
     }
 

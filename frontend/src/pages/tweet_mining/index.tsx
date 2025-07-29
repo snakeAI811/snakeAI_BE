@@ -45,7 +45,7 @@ function TweetMiningPage() {
             const response = await userApi.getTweetMiningStatus();
             if (response.success && response.data) {
                 setMiningStats({
-                    current_stage: "Phase 2", // Current mining phase
+                    current_stage: "Phase 1", // Current mining phase
                     total_reward_amount: response.data.total_rewards_claimed * 1000000000, // Convert to lamports
                     new_reward_amount: response.data.pending_rewards * 1000000000,
                     total_tweets: response.data.total_tweets,
@@ -90,15 +90,15 @@ function TweetMiningPage() {
 
         try {
             // Simulate fetching tweets from Twitter API
-            const response = await userApi.startTweetMining();
+            // const response = await userApi.startTweetMining();
             
-            if (response.success) {
-                setSuccess(`Successfully started mining! Found ${response.data?.tweets_found || 0} tweets.`);
+            // if (response.success) {
+            //     setSuccess(`Successfully started mining! Found ${response.data?.tweets_found || 0} tweets.`);
                 await loadUserTweets();
                 await loadMiningStats();
-            } else {
-                setError(response.error || 'Failed to start mining');
-            }
+            // } else {
+            //     setError(response.error || 'Failed to start mining');
+            // }
         } catch (err) {
             setError('Failed to start mining. Please try again.');
         } finally {

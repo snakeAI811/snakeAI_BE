@@ -39,7 +39,7 @@ pub fn routes() -> Router<AppState> {
         .route("/tweet_mining_status", get(get_tweet_mining_status))
         .route("/submit_tweet", post(submit_tweet))
         .route("/claim_tweet_reward", post(claim_tweet_reward_tx))
-        .route("/start_tweet_mining", post(start_tweet_mining))
+        // .route("/start_tweet_mining", post(start_tweet_mining))
         // Data endpoints (replacing test endpoints)
         .route("/token_info", get(get_token_info))
         .route("/patron_application", get(get_patron_application_status))
