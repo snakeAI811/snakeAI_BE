@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWalletContext } from '../../contexts/WalletContext';
-import { tokenApi, userApi } from '../patron/services/apiService';
+import { tokenApi, userApi, roleApi } from '../patron/services/apiService';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 
 interface StakingData {
   balance: number;
@@ -12,6 +13,8 @@ interface StakingData {
   totalPhase1Mined: number;
   totalPhase2Mined: number;
   currentPhase: 1 | 2;
+  userRole: 'none' | 'staker' | 'patron';
+  patronStatus: 'none' | 'Applied' | 'Approved' | 'Revoked';
   tweetMiningStatus: {
     totalTweets: number;
     pendingRewards: number;
@@ -47,13 +50,24 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
     try {
       setLoading(true);
       
-      // Fetch token info
+      // Fetch token info, mining status, and user role
       const tokenResponse = await tokenApi.getTokenInfo();
       const miningResponse = await tokenApi.getMiningStatus();
       const tweetMiningResponse = await userApi.getTweetMiningStatus();
       const vestingResponse = await tokenApi.getVestingInfo();
+      const roleResponse = await roleApi.getUserRole();
       
       if (tokenResponse.success && miningResponse.success && tweetMiningResponse.success) {
+        // Parse user role
+        let userRole: 'none' | 'staker' | 'patron' = 'none';
+        let patronStatus: 'none' | 'Applied' | 'Approved' | 'Revoked' = 'none';
+        
+        if (roleResponse.success && roleResponse.data) {
+          const roleData = roleResponse.data;
+          userRole = (roleData.role?.toLowerCase() || 'none') as 'none' | 'staker' | 'patron';
+          patronStatus = (roleData.status || 'none') as 'none' | 'Applied' | 'Approved' | 'Revoked';
+        }
+
         const stakingData: StakingData = {
           balance: tokenResponse.data?.balance || 0,
           locked: tokenResponse.data?.locked || 0,
@@ -64,6 +78,8 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           totalPhase1Mined: miningResponse.data?.total_phase1_mined || 0,
           totalPhase2Mined: miningResponse.data?.total_phase2_mined || 0,
           currentPhase: miningResponse.data?.current_phase || 1,
+          userRole,
+          patronStatus,
           tweetMiningStatus: {
             totalTweets: tweetMiningResponse.data?.total_tweets || 0,
             pendingRewards: tweetMiningResponse.data?.pending_rewards || 0,
@@ -96,17 +112,50 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
     
     try {
       setClaiming(true);
+      console.log('🔄 Starting claim yield process...');
+      
       const response = await tokenApi.claimYield();
       
       if (response.success) {
-        alert('Yield claimed successfully!');
-        await fetchStakingData(); // Refresh data
+        if (response.data && typeof response.data === 'string') {
+          console.log('🔐 Claim requires wallet signature');
+          
+          // Decode and sign transaction (same logic as staking)
+          const transactionBytes = Uint8Array.from(atob(response.data), c => c.charCodeAt(0));
+          const transaction = Transaction.from(transactionBytes);
+          
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = new PublicKey(publicKey);
+          
+          if (typeof window !== 'undefined' && (window as any).solana) {
+            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+            const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+              skipPreflight: false,
+              preflightCommitment: 'confirmed'
+            });
+            
+            await connection.confirmTransaction({
+              signature,
+              blockhash: transaction.recentBlockhash!,
+              lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+            }, 'confirmed');
+            
+            alert(`Yield claimed successfully! Transaction: ${signature}`);
+          } else {
+            throw new Error('Phantom wallet not found');
+          }
+        } else {
+          alert('Yield claimed successfully!');
+        }
+        await fetchStakingData();
       } else {
         alert(`Failed to claim yield: ${response.error}`);
       }
     } catch (error) {
       console.error('Error claiming yield:', error);
-      alert('Failed to claim yield');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to claim yield';
+      alert(errorMessage);
     } finally {
       setClaiming(false);
     }
@@ -117,17 +166,50 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
     
     try {
       setUnlocking(true);
+      console.log('🔄 Starting unlock tokens process...');
+      
       const response = await tokenApi.unlockTokens();
       
       if (response.success) {
-        alert('Tokens unlocked successfully!');
-        await fetchStakingData(); // Refresh data
+        if (response.data && typeof response.data === 'string') {
+          console.log('🔐 Unlock requires wallet signature');
+          
+          // Decode and sign transaction
+          const transactionBytes = Uint8Array.from(atob(response.data), c => c.charCodeAt(0));
+          const transaction = Transaction.from(transactionBytes);
+          
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = new PublicKey(publicKey);
+          
+          if (typeof window !== 'undefined' && (window as any).solana) {
+            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+            const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+              skipPreflight: false,
+              preflightCommitment: 'confirmed'
+            });
+            
+            await connection.confirmTransaction({
+              signature,
+              blockhash: transaction.recentBlockhash!,
+              lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+            }, 'confirmed');
+            
+            alert(`Tokens unlocked successfully! Transaction: ${signature}`);
+          } else {
+            throw new Error('Phantom wallet not found');
+          }
+        } else {
+          alert('Tokens unlocked successfully!');
+        }
+        await fetchStakingData();
       } else {
         alert(`Failed to unlock tokens: ${response.error}`);
       }
     } catch (error) {
       console.error('Error unlocking tokens:', error);
-      alert('Failed to unlock tokens');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to unlock tokens';
+      alert(errorMessage);
     } finally {
       setUnlocking(false);
     }
@@ -146,18 +228,77 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       alert('Insufficient balance');
       return;
     }
+
+    // Validate user role and duration
+    if (stakingData?.userRole === 'none') {
+      alert('You must select a role (Staker or Patron) before staking tokens. Please visit the Patron Framework page to select your role.');
+      return;
+    }
+
+    if (stakingData?.userRole === 'staker' && stakeDuration !== 3) {
+      alert('Stakers can only lock tokens for 3 months.');
+      return;
+    }
+
+    if (stakingData?.userRole === 'patron' && stakeDuration !== 6) {
+      alert('Patrons can only lock tokens for 6 months.');
+      return;
+    }
+
+    if (stakingData?.userRole === 'patron' && stakingData?.patronStatus !== 'Approved') {
+      alert('Only approved patrons can stake tokens. Your patron status is: ' + stakingData?.patronStatus);
+      return;
+    }
     
     try {
       setStaking(true);
+      console.log(`🔄 Starting stake process: ${amount} SNAKE for ${stakeDuration} months`);
+      
       const response = await tokenApi.lockTokens(amount, stakeDuration);
       
-      if (response.success) {
+      if (response.success && response.data) {
         if (response.requiresWalletSignature) {
-          alert('Please sign the transaction in your wallet to complete staking.');
-          // The transaction data is in response.data - would need wallet signing logic here
+          console.log('🔐 Transaction requires wallet signature');
+          
+          // Decode the base64 transaction
+          const transactionBytes = Uint8Array.from(atob(response.data), c => c.charCodeAt(0));
+          const transaction = Transaction.from(transactionBytes);
+          
+          console.log('🔍 Transaction decoded successfully');
+          
+          // Update with fresh blockhash
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = new PublicKey(publicKey);
+          
+          // Sign and send transaction using Phantom wallet
+          if (typeof window !== 'undefined' && (window as any).solana) {
+            console.log('🔐 Requesting wallet signature...');
+            
+            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+            console.log('✅ Transaction signed by wallet');
+            
+            const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+              skipPreflight: false,
+              preflightCommitment: 'confirmed'
+            });
+            console.log('📤 Transaction submitted with signature:', signature);
+            
+            await connection.confirmTransaction({
+              signature,
+              blockhash: transaction.recentBlockhash!,
+              lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+            }, 'confirmed');
+            
+            console.log('✅ Transaction confirmed');
+            alert(`Tokens staked successfully! Transaction: ${signature}`);
+          } else {
+            throw new Error('Phantom wallet not found. Please install Phantom wallet.');
+          }
         } else {
           alert('Tokens staked successfully!');
         }
+        
         setShowStakeModal(false);
         setStakeAmount('');
         await fetchStakingData(); // Refresh data
@@ -166,7 +307,8 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       }
     } catch (error) {
       console.error('Error staking tokens:', error);
-      alert('Failed to stake tokens');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to stake tokens';
+      alert(errorMessage);
     } finally {
       setStaking(false);
     }
@@ -226,6 +368,15 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
         <div className="d-flex gap-2">
           <span className="badge bg-success">Connected</span>
           <span className="badge bg-primary">Phase {stakingData?.currentPhase || 1}</span>
+          {stakingData?.userRole && stakingData.userRole !== 'none' && (
+            <span className={`badge ${stakingData.userRole === 'staker' ? 'bg-info' : 'bg-warning'}`}>
+              {stakingData.userRole === 'staker' ? '🏦 Staker' : '👑 Patron'}
+              {stakingData.userRole === 'patron' && ` (${stakingData.patronStatus})`}
+            </span>
+          )}
+          {stakingData?.userRole === 'none' && (
+            <span className="badge bg-secondary">No Role</span>
+          )}
         </div>
       </div>
 
@@ -365,7 +516,17 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           {/* Stake Tokens - Only show if user has balance and no existing stake */}
           {(!stakingData?.locked || stakingData.locked === 0) && (stakingData?.balance || 0) > 0 && (
             <button
-              onClick={() => setShowStakeModal(true)}
+              onClick={() => {
+                // Set default duration based on user role
+                if (stakingData?.userRole === 'staker') {
+                  setStakeDuration(3);
+                } else if (stakingData?.userRole === 'patron') {
+                  setStakeDuration(6);
+                } else {
+                  setStakeDuration(0);
+                }
+                setShowStakeModal(true);
+              }}
               disabled={staking}
               className="btn btn-warning"
             >
@@ -471,10 +632,24 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                     value={stakeDuration}
                     onChange={(e) => setStakeDuration(parseInt(e.target.value))}
                   >
-                    <option value={3}>3 months (5% APY)</option>
-                    <option value={6}>6 months (7% APY)</option>
-                    <option value={12}>12 months (10% APY)</option>
+                    {stakingData?.userRole === 'staker' && (
+                      <option value={3}>3 months (5% APY) - Staker</option>
+                    )}
+                    {stakingData?.userRole === 'patron' && stakingData?.patronStatus === 'Approved' && (
+                      <option value={6}>6 months (7% APY) - Patron</option>
+                    )}
+                    {stakingData?.userRole === 'none' && (
+                      <option value={0} disabled>Please select a role first</option>
+                    )}
+                    {stakingData?.userRole === 'patron' && stakingData?.patronStatus !== 'Approved' && (
+                      <option value={0} disabled>Patron approval required</option>
+                    )}
                   </select>
+                  {stakingData?.userRole === 'none' && (
+                    <div className="form-text text-warning">
+                      You must select a role (Staker or Patron) before staking. Visit the Patron Framework page to choose your role.
+                    </div>
+                  )}
                 </div>
 
                 <div className="alert alert-info">

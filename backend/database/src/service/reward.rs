@@ -117,4 +117,11 @@ impl RewardService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn get_phase1_mining_total(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.reward_repo
+            .get_phase1_mining_total(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

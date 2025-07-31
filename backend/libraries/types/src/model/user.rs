@@ -35,6 +35,8 @@ pub struct User {
     pub patron_qualification_score: Option<i32>,
     pub wallet_age_days: Option<i32>,
     pub community_score: Option<i32>,
+    pub role_transaction_signature: Option<String>,
+    pub role_updated_at: Option<DateTime<Utc>>,
 }
 
 // Extended user model for patron framework features

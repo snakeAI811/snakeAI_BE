@@ -24,16 +24,15 @@ impl RewardRepository {
         user_id: &Uuid,
         tweet_id: &Uuid,
     ) -> Result<Reward, sqlx::Error> {
-        let reward = sqlx::query_as!(
-            Reward,
+        let reward = sqlx::query_as::<_, Reward>(
             r#"
-            INSERT INTO rewards (user_id, tweet_id)
-            VALUES ($1, $2)
+            INSERT INTO rewards (user_id, tweet_id, phase)
+            VALUES ($1, $2, 'phase1')
             RETURNING *
-            "#,
-            user_id,
-            tweet_id,
+            "#
         )
+        .bind(user_id)
+        .bind(tweet_id)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 
@@ -46,17 +45,17 @@ impl RewardRepository {
         tweet_id: &Uuid,
         phase: i32,
     ) -> Result<Reward, sqlx::Error> {
-        let reward = sqlx::query_as!(
-            Reward,
+        let phase_str = format!("phase{}", phase);
+        let reward = sqlx::query_as::<_, Reward>(
             r#"
             INSERT INTO rewards (user_id, tweet_id, phase)
             VALUES ($1, $2, $3)
             RETURNING *
-            "#,
-            user_id,
-            tweet_id,
-            &phase.to_string(),
+            "#
         )
+        .bind(user_id)
+        .bind(tweet_id)
+        .bind(&phase_str)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 
@@ -67,14 +66,14 @@ impl RewardRepository {
         &self,
         user_id: &Uuid,
     ) -> Result<i64, sqlx::Error> {
-        let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM rewards WHERE user_id = $1 AND phase = 'phase2'",
-            user_id,
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM rewards WHERE user_id = $1 AND phase = 'phase2'"
         )
+        .bind(user_id)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 
-        Ok(count.unwrap_or(0))
+        Ok(count)
     }
 
     pub async fn has_mined_in_phase2(
@@ -101,7 +100,8 @@ impl RewardRepository {
     }
 
     pub async fn get_reward_by_id(&self, reward_id: &Uuid) -> Result<Option<Reward>, sqlx::Error> {
-        let reward = sqlx::query_as!(Reward, "SELECT * FROM rewards WHERE id = $1", reward_id,)
+        let reward = sqlx::query_as::<_, Reward>("SELECT * FROM rewards WHERE id = $1")
+            .bind(reward_id)
             .fetch_optional(self.db_conn.get_pool())
             .await?;
 
@@ -170,6 +170,17 @@ impl RewardRepository {
         Ok(total_balance.unwrap_or_default())
     }
 
+    pub async fn get_phase1_mining_total(&self, user_id: &Uuid) -> Result<i64, sqlx::Error> {
+        let total: Option<i64> = sqlx::query_scalar(
+            "SELECT CAST(SUM(reward_amount) AS BIGINT) FROM rewards WHERE user_id = $1 AND (phase = 'phase1' OR phase IS NULL)"
+        )
+        .bind(user_id)
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(total.unwrap_or_default())
+    }
+
     pub async fn get_rewards_to_send_message(&self) -> Result<Vec<RewardToReply>, sqlx::Error> {
         let rewards = sqlx::query_as!(
             RewardToReply,
@@ -182,11 +193,10 @@ impl RewardRepository {
     }
 
     pub async fn mark_as_message_sent(&self, reward_id: &Uuid) -> Result<Reward, sqlx::Error> {
-        let reward = sqlx::query_as!(
-            Reward,
-            "UPDATE rewards SET message_sent = true WHERE id = $1 RETURNING *",
-            reward_id
+        let reward = sqlx::query_as::<_, Reward>(
+            "UPDATE rewards SET message_sent = true WHERE id = $1 RETURNING *"
         )
+        .bind(reward_id)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 
@@ -202,20 +212,19 @@ impl RewardRepository {
         block_time: &DateTime<Utc>,
         available: bool,
     ) -> Result<Reward, sqlx::Error> {
-        let reward = sqlx::query_as!(
-            Reward,
+        let reward = sqlx::query_as::<_, Reward>(
             r#"
             UPDATE rewards SET transaction_signature = $2, reward_amount = $3, wallet_address = $4, block_time = $5, available = $6
             WHERE id = $1
             RETURNING *
-            "#,
-            reward_id,
-            transaction_signature,
-            reward_amount,
-            wallet_address,
-            block_time,
-            available
+            "#
         )
+        .bind(reward_id)
+        .bind(transaction_signature)
+        .bind(reward_amount)
+        .bind(wallet_address)
+        .bind(block_time)
+        .bind(available)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 
@@ -228,17 +237,16 @@ impl RewardRepository {
         media_id: &str,
         media_id_expires_at: &DateTime<Utc>,
     ) -> Result<Reward, sqlx::Error> {
-        let reward = sqlx::query_as!(
-            Reward,
+        let reward = sqlx::query_as::<_, Reward>(
             r#"
             UPDATE rewards SET media_id = $2, media_id_expires_at = $3
             WHERE id = $1
             RETURNING *
-            "#,
-            reward_id,
-            media_id,
-            media_id_expires_at
+            "#
         )
+        .bind(reward_id)
+        .bind(media_id)
+        .bind(media_id_expires_at)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 

@@ -1,6 +1,7 @@
 # Various IDEs and Editors
 .vscode/
 .idea/
+.sqlx/
 **/*~
 
 # Mac OSX temporary files

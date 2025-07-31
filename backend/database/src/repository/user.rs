@@ -35,7 +35,8 @@ impl UserRepository {
                 role, selected_role, patron_status, locked_amount, lock_start_timestamp, lock_end_timestamp,
                 lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,
                 initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
-                total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score
+                total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
+                role_transaction_signature, role_updated_at
             "#,
             twitter_id,
             twitter_username,

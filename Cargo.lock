@@ -4639,6 +4639,7 @@ dependencies = [
  "snake_contract",
  "spl-associated-token-account 6.0.0",
  "spl-token 8.0.0",
+ "sqlx",
  "tokio",
  "tower",
  "tower-http",

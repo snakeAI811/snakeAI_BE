@@ -6,7 +6,7 @@ use crate::{
             token_validation, get_user_mining_status, get_user_profile, set_user_wallet_address,
             update_patron_status, update_user_role, update_lock_details, get_user_phase2_tweets,
             // Tweet mining endpoints
-            get_tweet_mining_status, submit_tweet, claim_tweet_reward_tx, start_tweet_mining,
+            get_tweet_mining_status, submit_tweet, claim_tweet_reward_tx, // start_tweet_mining,
             // Data endpoints
             get_token_info, get_patron_application_status, get_active_swaps, get_my_swaps, get_vesting_info,
             // DAO endpoints

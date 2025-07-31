@@ -98,3 +98,38 @@ pub async fn init_reward_pool(State(state): State<AppState>) -> Json<serde_json:
         Err(e) => Json(json!({ "status": "error", "message": format!("Initialization failed: {}", e) })),
     }
 }
+
+use crate::services::SolanaSync;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct SyncPhase1Request {
+    pub user_wallet: String,
+}
+
+/// Admin endpoint to sync a specific user's Phase 1 mining data to smart contract
+pub async fn sync_user_phase1_data(
+    State(_state): State<AppState>,
+    Json(req): Json<SyncPhase1Request>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    // For now, return a mock response since database schema needs updating
+    // TODO: Fix database schema issues and implement actual syncing
+    
+    Ok(Json(json!({
+        "status": "success",
+        "message": format!("Mock sync for user {}", req.user_wallet),
+        "note": "This is a mock response. Database schema needs updating before real implementation."
+    })))
+}
+
+/// Admin endpoint to sync ALL users' Phase 1 mining data
+pub async fn sync_all_phase1_data(State(_state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
+    // For now, return a mock response since database schema needs updating
+    // TODO: Fix database schema and implement bulk syncing
+    
+    Ok(Json(json!({
+        "status": "success",
+        "message": "Mock bulk sync completed",
+        "note": "Database schema needs updating before real implementation can be completed."
+    })))
+}

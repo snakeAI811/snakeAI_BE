@@ -25,6 +25,7 @@ pub struct Env {
     pub solana_rpc_url: String,
     pub play_snake_ai_id: String,
     pub phase2_start_date: Option<DateTime<Utc>>,
+    pub mining_phase: String,
 }
 
 impl Env {
@@ -90,6 +91,7 @@ impl Env {
             .ok()
             .and_then(|date_str| DateTime::parse_from_rfc3339(&date_str).ok())
             .map(|dt| dt.with_timezone(&Utc));
+        let mining_phase = std::env::var("MINING_PHASE").expect("MINING_PHASE must be set");
 
         Self {
             port,
@@ -113,6 +115,7 @@ impl Env {
             solana_rpc_url,
             play_snake_ai_id,
             phase2_start_date,
+            mining_phase
         }
     }
 
@@ -121,10 +124,7 @@ impl Env {
     }
 
     pub fn is_phase2(&self) -> bool {
-        match self.phase2_start_date {
-            Some(start_date) => self.now() >= start_date,
-            None => false, // If no Phase 2 start date is set, assume we're in Phase 1
-        }
+        self.mining_phase.eq_ignore_ascii_case("Phase2")
     }
 
     pub fn get_mining_phase(&self) -> u8 {
