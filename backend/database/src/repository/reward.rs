@@ -26,8 +26,8 @@ impl RewardRepository {
     ) -> Result<Reward, sqlx::Error> {
         let reward = sqlx::query_as::<_, Reward>(
             r#"
-            INSERT INTO rewards (user_id, tweet_id, phase)
-            VALUES ($1, $2, 'phase1')
+            INSERT INTO rewards (user_id, tweet_id, phase, reward_amount)
+            VALUES ($1, $2, 'phase1', 100)
             RETURNING *
             "#
         )
@@ -39,23 +39,26 @@ impl RewardRepository {
         Ok(reward)
     }
 
-    pub async fn insert_reward_with_phase(
+    pub async fn insert_reward_with_phase_and_amounts(
         &self,
         user_id: &Uuid,
         tweet_id: &Uuid,
         phase: i32,
+        reward_amount: u64,
+        burn_amount: u64,
     ) -> Result<Reward, sqlx::Error> {
         let phase_str = format!("phase{}", phase);
         let reward = sqlx::query_as::<_, Reward>(
             r#"
-            INSERT INTO rewards (user_id, tweet_id, phase)
-            VALUES ($1, $2, $3)
+            INSERT INTO rewards (user_id, tweet_id, phase, reward_amount)
+            VALUES ($1, $2, $3, $4)
             RETURNING *
             "#
         )
         .bind(user_id)
         .bind(tweet_id)
         .bind(&phase_str)
+        .bind(reward_amount as i64)
         .fetch_one(self.db_conn.get_pool())
         .await?;
 

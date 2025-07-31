@@ -207,12 +207,16 @@ function Profile() {
                 {/* Menu End */}
 
                 <div className="custom-content">
-                    <div className="w-100 d-flex justify-space-between align-items-end">
-                        <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                            DASHBOARD
-                        </div>
-                        <div className="fs-6 text-muted">
-                            Welcome back, {profileData?.twitter_username || user?.twitter_username || 'User'}!
+                    <div className="w-100">
+                        <div className="d-flex justify-content-between align-items-center ">
+                            <div className="fs-1" style={{ lineHeight: 'normal' }}>
+                                Profile
+                            </div>
+                            <div className="text-end">
+                                <div className="fs-6 text-muted">
+                                    Connected: @{user?.twitter_username || 'Not authenticated'}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

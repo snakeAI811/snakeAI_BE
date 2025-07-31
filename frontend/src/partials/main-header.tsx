@@ -1,9 +1,10 @@
-
 import { ReactComponent as IconSmallLogo } from "../svgs/logo-small.svg";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 function MainHeader() {
     const { isAuthenticated, user, logout } = useAuth();
+    const navigate = useNavigate();
 
     return (
         <>
@@ -16,10 +17,20 @@ function MainHeader() {
                 <div className="d-flex justify-content-end align-items-center gap-3 h-100 px-2">
                     {isAuthenticated ? (
                         <div className="d-flex align-items-center gap-2">
-                            <span className="text-white">Welcome, {user?.twitter_username || 'User'}!</span>
-                            <button 
-                                onClick={logout}
-                                className="border border-0 fs-6 fw-bold py-1 px-2 text-decoration-none text-center" 
+                            {/* <span className="text-white">Welcome, {user?.twitter_username || 'User'}!</span> */}
+                            <button
+                                onClick={() => navigate('/home')}
+                                className="border border-0 rounded fs-6 fw-bold py-1 px-2 text-decoration-none text-center"
+                                style={{ backgroundColor: "#a9e000", color: "white" }}
+                            >
+                                DashBoard
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await logout();
+                                    navigate('/');
+                                }}
+                                className="border border-0 rounded fs-6 fw-bold py-1 px-2 text-decoration-none text-center"
                                 style={{ backgroundColor: "#ff4444", color: "white" }}
                             >
                                 LOGOUT

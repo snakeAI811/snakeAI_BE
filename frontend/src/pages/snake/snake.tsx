@@ -18,6 +18,45 @@ export namespace Snake {
         y: number                       // y position of snake (is related cell)
     }
 
+    // snake path
+    export class SnakePath {
+        private _snakePath: Array<{x: number, y: number, v: number}> = [];
+
+        // constructor
+        constructor (other?: SnakePath) {
+            if (other) {
+                this._snakePath = [...other.get()];
+            }
+        }
+
+        // get all nodes
+        public get(): Array<{x: number, y: number, v: number}> {
+            return this._snakePath;
+        }
+
+        // add new node
+        public push(x: number, y: number, v: number): void {
+            this._snakePath.push({x, y, v});
+        }
+
+        // remove a node if snake passed one.
+        public pop(): void {
+            this._snakePath.pop();
+        }
+
+        public empty(): boolean {
+            return this._snakePath.length === 0;
+        }
+
+        public count(): number {
+            return this._snakePath.length;
+        }
+
+        public clear(): void {
+            this._snakePath = [];
+        }
+    }
+
     // create snake function
     export function createSnake(node_count: number, x?: number, y?: number): Snake {
         let nodes = []
@@ -66,6 +105,11 @@ export namespace Snake {
         }
     }
 
+    // get snake node item
+    export function getSnakeNode(snake: Snake, index: number): SnakeNode {
+        return snake.nodes[index];
+    }
+
     // set snake aspect
     export function setSnakeVectors(snake: Snake, vectors: Array<number>): Snake {
         for (let i = 0; i < snake.node_count; i++) {
@@ -81,7 +125,10 @@ export namespace Snake {
     }
 
     // move snake
-    export function move(snake: Snake, vector: number): Snake {
+    export function move(snake: Snake, vector?: number): Snake {
+        if (vector === undefined || vector === null) {
+            vector = snake.nodes[0].vector;
+        }
         if (vector === 0) {
             snake.y++;
         } else if (vector === 1) {
@@ -107,6 +154,11 @@ export namespace Snake {
             x: snake.x,
             y: snake.y
         }
+    }
+
+    // get header vector
+    export function headerVector(snake: Snake): number {
+        return snake.nodes[0].vector;
     }
 }
 

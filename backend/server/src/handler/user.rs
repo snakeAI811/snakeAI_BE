@@ -835,37 +835,37 @@ pub async fn get_tweet_mining_status(
 }
 
 /// Submit a new tweet for mining
-pub async fn submit_tweet(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-    Json(payload): Json<SubmitTweetRequest>,
-) -> Result<Json<Value>, ApiError> {
-    let created_at = chrono::Utc::now();
-    let mining_phase = "Phase2"; // Current phase
+// pub async fn submit_tweet(
+//     Extension(user): Extension<User>,
+//     State(state): State<AppState>,
+//     Json(payload): Json<SubmitTweetRequest>,
+// ) -> Result<Json<Value>, ApiError> {
+//     let created_at = chrono::Utc::now();
+//     let mining_phase = "Phase2"; // Current phase
     
-    // Insert the tweet
-    let tweet = state
-        .service
-        .tweet
-        .insert_tweet(&user.id, &payload.tweet_id, &created_at, mining_phase)
-        .await?;
+//     // Insert the tweet
+//     let tweet = state
+//         .service
+//         .tweet
+//         .insert_tweet(&user.id, &payload.tweet_id, &created_at, mining_phase)
+//         .await?;
     
-    // Create a reward entry for this tweet
-    let _reward = state
-        .service
-        .reward
-        .insert_reward_with_phase(&user.id, &tweet.id, 2)
-        .await?;
+//     // Create a reward entry for this tweet
+//     let _reward = state
+//         .service
+//         .reward
+//         .insert_reward_with_phase(&user.id, &tweet.id, 2)
+//         .await?;
     
-    Ok(Json(json!({
-        "id": tweet.id,
-        "tweet_id": payload.tweet_id,
-        "content": payload.content,
-        "hashtags": payload.hashtags,
-        "status": "submitted",
-        "reward_pending": true
-    })))
-}
+//     Ok(Json(json!({
+//         "id": tweet.id,
+//         "tweet_id": payload.tweet_id,
+//         "content": payload.content,
+//         "hashtags": payload.hashtags,
+//         "status": "submitted",
+//         "reward_pending": true
+//     })))
+// }
 
 /// Claim reward for a specific tweet
 pub async fn claim_tweet_reward_tx(

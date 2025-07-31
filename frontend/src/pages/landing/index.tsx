@@ -36,20 +36,20 @@ function LandingPage({ page_status = 'game' }: LandingPageProps) {
     }, [login]);
 
     // Redirect to home page after successful authentication
-    useEffect(() => {
-        if (isAuthenticated) {
-            // Add a small delay to allow user to see the login success
-            const timer = setTimeout(() => {
-                navigate('/home');
-            }, 1500);
-            return () => clearTimeout(timer);
-        }
-    }, [isAuthenticated, navigate]);
+    // useEffect(() => {
+    //     if (isAuthenticated) {
+    //         // Add a small delay to allow user to see the login success
+    //         const timer = setTimeout(() => {
+    //             navigate('/home');
+    //         }, 1500);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [isAuthenticated, navigate]);
 
     return (
         <>
             <LandingHeader />
-            {/* <AuthDebug /> */}
+            <AuthDebug />
             <div className='w-100 p-2 p-md-4 p-lg-4' style={{ height: '90vh' }}>
                 {
                     (() => {

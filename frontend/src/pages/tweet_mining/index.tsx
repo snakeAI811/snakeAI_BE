@@ -67,8 +67,8 @@ function TweetMiningPage() {
                     tweet_id: tweet.tweet_id,
                     content: tweet.content || `Tweet content from @${tweet.twitter_username}`,
                     created_at: tweet.created_at,
-                    rewarded: false, // Will be updated based on rewards data
-                    reward_amount: 1000000000 // 1 token in lamports
+                    rewarded: tweet.rewarded ?? false, // Will be updated based on rewards data
+                    reward_amount: (tweet.reward_amount ?? 0) * 1000000000 // 1 token in lamports
                 }));
                 setTweets(tweetsData);
             }
@@ -359,7 +359,7 @@ function TweetMiningPage() {
                                                                                 {tweet.rewarded ? (
                                                                                     '✅ Claimed'
                                                                                 ) : (
-                                                                                    `💰 Claim ${formatTokenAmount(tweet.reward_amount || 0)}`
+                                                                                    `Claim ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
                                                                                 )}
                                                                             </button>
                                                                             <a

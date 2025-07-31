@@ -60,17 +60,21 @@ function Home() {
                 {/* Menu End */}
                
                 <div className="custom-content">
-                    <div className="w-100 d-flex justify-space-between align-items-end custom-content-title">
-                        <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                            DASHBOARD
-                        </div>
-                        <div className="fs-6 text-muted">
-                            Welcome back, {userProfile?.twitter_username || user?.twitter_username}!
+                    <div className="w-100">
+                        <div className="d-flex justify-content-between align-items-center ">
+                            <div className="fs-1" style={{ lineHeight: 'normal' }}>
+                                DASHBOARD
+                            </div>
+                            <div className="text-end">
+                                <div className="fs-6 text-muted">
+                                    Connected: @{user?.twitter_username || 'Not authenticated'}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Wallet Warning */}
-                    {showWalletWarning && (
+                    {/* {showWalletWarning && (
                         <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 py-1 position-fixed" style={{top: '10px'}} role="alert">
                             <i className="bi bi-exclamation-triangle-fill"></i>
                             <div className="flex-grow-1">
@@ -84,7 +88,7 @@ function Home() {
                                 Connect Wallet
                             </button>
                         </div>
-                    )}
+                    )} */}
 
                     {/* Error State */}
                     {error && (

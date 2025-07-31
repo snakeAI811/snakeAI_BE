@@ -12,6 +12,7 @@ import RoadmapPage from './roadmap';
 import SafetyTransparencyPage from './safety-transparency';
 import WhyJoinPage from './safety-transparency/why-join';
 import GetInvolvedPage from './safety-transparency/get-involved';
+import './index.css';
 
 interface GetStartedPageProps {
     bar_status?: number

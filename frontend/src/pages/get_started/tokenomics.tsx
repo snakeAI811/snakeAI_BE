@@ -29,11 +29,12 @@ function TokennomicsPage() {
                             <div className="fs-4 fs-lg-9 fs-xl-12 fs-xxl-14 px-4 mb-3" style={{ lineHeight: 'normal' }}>FAIR DISTRIBUTION:</div>
                         </div>
                         <div className="col-md-12 col-lg-8">
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>Community Mining: 33.3%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>Liquidity & MM: 20%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>Ecosystem DAO: 23.3%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>Team & Dev: 13.3%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>Marketing & Growth: 10%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FUNDRAISE: 7,5%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>MINING TREASURY: 50%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>LIQUIDITY & MM: 15%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>TEAM & DEVELOPMENT: 10%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>MARKETING & GROWTH: 7,5%</div>
+                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>ECOSYSTEM FUND/DAO: 10%</div>
                         </div>
                     </div>
                 </div>

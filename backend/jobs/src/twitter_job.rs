@@ -9,7 +9,29 @@ use serde_json::json;
 use std::{collections::HashSet, sync::Arc};
 use types::model::RewardUtils;
 use utils::env::Env;
-use std::io::Write;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MiningPhase {
+    Phase1,
+    Phase2,
+}
+
+impl MiningPhase {
+    pub fn to_string(&self) -> String {
+        match self {
+            MiningPhase::Phase1 => "phase1".to_string(),
+            MiningPhase::Phase2 => "phase2".to_string(),
+        }
+    }
+    
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "phase1" => Some(MiningPhase::Phase1),
+            "phase2" => Some(MiningPhase::Phase2),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
@@ -62,7 +84,6 @@ pub struct ProcessingInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UploadMediaResponse {
     pub expires_after_secs: Option<i64>,
-    #[serde(rename = "media_id_string")]
     pub id: Option<String>,
     pub size: Option<i64>,
 }
@@ -180,38 +201,28 @@ impl TwitterClient {
     }
 
     pub async fn upload_media(&self, text: &str) -> Result<(String, i64), anyhow::Error> {
-        let endpoint = "https://upload.twitter.com/1.1/media/upload.json";
+        let endpoint = "https://api.twitter.com/2/media/upload";
 
         let file_content: Vec<u8> =
-            qrcode_generator::to_png_to_vec(text, QrCodeEcc::Low, 256)
-                .map_err(|e| anyhow::anyhow!("Failed to generate QR code: {}", e))?;
-
-        // Save QR code for debugging
-        if let Ok(mut file) = std::fs::File::create("qrcode.png") {
-            let _ = file.write_all(&file_content);
-        }
+            qrcode_generator::to_png_to_vec(text, QrCodeEcc::Low, 256).unwrap();
 
         let secrets = Secrets::new(&self.api_key, &self.api_key_secret)
             .token(&self.access_token, &self.access_token_secret);
 
-        let part = reqwest::multipart::Part::bytes(file_content)
+        // Create multipart form data
+        let part = Part::bytes(file_content)
             .file_name("qrcode.png")
             .mime_str("image/png")?;
-        let form = reqwest::multipart::Form::new().part("media", part);
+        let form = Form::new().part("media", part);
 
         let response = reqwest::Client::new()
             .oauth1(secrets)
             .post(endpoint)
             .multipart(form)
             .send()
+            .await?
+            .json::<UploadMediaResponse>()
             .await?;
-
-        let status = response.status();
-        let response_text = response.text().await?;
-        println!("Raw API response: {}", response_text);
-
-        let response: UploadMediaResponse = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow::anyhow!("Failed to parse response: {}", e))?;
 
         if let Some(id) = &response.id {
             return Ok((
@@ -220,11 +231,7 @@ impl TwitterClient {
             ));
         }
 
-        Err(anyhow::anyhow!(
-            "Upload media failed: status={}, response={:?}",
-            status,
-            response
-        ))
+        return Err(anyhow!(format!("Upload media failed: {:?}", response)));
     }
 
     pub async fn reply_with_media(
@@ -303,11 +310,11 @@ impl TwitterClient {
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
     let client = TwitterClient::new(
-        env.twitter_bearer_token,
-        env.twitter_access_token,
-        env.twitter_access_token_secret,
-        env.twitter_api_key,
-        env.twitter_api_key_secret,
+        env.twitter_bearer_token.clone(),
+        env.twitter_access_token.clone(),
+        env.twitter_access_token_secret.clone(),
+        env.twitter_api_key.clone(),
+        env.twitter_api_key_secret.clone(),
     );
 
     // Fetch latest_tweet_id what I fetched last
@@ -330,6 +337,8 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     let mut cnt = 0;
 
     // Prepare tweets to insert into database
+    // Get the current total tweet count before processing new tweets
+    let mut tweet_count = service.tweet.get_tweets_count().await.unwrap_or(0);
     for t in &new_tweets {
         // Get user
         let user = if let Some(user) = service.user.get_user_by_twitter_id(&t.author_id).await? {
@@ -343,20 +352,26 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
         };
 
         if let Some(user) = user {
+            if user.twitter_id == env.play_snake_ai_id {
+                continue;
+            }
+
             let created_at = DateTime::parse_from_rfc3339(&t.created_at)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or(Utc::now());
 
-            let mining_phase = &env.mining_phase;
+            // Determine mining phase and reward/burn based on tweet count
+            let mining_phase = get_current_mining_phase(tweet_count);
+            let (reward_amount, burn_amount) = get_reward_burn_amount(tweet_count);
+            
             // Insert tweet
             if let Ok(tweet) = service
                 .tweet
-                .insert_tweet(&user.id, &t.id, &created_at, mining_phase)
+                .insert_tweet(&user.id, &t.id, &created_at, &mining_phase.to_string())
                 .await
             {
                 // Create reward if conditions are met
                 let mut text = String::new();
-                let mut reward_url = String::new();
 
                 let should_create_reward = match follow_users.contains(&user.twitter_id) {
                     true => {
@@ -365,10 +380,9 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                             Some(reward) => {
                                 // Reward already exists
                                 text = format!(
-                                    "Good to have you! You can claim your rewards here ->  {}",
+                                    "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
                                     reward.get_reward_url(&env.frontend_url)
                                 );
-                                reward_url = reward.get_reward_url(&env.frontend_url);
 
                                 false
                             }
@@ -388,7 +402,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                                             let formatted_next_time =
                                                 next_time.format("%Y-%-m-%-d %H:%M:%S").to_string();
                                             text = format!(
-                                                "You've claimed reward at {}, post after {} (24 hours later) to mint",
+                                                "⏰ You claimed at {}. Next mining available after {} (24hr cooldown). Thanks for playing! 🐍",
                                                 formatted_time, formatted_next_time
                                             );
                                         }
@@ -402,33 +416,28 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     }
                     false => {
                         // User don't follow us
-                        text = format!("You need to follow us before posting to get your rewards");
+                        text = format!("👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI #MineTheSnake! 🐍");
                         false
                     }
                 };
 
                 println!(
-                    "log: should_create_reward: {}, text: {}, redirect_url: {}",
-                    should_create_reward, text, reward_url
+                    "log: should_create_reward: {}, text: {}",
+                    should_create_reward, text
                 );
 
                 if should_create_reward {
-                    service.reward.insert_reward(&user.id, &tweet.id).await.ok();
+                    // Insert reward with phase and amounts
+                    service.reward.insert_reward_with_phase_and_amounts(
+                        &user.id,
+                        &tweet.id,
+                        if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
+                        reward_amount,
+                        burn_amount,
+                    ).await.ok();
                     cnt += 1;
                 } else {
-                    let media_id = if !reward_url.is_empty() {
-                        match client.upload_media(&reward_url).await {
-                            Ok((media_id, _)) => Some(media_id),
-                            Err(err) => {
-                                println!("upload_media error: {:?}", err);
-                                continue;
-                            }
-                        }
-                    } else {
-                        None
-                    };
-
-                    match client.reply_with_media(&text, &media_id, &t.id).await {
+                    match client.reply_with_media(&text, &None, &t.id).await {
                         Ok(_) => {}
                         Err(err) => {
                             println!("send message error: {:?}", err);
@@ -436,6 +445,8 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     }
                 }
             }
+            // Increment tweet count for next tweet
+            tweet_count += 1;
         }
     }
 
@@ -461,44 +472,13 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
         for reward in &rewards {
-            let media_id = if !reward.media_available() {
-                match client
-                    .upload_media(&reward.get_reward_url(&env.frontend_url))
-                    .await
-                {
-                    Ok((media_id, expires_after_secs)) => {
-                        match service
-                            .reward
-                            .update_reward_media_data(
-                                &reward.id,
-                                &media_id,
-                                &(Utc::now() + Duration::seconds(expires_after_secs)),
-                            )
-                            .await
-                        {
-                            Ok(ok) => ok.media_id,
-                            Err(err) => {
-                                println!("update db error: {:?}", err);
-                                continue;
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        println!("upload_media error: {:?}", err);
-                        continue;
-                    }
-                }
-            } else {
-                reward.media_id.clone()
-            };
-            if media_id.is_none() {
-                continue;
-            }
-
             match client
                 .reply_with_media(
-                    "Scan QR code to claim",
-                    &Some(media_id.unwrap()),
+                &format!(
+                "🎉 Congrats! Your tweet qualified for Snake AI token rewards! 🐍💰\n\n🔗 Claim your tokens: {}\n\n#SnakeAI #TokenRewards",
+                reward.get_reward_url(&env.frontend_url)
+                ),
+                    &None,
                     &reward.tweet_id,
                 )
                 .await
@@ -514,4 +494,24 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     }
 
     Ok(())
+}
+
+// Helper function to determine current mining phase based on tweet count
+fn get_current_mining_phase(tweet_count: i64) -> MiningPhase {
+    if tweet_count < 1_000_000 {
+        MiningPhase::Phase1
+    } else {
+        MiningPhase::Phase2
+    }
+}
+
+// Helper function to get reward and burn amount based on tweet count
+fn get_reward_burn_amount(tweet_count: i64) -> (u64, u64) {
+    match tweet_count {
+        1..=200_000 => (375, 375),
+        200_001..=500_000 => (150, 150),
+        500_001..=1_000_000 => (60, 60),
+        1_000_001..=3_500_000 => (40, 40),
+        _ => (0, 0), // No reward after 3,500,000
+    }
 }

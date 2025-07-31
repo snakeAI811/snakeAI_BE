@@ -502,6 +502,8 @@ export const userApi = {
             mining_phase: string;
             tweet_id: string;
             twitter_username?: string;
+            rewarded?: boolean;
+            reward_amount?: number;
         }>>(`/user/tweets${params.toString() ? '?' + params.toString() : ''}`, {
             method: 'GET',
         });
@@ -517,24 +519,6 @@ export const userApi = {
             total_rewards_claimed: number;
         }>('/user/tweet_mining_status', {
             method: 'GET',
-        });
-    },
-
-    submitTweet: async (tweetId: string, content: string, hashtags: string[]) => {
-        return apiCall<{
-            id: string;
-            tweet_id: string;
-            content: string;
-            hashtags: string[];
-            status: string;
-            reward_pending: boolean;
-        }>('/user/submit_tweet', {
-            method: 'POST',
-            body: JSON.stringify({
-                tweet_id: tweetId,
-                content,
-                hashtags,
-            }),
         });
     },
 
