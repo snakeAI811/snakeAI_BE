@@ -15,7 +15,7 @@ function HowItWorksPage() {
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal', fontFamily: 'Gotham' }}> Post on X using #MineTheSnake and mention @playSnakeAI.</p>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}> Post on X using #MineTheSnake and mention @playSnakeAI.</p>
                         </div>
                     </div>
                 </div>
@@ -27,7 +27,7 @@ function HowItWorksPage() {
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal', fontFamily: 'Gotham' }}>Our system detects it and logs your activity in the mining ledger.</p>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>Our system detects it and logs your activity in the mining ledger.</p>
                         </div>
                     </div>
                 </div>
@@ -39,7 +39,7 @@ function HowItWorksPage() {
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal', fontFamily: 'Gotham' }}>No tokens are minted until TCE (Token Claim Event).</p>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>No tokens are minted until TCE (Token Claim Event).</p>
                         </div>
                     </div>
                 </div>
@@ -51,7 +51,7 @@ function HowItWorksPage() {
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal', fontFamily: 'Gotham' }}>At TCE, you choose: Sell, Stake, or become a Patron.</p>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>At TCE, you choose: Sell, Stake, or become a Patron.</p>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,7 @@
 
 import { ReactComponent as IconTwitter } from '../../../svgs/twitter.svg';
 import { ReactComponent as IconDiscord } from '../../../svgs/discord.svg';
+import { ReactComponent as IconTelegram } from '../../../svgs/telegram.svg';
 import { ReactComponent as IconSearch } from '../../../svgs/search.svg';
 import { ReactComponent as IconAlarm } from '../../../svgs/alarm.svg';
 import { ReactComponent as IconRightLogo } from '../../../svgs/logo-right.svg';
@@ -16,8 +17,8 @@ function GetInvolvedPage() {
                         <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>FOLLOW US on twitter (x)</span>
                     </button>
                     <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
-                        <IconDiscord style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
-                        <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on discord</span>
+                        <IconTelegram style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                        <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on telegram</span>
                     </button>
                     <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5' style={{ height: '120px' }}>
                         <IconSearch style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
