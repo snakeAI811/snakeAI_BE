@@ -58,7 +58,7 @@ pub async fn get_profile(
     Extension(user): Extension<User>,
 ) -> Result<Json<Profile>, ApiError> {
     let reward_balance = state.service.reward.get_reward_balance(&user.id).await?;
-    let tweets = state.service.tweet.get_tweets_count().await?;
+    let tweets = state.service.tweet.get_tweets_count(Some(user.id)).await?;
     Ok(Json(Profile {
         twitter_username: user.twitter_username.unwrap_or_default(),
         wallet_address: user.wallet_address.unwrap_or_default(),
@@ -834,7 +834,7 @@ pub async fn get_tweet_mining_status(
     Extension(user): Extension<User>,
     State(state): State<AppState>,
 ) -> Result<Json<TweetMiningStatusResponse>, ApiError> {
-    let total_tweets = state.service.tweet.get_tweets_count().await?;
+    let total_tweets = state.service.tweet.get_tweets_count(None).await?;
     let phase1_count = state.service.tweet.get_phase1_mining_count(&user.id).await?;
     let phase2_count = state.service.tweet.get_phase2_mining_count(&user.id).await?;
     

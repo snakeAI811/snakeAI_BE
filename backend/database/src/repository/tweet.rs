@@ -55,6 +55,18 @@ impl TweetRepository {
         Ok(tweet.unwrap_or_default())
     }
 
+    pub async fn get_tweets_count_by_userid(&self, user_id:Uuid) -> Result<i64, sqlx::Error> {
+        let tweet = sqlx::query_scalar!("SELECT count(*)
+            FROM tweets 
+            INNER JOIN rewards ON tweets.id = rewards.tweet_id 
+            WHERE tweets.user_id = $1",
+            user_id)
+            .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(tweet.unwrap_or_default())
+    }
+
     pub async fn get_tweets(
         &self,
         user_id: &Option<Uuid>,

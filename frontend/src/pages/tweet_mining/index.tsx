@@ -81,22 +81,25 @@ function TweetMiningPage() {
         try {
             const response = await userApi.getTweets(0, 50);
             if (response.success && response.data) {
-                const tweetsData = response.data.map(tweet => {
-                    // Find corresponding reward for this tweet
-                    const correspondingReward = rewards.find(reward =>
-                        reward.tweet_id === tweet.id
-                    );
+                const tweetsData = response.data
+                    .map(tweet => {
+                        // Find corresponding reward for this tweet
+                        const correspondingReward = rewards.find(reward =>
+                            reward.tweet_id === tweet.id
+                        );
 
-                    return {
-                        id: tweet.id,
-                        tweet_id: tweet.tweet_id,
-                        content: tweet.content || `Tweet content from @${tweet.twitter_username}`,
-                        created_at: tweet.created_at,
-                        rewarded: correspondingReward ? !correspondingReward.available : false,
-                        reward_amount: correspondingReward ? correspondingReward.reward_amount : 0,
-                        reward_id: correspondingReward?.id
-                    };
-                });
+                        return {
+                            id: tweet.id,
+                            tweet_id: tweet.tweet_id,
+                            content: tweet.content || `Tweet content from @${tweet.twitter_username}`,
+                            created_at: tweet.created_at,
+                            rewarded: correspondingReward ? !correspondingReward.available : false,
+                            reward_amount: correspondingReward ? correspondingReward.reward_amount : 0,
+                            reward_id: correspondingReward?.id
+                        };
+                    })
+                    .filter(tweet => tweet.reward_id); // Only keep tweets that have rewards
+
                 setTweets(tweetsData);
             }
         } catch (err) {
@@ -159,66 +162,66 @@ function TweetMiningPage() {
                 }
 
                 const connection = new Connection(clusterApiUrl(SOLANA_NETWORK as Cluster), 'confirmed');
-                
+
                 // ✅ Get fresh blockhash and rebuild transaction
                 const { blockhash } = await connection.getLatestBlockhash('confirmed');
                 const transactionBuffer = Buffer.from(transactionBase64, 'base64');
                 const transaction = Transaction.from(transactionBuffer);
-                
+
                 // ✅ Update with fresh blockhash
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = solana.publicKey;
 
                 setSuccess('Signing transaction...');
-                
+
                 const signedTransaction = await solana.signTransaction(transaction);
-                
+
                 // ✅ Send with better error handling
                 const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
                     skipPreflight: false,
                     preflightCommitment: 'confirmed',
                     maxRetries: 0 // Prevent automatic retries
                 });
-                
+
                 setSuccess(`Reward claimed successfully! Transaction: ${signature}`);
-                
+
                 // Wait for confirmation
                 const confirmation = await connection.confirmTransaction({
                     signature,
                     blockhash,
                     lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
                 }, 'confirmed');
-                
+
                 if (confirmation.value.err) {
                     throw new Error(`Transaction failed: ${confirmation.value.err}`);
                 }
-                
-                 // ✅ Mark as rewarded locally
-                    setTweets(prev =>
-                        prev.map(tweet =>
-                            tweet.tweet_id === tweetId
-                                ? { ...tweet, rewarded: true }
-                                : tweet
-                        )
-                    );
 
-                    // ✅ Update rewards state
-                    setRewards(prev =>
-                        prev.map(reward =>
-                            reward.tweet_id === tweets.find(t => t.tweet_id === tweetId)?.id
-                                ? { ...reward, available: false, claimed: true }
-                                : reward
-                        )
-                    );
+                // ✅ Mark as rewarded locally
+                setTweets(prev =>
+                    prev.map(tweet =>
+                        tweet.tweet_id === tweetId
+                            ? { ...tweet, rewarded: true }
+                            : tweet
+                    )
+                );
+
+                // ✅ Update rewards state
+                setRewards(prev =>
+                    prev.map(reward =>
+                        reward.tweet_id === tweets.find(t => t.tweet_id === tweetId)?.id
+                            ? { ...reward, available: false, claimed: true }
+                            : reward
+                    )
+                );
 
 
-                    setRewardFlag(tweetId);
+                setRewardFlag(tweetId);
 
-                    // ✅ Reload data from backend to ensure consistency
-                    setTimeout(async () => {
-                        await loadData();
-                        await loadMiningStats();
-                    }, 1500);
+                // ✅ Reload data from backend to ensure consistency
+                setTimeout(async () => {
+                    await loadData();
+                    await loadMiningStats();
+                }, 1500);
             }
         } catch (err) {
             console.error(err);
@@ -389,8 +392,8 @@ function TweetMiningPage() {
                                                                         <div className="d-flex flex-column gap-2 ms-3">
                                                                             <button
                                                                                 className={`btn btn-sm ${tweet.rewarded
-                                                                                        ? 'btn-success disabled'
-                                                                                        : 'btn-outline-success'
+                                                                                    ? 'btn-success disabled'
+                                                                                    : 'btn-outline-success'
                                                                                     }`}
                                                                                 onClick={() => handleClaimReward(tweet.tweet_id)}
                                                                                 disabled={isLoading || tweet.rewarded}

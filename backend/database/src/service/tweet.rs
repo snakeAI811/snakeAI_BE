@@ -35,11 +35,21 @@ impl TweetService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn get_tweets_count(&self) -> Result<i64, ApiError> {
-        self.tweet_repo
-            .get_tweets_count()
-            .await
-            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    pub async fn get_tweets_count(&self, user_id: Option<Uuid>) -> Result<i64, ApiError> {
+        match user_id {
+            Some(id) => {
+                self.tweet_repo
+                    .get_tweets_count_by_userid(id)
+                    .await
+                    .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+            }
+            None => {
+                self.tweet_repo
+                    .get_tweets_count()
+                    .await
+                    .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+            }
+        }
     }
 
     pub async fn get_tweets(

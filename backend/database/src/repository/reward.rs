@@ -136,7 +136,7 @@ impl RewardRepository {
             rewards.*, users.twitter_id, users.twitter_username, tweets.tweet_id tweet_twitter_id
         FROM rewards
         JOIN users ON users.id = rewards.user_id
-        JOIN tweets ON tweets.id = rewards.tweet_id"#
+        JOIN tweets ON tweets.id = rewards.tweet_id"#   
             .to_string();
 
         if !filters.is_empty() {

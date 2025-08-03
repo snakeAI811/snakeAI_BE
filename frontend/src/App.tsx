@@ -18,6 +18,7 @@ import { AuthContextProvider } from "./contexts/AuthContext";
 import { AppContextProvider } from "./contexts/AppContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import ToastContainer from "./components/ToastContainer";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -29,15 +30,15 @@ function App() {
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/get-started" element={<GetStartedPage />} />
-                <Route path="/home" element={<Home />} />
-                <Route path="/tweet-mining" element={<TweetMiningPage />} />
-                <Route path="/meme-generation" element={<GenerateMeme />} />
-                <Route path="/claim/:id" element={<ClaimPage />} />
-                <Route path="/claim" element={<ClaimPage />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/staking" element={<StakingPage />} />
-                <Route path="/swap" element={<OTCTrading />} />
-                <Route path="/dao" element={<ApplicationPage />} />
+                <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                <Route path="/tweet-mining" element={<ProtectedRoute><TweetMiningPage /></ProtectedRoute>} />
+                <Route path="/meme-generation" element={<ProtectedRoute><GenerateMeme /></ProtectedRoute>} />
+                <Route path="/claim/:id" element={<ProtectedRoute><TweetMiningPage /></ProtectedRoute>} />
+                <Route path="/claim" element={<ProtectedRoute><TweetMiningPage /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/staking" element={<ProtectedRoute><StakingPage /></ProtectedRoute>} />
+                <Route path="/swap" element={<ProtectedRoute><OTCTrading /></ProtectedRoute>} />
+                <Route path="/dao" element={<ProtectedRoute><ApplicationPage /></ProtectedRoute>} />
               </Routes>
             </Router>
             <ToastContainer />

@@ -31,7 +31,7 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     setConnecting(true);
     try {
       // Check if Phantom wallet is available
-      if (typeof window !== 'undefined' && (window as any).solana) {
+      if (typeof window !== 'undefined' && (window as any).solana && (window as any).solana.isPhantom) {
         const response = await (window as any).solana.connect();
         setPublicKey(response.publicKey.toString());
         setConnected(true);
@@ -40,6 +40,7 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
+      alert('Failed to connect wallet. Please try again.');
     } finally {
       setConnecting(false);
     }
