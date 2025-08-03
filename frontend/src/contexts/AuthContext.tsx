@@ -76,6 +76,14 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     setSessionId(newSessionId);
     setIsAuthenticated(true);
     fetchUserData();
+    
+    // Check if there's a stored redirect URL for claim pages
+    const redirectUrl = localStorage.getItem('redirectAfterLogin');
+    if (redirectUrl && redirectUrl.startsWith('/claim')) {
+      localStorage.removeItem('redirectAfterLogin');
+      // Redirect to tweet mining page as requested
+      window.location.href = '/tweet-mining';
+    }
   }, [fetchUserData]);
 
   useEffect(() => {
