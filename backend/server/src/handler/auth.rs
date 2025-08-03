@@ -44,7 +44,7 @@ pub async fn login(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 #[derive(Deserialize)]
-pub struct CallbackParams {
+pub struct CallbackParams { 
     code: AuthorizationCode,
     state: CsrfToken,
 }
@@ -121,7 +121,7 @@ pub async fn callback(
         jar.add(cookie),
         Redirect::to(&format!(
             "{}?SID={}",
-            s.env.frontend_url, session.session_id
+            s.env.frontend_url + "/get-started", session.session_id
         )),
     ))
 }

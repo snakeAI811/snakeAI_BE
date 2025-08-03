@@ -73,23 +73,6 @@ function Home() {
                         </div>
                     </div>
 
-                    {/* Wallet Warning */}
-                    {/* {showWalletWarning && (
-                        <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 py-1 position-fixed" style={{top: '10px'}} role="alert">
-                            <i className="bi bi-exclamation-triangle-fill"></i>
-                            <div className="flex-grow-1">
-                                <strong>Wallet Required!</strong> Please connect your wallet to access all features.
-                            </div>
-                            <button 
-                                className="btn btn-warning btn-sm"
-                                onClick={connect}
-                                disabled={loading}
-                            >
-                                Connect Wallet
-                            </button>
-                        </div>
-                    )} */}
-
                     {/* Error State */}
                     {error && (
                         <div className="alert alert-danger d-flex align-items-center gap-2 mb-3" role="alert">

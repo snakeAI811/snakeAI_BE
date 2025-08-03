@@ -210,15 +210,15 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
   }, [isAuthenticated, refreshData]);
 
   // Periodic refresh of mining status (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isAuthenticated) {
-        fetchMiningStatus();
-      }
-    }, 30000);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     if (isAuthenticated) {
+  //       fetchMiningStatus();
+  //     }
+  //   }, 30000);
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, fetchMiningStatus]);
+  //   return () => clearInterval(interval);
+  // }, [isAuthenticated, fetchMiningStatus]);
 
   const value: AppContextState = {
     miningStatus,

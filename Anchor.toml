@@ -8,13 +8,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-snake_contract = "3LUHFfbcSAc6D9qgYWLEtyxu1HE1PjHqSZgtsus3Pce6"
+snake_contract = "CLhbCetmpAFowhsKJM9XDJ5AWgkiDUmNPJV7CTZzFDsL"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/home/super/.config/solana/devnet.json"
 
 [scripts]
@@ -27,3 +27,6 @@ members = [
 
 [profile.release]
 opt-level = "z"
+
+[build]
+programs = { snake_contract = "target/deploy/snake_contract-keypair.json" }

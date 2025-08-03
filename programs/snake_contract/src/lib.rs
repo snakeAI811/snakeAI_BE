@@ -12,7 +12,7 @@ use instructions::otc_swap_enhanced::SwapType;
 use instructions::otc_trading;
 use instructions::update_user_stats::UpdateUserStatsParams;
 
-declare_id!("3LUHFfbcSAc6D9qgYWLEtyxu1HE1PjHqSZgtsus3Pce6");
+declare_id!("CLhbCetmpAFowhsKJM9XDJ5AWgkiDUmNPJV7CTZzFDsL");
 
 #[program]
 pub mod snake_contract {
@@ -40,8 +40,8 @@ pub mod snake_contract {
         instructions::select_role(ctx, role)
     }
 
-    pub fn claim_tokens_with_role(ctx: Context<ClaimTokensWithRole>, amount: u64, role: UserRole) -> Result<()> {
-        instructions::claim_tokens_with_role(ctx, amount, role)
+    pub fn claim_tokens_with_role(ctx: Context<ClaimTokensWithRole>, amount: u64, role: UserRole, tweet_id: String) -> Result<()> {
+        instructions::claim_tokens_with_role(ctx, amount, role, tweet_id)
     }
 
     pub fn initialize_user_claim(ctx: Context<InitializeUserClaim>) -> Result<()> {
@@ -114,10 +114,6 @@ pub mod snake_contract {
     pub fn sellback_to_project(ctx: Context<SellbackToProject>, amount: u64) -> Result<()> {
         instructions::sellback_to_project(ctx, amount)
     }
-
-    // pub fn initialize_user_claim(ctx: Context<InitializeUserClaim>) -> Result<()> {
-    //     instructions::initialize_user_claim(ctx)
-    // }
 
     // Patron-related functions
     pub fn apply_for_patron(ctx: Context<ApplyForPatron>, wallet_age_days: u32, community_score: u32) -> Result<()> {

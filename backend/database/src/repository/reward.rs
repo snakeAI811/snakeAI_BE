@@ -255,4 +255,32 @@ impl RewardRepository {
 
         Ok(reward)
     }
+
+    pub async fn set_reward_flag(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &str,
+    ) -> Result<bool, sqlx::Error> {
+        // I have to get uuid from tweet_id in tweets table
+        let tweet = sqlx::query!(
+            "SELECT id FROM tweets WHERE tweet_id = $1 AND user_id = $2",
+            tweet_id,
+            user_id
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;    
+        if tweet.is_none() {
+            return Ok(false);
+        } 
+        let tweet_uuid = tweet.unwrap().id;
+        let result = sqlx::query!(
+            "UPDATE rewards SET available = false WHERE tweet_id = $1 AND user_id = $2 RETURNING id",
+            tweet_uuid,
+            user_id
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(result.is_some())
+    }
 }

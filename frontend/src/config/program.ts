@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 
 // Program ID from your deployed contract
 export const PROGRAM_ID = new PublicKey(
-  process.env.REACT_APP_PROGRAM_ID || '3LUHFfbcSAc6D9qgYWLEtyxu1HE1PjHqSZgtsus3Pce6'
+  process.env.REACT_APP_PROGRAM_ID || 'CLhbCetmpAFowhsKJM9XDJ5AWgkiDUmNPJV7CTZzFDsL'
 );
 
 // Token Mint Address (will be set after token creation)

@@ -20,10 +20,18 @@ pub enum PatronStatus {
 }
 
 #[account]
+pub struct ClaimReceipt {
+    pub tweet_id: String,
+    pub claimer: Pubkey,
+}
+
+#[account]
 #[derive(Default, InitSpace)]
 pub struct UserClaim {
     pub initialized: bool,
     pub user: Pubkey,
+    pub claimable_amount: u64,
+    pub burn_amount: u64,
     pub last_claim_timestamp: i64,
     pub role: UserRole,
     
@@ -62,6 +70,8 @@ impl UserClaim {
     pub fn init(&mut self, user: Pubkey) {
         self.initialized = true;
         self.user = user;
+        self.claimable_amount = 0;
+        self.burn_amount = 0;
         self.last_claim_timestamp = 0;
         self.role = UserRole::None;
         self.patron_status = PatronStatus::None;

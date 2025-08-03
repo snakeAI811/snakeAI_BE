@@ -367,7 +367,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             // Insert tweet
             if let Ok(tweet) = service
                 .tweet
-                .insert_tweet(&user.id, &t.id, &created_at, &mining_phase.to_string())
+                .insert_tweet(&user.id, &t.id, &created_at, &mining_phase.to_string(), reward_amount)
                 .await
             {
                 // Create reward if conditions are met
@@ -416,7 +416,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                     }
                     false => {
                         // User don't follow us
-                        text = format!("👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI #MineTheSnake! 🐍");
+                        text = format!("👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI & #MineTheSnake! 🐍");
                         false
                     }
                 };

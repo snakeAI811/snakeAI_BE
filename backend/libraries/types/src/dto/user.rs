@@ -39,3 +39,8 @@ pub struct TweetMiningStatusResponse {
     pub pending_rewards: i64,
     pub total_rewards_claimed: i64,
 }
+
+#[derive(Clone, Serialize, Deserialize, Validate, Debug)]
+pub struct SetRewardFlagRequest {
+    pub tweet_id: String,
+}

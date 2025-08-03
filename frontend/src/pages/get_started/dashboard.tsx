@@ -1,6 +1,6 @@
 
 import { ReactComponent as IconLeftLogo } from "../../svgs/logo-left.svg";
-
+import { ReactComponent as ScrollDownIcon } from '../../svgs/scroll-down.svg';
 function DashboardPage() {
     return (
         <div className="border border-5 border-black p-3 d-flex justify-content-center align-items-center" style={{ minHeight: "84vh" }}>
@@ -14,6 +14,10 @@ function DashboardPage() {
                 </div>
                 <div className="d-flex flex-column flex-md-row justify-content-center align-items-center gap-4 mb-2">
                     <p className="fs-6 fs-lg-8 fs-xl-9 text-center w-75" style={{ lineHeight: 'normal' }}>Welcome to the future of crypto engagement—where meme culture meets blockchain innovation.</p>
+                </div>
+                <div className="d-flex flex-column flex-md-row justify-content-center align-items-center gap-4 mb-2">
+                    <ScrollDownIcon style={{ marginTop: '16px', width: '65px' }} />
+                    <span>Scroll Down</span>
                 </div>
             </div>
         </div>

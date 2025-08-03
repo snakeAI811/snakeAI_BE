@@ -131,4 +131,15 @@ impl RewardService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn set_reward_flag(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &str,
+    ) -> Result<bool, ApiError> {
+        self.reward_repo
+            .set_reward_flag(user_id, tweet_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

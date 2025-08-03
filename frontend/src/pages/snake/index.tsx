@@ -8,7 +8,7 @@ interface SnakePanelProps {
     callback?: (result: string) => void;
 }
 
-function SnakePanel({ snake, milisecond = 30, callback = (result: string) => { } }: SnakePanelProps) {
+function SnakePanel({ snake, milisecond = 50, callback = (result: string) => { } }: SnakePanelProps) {
     let _cellSizeRef = useRef(10);
     let _cellCountXRef = useRef(50);
     const _cellCountY: number = 50;

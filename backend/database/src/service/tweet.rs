@@ -27,9 +27,10 @@ impl TweetService {
         tweet_id: &str,
         created_at: &DateTime<Utc>,
         mining_phase: &str,
+        reward_amount: u64,
     ) -> Result<Tweet, ApiError> {
         self.tweet_repo
-            .insert_tweet(user_id, tweet_id, created_at, mining_phase)
+            .insert_tweet(user_id, tweet_id, created_at, mining_phase, reward_amount)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

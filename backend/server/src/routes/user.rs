@@ -6,7 +6,7 @@ use crate::{
             token_validation, get_user_mining_status, get_user_profile, set_user_wallet_address,
             update_patron_status, update_user_role, update_lock_details, get_user_phase2_tweets,
             // Tweet mining endpoints
-            get_tweet_mining_status, claim_tweet_reward_tx,
+            get_tweet_mining_status, claim_tweet_reward_tx, set_reward_flag,
             // Data endpoints
             get_token_info, get_patron_application_status, get_active_swaps, get_my_swaps, get_vesting_info,
             // DAO endpoints
@@ -35,6 +35,7 @@ pub fn routes() -> Router<AppState> {
         .route("/rewards", get(get_rewards))
         .route("/tweets", get(get_tweets))
         .route("/claim_tx", post(get_claim_tx))
+        .route("/set_reward_flag", post(set_reward_flag))
         // Tweet mining endpoints
         .route("/tweet_mining_status", get(get_tweet_mining_status))
         .route("/claim_tweet_reward", post(claim_tweet_reward_tx))

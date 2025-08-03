@@ -462,9 +462,21 @@ export const userApi = {
 
         return apiCall<Array<{
             id: string;
-            amount: number;
-            available: boolean;
+            user_id: string;
+            tweet_id: string;
+            twitter_id: string;
+            twitter_username?: string;
+            tweet_twitter_id: string;
             created_at: string;
+            available: boolean;
+            message_sent: boolean;
+            transaction_signature?: string;
+            reward_amount: number;
+            wallet_address?: string;
+            block_time?: string;
+            media_id?: string;
+            media_id_expires_at?: string;
+            phase?: string;
         }>>(`/user/rewards${params.toString() ? '?' + params.toString() : ''}`, {
             method: 'GET',
         });
@@ -509,6 +521,13 @@ export const userApi = {
         });
     },
 
+    setRewardFlag: async (tweetId: string) => {
+        return apiCall<string>('/user/set_reward_flag', {
+            method: 'POST',
+            body: JSON.stringify({ tweet_id: tweetId }),
+        });
+    },
+
     // Tweet mining endpoints
     getTweetMiningStatus: async () => {
         return apiCall<{
@@ -522,13 +541,19 @@ export const userApi = {
         });
     },
 
-    claimTweetReward: async (tweetId: string) => {
-        return apiCall<string>('/user/claim_tweet_reward', {
+    claimTweetReward: async (tweetId: string): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/user/claim_tweet_reward', {
             method: 'POST',
             body: JSON.stringify({
                 tweet_id: tweetId,
             }),
         });
+
+        if (response.success && response.data) {
+            return { success: true, data: response.data, requiresWalletSignature: true };
+        }
+
+        return { success: false, data: '', requiresWalletSignature: false, error: response.error };
     },
 
     startTweetMining: async () => {

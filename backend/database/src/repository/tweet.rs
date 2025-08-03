@@ -24,20 +24,22 @@ impl TweetRepository {
         tweet_id: &str,
         created_at: &DateTime<Utc>,
         mining_phase: &str,
+        reward_amount: u64,
     ) -> Result<Tweet, sqlx::Error> {
         let phase_number = if mining_phase == "Phase2" { 2 } else { 1 };
         
         let tweet = sqlx::query_as!(
             Tweet,
             r#"
-            INSERT INTO tweets (user_id, tweet_id, created_at, mining_phase)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, user_id, tweet_id, created_at, mining_phase, false as rewarded, 0::bigint as reward_amount
+            INSERT INTO tweets (user_id, tweet_id, created_at, mining_phase, reward_amount)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, user_id, tweet_id, created_at, mining_phase, false as rewarded, reward_amount
             "#,
             user_id,
             tweet_id,
             created_at,
-            phase_number
+            phase_number,
+            reward_amount as i64
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;
@@ -70,6 +72,7 @@ impl TweetRepository {
                 tweets.rewarded, tweets.reward_amount 
             FROM tweets 
             JOIN users ON tweets.user_id = users.id
+            JOIN rewards ON tweets.id = rewards.tweet_id
         ";
 
         let mut query = String::from(base_query);
