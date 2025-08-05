@@ -110,6 +110,15 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     }
   }, [isAuthenticated]);
 
+
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('SID');
+      if (sid) {
+          login(sid); 
+      }
+  }, [login]);
+
   const value: AuthContextState = {
     isAuthenticated,
     user,
