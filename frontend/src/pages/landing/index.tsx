@@ -27,14 +27,6 @@ function LandingPage({ page_status = 'game' }: LandingPageProps) {
         }
     };
 
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const sid = params.get('SID');
-        if (sid) {
-            login(sid); // Use AuthContext instead of directly setting cookie
-        }
-    }, [login]);
-
     // Redirect to home page after successful authentication
     // useEffect(() => {
     //     if (isAuthenticated) {

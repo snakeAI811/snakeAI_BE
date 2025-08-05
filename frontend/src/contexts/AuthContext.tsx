@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import Cookies from 'js-cookie';
 import { userApi, setAuthErrorHandler } from '../pages/patron/services/apiService';
-
+import { useNavigate } from 'react-router-dom';
 interface User {
   id: string;
   twitter_username?: string;
@@ -36,6 +36,7 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const logout = useCallback(() => {
     Cookies.remove('SID');
@@ -82,7 +83,8 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     if (redirectUrl && redirectUrl.startsWith('/claim')) {
       localStorage.removeItem('redirectAfterLogin');
       // Redirect to tweet mining page as requested
-      window.location.href = '/tweet-mining';
+      
+      navigate('/tweet-mining'); 
     }
   }, [fetchUserData]);
 

@@ -19,14 +19,15 @@ import { AppContextProvider } from "./contexts/AppContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import ToastContainer from "./components/ToastContainer";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { BrowserRouter } from 'react-router-dom'
 
 function App() {
   return (
-    <AuthContextProvider>
-      <WalletContextProvider>
-        <AppContextProvider>
-          <ToastProvider>
-            <Router>
+    <Router>
+      <AuthContextProvider>
+        <WalletContextProvider>
+          <AppContextProvider>
+            <ToastProvider>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/get-started" element={<GetStartedPage />} />
@@ -40,12 +41,12 @@ function App() {
                 <Route path="/swap" element={<ProtectedRoute><OTCTrading /></ProtectedRoute>} />
                 <Route path="/dao" element={<ProtectedRoute><ApplicationPage /></ProtectedRoute>} />
               </Routes>
-            </Router>
-            <ToastContainer />
-          </ToastProvider>
-        </AppContextProvider>
-      </WalletContextProvider>
-    </AuthContextProvider>
+              <ToastContainer />
+            </ToastProvider>
+          </AppContextProvider>
+        </WalletContextProvider>
+      </AuthContextProvider>
+    </Router>
   );
 }
 
