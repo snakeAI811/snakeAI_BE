@@ -1,8 +1,21 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import { useAuth } from './AuthContext';
 import { useWalletContext } from './WalletContext';
 import { tokenApi, userApi, roleApi } from '../pages/patron/services/apiService';
 import { UserRole } from '../pages/patron/index';
+import { safeFetch } from '../utils/common';
+
+// -----------------------
+// Interfaces
+// -----------------------
 
 interface MiningStatus {
   current_phase: 1 | 2;
@@ -37,7 +50,8 @@ interface AppContextState {
   userRole: UserRole;
   loading: boolean;
   error: string | null;
-  refreshData: () => Promise<void>;
+  refreshAllAppData: () => Promise<void>;
+  fetchMiningStatus: () => Promise<void>; 
   updateUserRole: (role: UserRole) => void;
   isWalletRequired: boolean;
   showWalletWarning: boolean;
@@ -47,6 +61,10 @@ interface AppContextProviderProps {
   children: ReactNode;
 }
 
+// -----------------------
+// Context Initialization
+// -----------------------
+
 const AppContext = createContext<AppContextState>({
   miningStatus: null,
   userProfile: null,
@@ -54,7 +72,8 @@ const AppContext = createContext<AppContextState>({
   userRole: { role: 'none' },
   loading: false,
   error: null,
-  refreshData: async () => {},
+  refreshAllAppData: async () => {},
+  fetchMiningStatus: async () => {},
   updateUserRole: () => {},
   isWalletRequired: false,
   showWalletWarning: false,
@@ -62,10 +81,20 @@ const AppContext = createContext<AppContextState>({
 
 export const useAppContext = () => useContext(AppContext);
 
+// -----------------------
+// Utility Function
+// -----------------------
+
+
+
+// -----------------------
+// Provider Component
+// -----------------------
+
 export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const { connected, publicKey } = useWalletContext();
-  
+
   const [miningStatus, setMiningStatus] = useState<MiningStatus | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
@@ -73,59 +102,63 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine if wallet is required and should show warning
   const isWalletRequired = isAuthenticated && !connected;
-  const showWalletWarning = isAuthenticated && !connected;
+  const showWalletWarning = isWalletRequired;
 
-  const fetchMiningStatus = useCallback(async () => {
-    try {
-      const result = await tokenApi.getMiningStatus();
-      if (result.success && result.data) {
-        setMiningStatus(result.data);
-      } else {
-        console.error('Failed to fetch mining status:', result.error);
-      }
-    } catch (error) {
-      console.error('Error fetching mining status:', error);
-    }
-  }, []);
+  const { getMiningStatus, getTokenInfo } = tokenApi;
+  const { getProfile } = userApi;
 
-  const fetchUserProfile = useCallback(async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      const result = await userApi.getProfile();
-      if (result.success && result.data) {
-        setUserProfile(result.data);
-      } else {
-        console.error('Failed to fetch user profile:', result.error);
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  }, [isAuthenticated]);
+  // Wrap getMiningStatus to always return a compatible object for safeFetch
+  const getMiningStatusWrapped = async () => {
+    const result = await getMiningStatus();
+    return {
+      success: result.success,
+      data: result.data ?? null,
+      error: result.error,
+    };
+  };
 
-  const fetchTokenInfo = useCallback(async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      const result = await tokenApi.getTokenInfo();
-      if (result.success && result.data) {
-        setTokenInfo(result.data);
-      } else {
-        console.error('Failed to fetch token info:', result.error);
-      }
-    } catch (error) {
-      console.error('Error fetching token info:', error);
-    }
-  }, [isAuthenticated]);
+  const fetchMiningStatus = useCallback(
+    () => safeFetch(getMiningStatusWrapped, setMiningStatus, 'fetch mining status'),
+    []
+  );
+
+  // Wrap getProfile to always return a compatible object for safeFetch
+  const getProfileWrapped = async () => {
+    const result = await getProfile();
+    return {
+      success: result.success,
+      data: result.data ?? null,
+      error: result.error,
+    };
+  };
+
+  const fetchUserProfile = useCallback(
+    () => isAuthenticated && safeFetch(getProfileWrapped, setUserProfile, 'fetch user profile'),
+    [isAuthenticated]
+  );
+
+  // Wrap getTokenInfo to always return a compatible object for safeFetch
+  const getTokenInfoWrapped = async () => {
+    const result = await getTokenInfo();
+    return {
+      success: result.success,
+      data: result.data ?? null,
+      error: result.error,
+    };
+  };
+
+  const fetchTokenInfo = useCallback(
+    () => isAuthenticated && safeFetch(getTokenInfoWrapped, setTokenInfo, 'fetch token info'),
+    [isAuthenticated]
+  );
 
   const fetchUserRole = useCallback(async () => {
     if (!isAuthenticated || !connected) {
       setUserRole({ role: 'none' });
       return;
     }
-    
+
     try {
       const result = await roleApi.getUserRole();
       if (result.success && result.data) {
@@ -148,10 +181,9 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
     setUserRole(newRole);
   }, []);
 
-  const refreshData = useCallback(async () => {
+  const refreshAllAppData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
     try {
       await Promise.all([
         fetchMiningStatus(),
@@ -166,27 +198,20 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
     }
   }, [fetchMiningStatus, fetchUserProfile, fetchTokenInfo, fetchUserRole]);
 
-  // Update wallet address when wallet connects
+  // Wallet address update
   useEffect(() => {
     const updateWalletAddress = async () => {
       if (connected && publicKey && isAuthenticated) {
         try {
-          // Check if user already has this wallet address set
-          if (userProfile?.wallet_address === publicKey) {
-            console.log('Wallet address already matches current user profile, skipping update');
-            return; // Wallet address already matches, no need to update
-          }
-          
+          if (userProfile?.wallet_address === publicKey) return;
           const result = await userApi.setWalletAddress(publicKey);
           if (result.success) {
-            // Refresh user profile to get updated wallet address
             await fetchUserProfile();
           }
         } catch (error) {
-          // Only log errors that aren't about wallet address already being set
-          const isAlreadySetError = error instanceof Error && 
+          const isAlreadySetError =
+            error instanceof Error &&
             (error.message.includes('already set') || error.message.includes('already using'));
-          
           if (!isAlreadySetError) {
             console.error('Failed to update wallet address:', error);
           }
@@ -197,45 +222,56 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
     updateWalletAddress();
   }, [connected, publicKey, isAuthenticated, fetchUserProfile, userProfile?.wallet_address]);
 
-  // Initial data fetch when authenticated
+  // Initial + reset on auth change
   useEffect(() => {
     if (isAuthenticated) {
-      refreshData();
+      refreshAllAppData();
     } else {
-      // Clear data when not authenticated
       setUserProfile(null);
       setTokenInfo(null);
       setMiningStatus(null);
     }
-  }, [isAuthenticated, refreshData]);
+  }, [isAuthenticated, refreshAllAppData]);
 
-  // Periodic refresh of mining status (every 30 seconds)
+  // Optional: periodic mining status refresh
   // useEffect(() => {
   //   const interval = setInterval(() => {
   //     if (isAuthenticated) {
   //       fetchMiningStatus();
   //     }
-  //   }, 30000);
+  //   }, 30000); // 30s
 
   //   return () => clearInterval(interval);
   // }, [isAuthenticated, fetchMiningStatus]);
 
-  const value: AppContextState = {
-    miningStatus,
-    userProfile,
-    tokenInfo,
-    userRole,
-    loading,
-    error,
-    refreshData,
-    updateUserRole,
-    isWalletRequired,
-    showWalletWarning,
-  };
-
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
+  const value = useMemo(
+    () => ({
+      miningStatus,
+      userProfile,
+      tokenInfo,
+      userRole,
+      loading,
+      error,
+      refreshAllAppData,
+      fetchMiningStatus,
+      updateUserRole,
+      isWalletRequired,  
+      showWalletWarning,
+    }),
+    [
+      miningStatus,
+      userProfile,
+      tokenInfo,
+      userRole,
+      loading,
+      error,
+      refreshAllAppData,
+      fetchMiningStatus,
+      updateUserRole,
+      isWalletRequired,
+      showWalletWarning,
+    ]
   );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

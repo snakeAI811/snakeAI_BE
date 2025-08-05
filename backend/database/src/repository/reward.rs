@@ -283,4 +283,12 @@ impl RewardRepository {
 
         Ok(result.is_some())
     }
+
+    pub async fn get_rewards_count(&self) -> Result<i64, sqlx::Error> {
+        let reward = sqlx::query_scalar!("SELECT COUNT(*) FROM rewards")
+            .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(reward.unwrap_or_default())
+    }
 }

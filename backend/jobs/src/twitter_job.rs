@@ -338,7 +338,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     // Prepare tweets to insert into database
     // Get the current total tweet count before processing new tweets
-    let mut tweet_count = service.tweet.get_tweets_count().await.unwrap_or(0);
+    let mut tweet_count = service.tweet.get_tweets_count(None).await.unwrap_or(0);
     for t in &new_tweets {
         // Get user
         let user = if let Some(user) = service.user.get_user_by_twitter_id(&t.author_id).await? {
@@ -496,7 +496,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     Ok(())
 }
 
-// Helper function to determine current mining phase based on tweet count
 fn get_current_mining_phase(tweet_count: i64) -> MiningPhase {
     if tweet_count < 1_000_000 {
         MiningPhase::Phase1
@@ -505,7 +504,6 @@ fn get_current_mining_phase(tweet_count: i64) -> MiningPhase {
     }
 }
 
-// Helper function to get reward and burn amount based on tweet count
 fn get_reward_burn_amount(tweet_count: i64) -> (u64, u64) {
     match tweet_count {
         1..=200_000 => (375, 375),

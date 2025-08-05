@@ -15,14 +15,14 @@ use axum::{
 use base64::{Engine, engine};
 use serde_json::{json, Value};
 use types::{
-    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, SubmitTweetRequest, TweetMiningStatusResponse},
+    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
 use serde::Deserialize;
 use uuid::Uuid;
-use log::*;
 use sha2::{Sha256, Digest};
+use crate::services::{MiningPhase, get_current_mining_phase};
 
 #[derive(Deserialize)]
 pub struct UpdatePatronStatusRequest {
@@ -33,6 +33,19 @@ pub struct UpdatePatronStatusRequest {
 pub struct UpdateUserRoleRequest {
     pub selected_role: String,
 }
+
+#[derive(Deserialize)]
+pub struct PatronEligibilityRequest {
+    pub token_amount: u64,
+    pub wallet_age_days: u32,
+    pub total_mined_phase1: u64,
+}
+
+// Constants for patron eligibility validation
+const PATRON_MIN_TOKEN_AMOUNT: u64 = 250_000_000_000_000; // 250k tokens
+const PATRON_MIN_WALLET_AGE_DAYS: u32 = 30; // 30 days minimum wallet age
+const PATRON_MIN_STAKING_MONTHS: u8 = 6; // 6 months staking history required
+const STAKER_MIN_STAKING_MONTHS: u8 = 3; // 3 months staking history required
 
 #[derive(Deserialize)]
 pub struct UpdateLockDetailsRequest {
@@ -74,17 +87,18 @@ pub async fn get_mining_status(
     State(state): State<AppState>,
     Extension(user): Extension<User>,
 ) -> Result<Json<Value>, ApiError> {
-    let phase2_mining_count = state.service.tweet.get_phase2_mining_count(&user.id).await?;
-    let phase1_mining_count = state.service.tweet.get_phase1_mining_count(&user.id).await?;
+    let phase2_mining_count = state.service.tweet.get_all_phase2_mining_count().await?;
+    let phase1_mining_count = state.service.tweet.get_all_phase1_mining_count().await?;
     let total_mining_count = phase1_mining_count + phase2_mining_count;
-    let current_phase = state.env.get_mining_phase();
-    let is_phase2 = state.env.is_phase2();
+
+    let mining_phase = get_current_mining_phase(phase1_mining_count);
+    let is_phase2 = if mining_phase == MiningPhase::Phase2 { true } else { false }; 
     
     Ok(Json(json!({
         "phase1_mining_count": phase1_mining_count,
         "phase2_mining_count": phase2_mining_count,
         "total_mining_count": total_mining_count,
-        "current_phase": current_phase,
+        "current_phase": if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
         "is_phase2": is_phase2,
         "phase2_start_date": state.env.phase2_start_date,
         "user_id": user.id,
@@ -674,6 +688,66 @@ pub async fn select_role_tx(
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
+}
+
+/// Check patron eligibility based on new requirements
+pub async fn check_patron_eligibility(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<PatronEligibilityRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let mut eligibility_status = json!({
+        "eligible": false,
+        "requirements": {
+            "token_amount": {
+                "required": PATRON_MIN_TOKEN_AMOUNT,
+                "current": payload.token_amount,
+                "met": payload.token_amount >= PATRON_MIN_TOKEN_AMOUNT
+            },
+            "wallet_age": {
+                "required_days": PATRON_MIN_WALLET_AGE_DAYS,
+                "current_days": payload.wallet_age_days,
+                "met": payload.wallet_age_days >= PATRON_MIN_WALLET_AGE_DAYS
+            },
+            "mining_history": {
+                "required": 1, // > 0
+                "current": payload.total_mined_phase1,
+                "met": payload.total_mined_phase1 > 0
+            },
+            "staking_history": {
+                "required_months": PATRON_MIN_STAKING_MONTHS,
+                "met": false, // Will be checked in next step
+                "note": "Will be validated during token locking"
+            }
+        },
+        "errors": []
+    });
+
+    let mut errors = Vec::new();
+    
+    // Check token amount requirement
+    if payload.token_amount < PATRON_MIN_TOKEN_AMOUNT {
+        errors.push(format!("Insufficient token amount. Required: {} SNAKE, Current: {} SNAKE", 
+            PATRON_MIN_TOKEN_AMOUNT / 1_000_000_000, payload.token_amount / 1_000_000_000));
+    }
+    
+    // Check wallet age requirement
+    if payload.wallet_age_days < PATRON_MIN_WALLET_AGE_DAYS {
+        errors.push(format!("Wallet too young. Required: {} days, Current: {} days", 
+            PATRON_MIN_WALLET_AGE_DAYS, payload.wallet_age_days));
+    }
+    
+    // Check mining history requirement
+    if payload.total_mined_phase1 == 0 {
+        errors.push("No mining history found. You must have mined tokens in Phase 1".to_string());
+    }
+
+    // Overall eligibility
+    let eligible = errors.is_empty();
+    eligibility_status["eligible"] = json!(eligible);
+    eligibility_status["errors"] = json!(errors);
+
+    Ok(Json(eligibility_status))
 }
 
 #[derive(Deserialize)]

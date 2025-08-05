@@ -236,17 +236,17 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
     }
 
     if (stakingData?.userRole === 'staker' && stakeDuration !== 3) {
-      alert('Stakers can only lock tokens for 3 months.');
+      alert('Stakers can only lock tokens for 3 months. Note: Stakers must have 3+ months of previous staking history.');
       return;
     }
 
     if (stakingData?.userRole === 'patron' && stakeDuration !== 6) {
-      alert('Patrons can only lock tokens for 6 months.');
+      alert('Patrons can only lock tokens for 6 months. Note: Patrons must meet additional requirements including ≥250k tokens, 30+ day wallet age, mining history, and 6+ months staking history.');
       return;
     }
 
     if (stakingData?.userRole === 'patron' && stakingData?.patronStatus !== 'Approved') {
-      alert('Only approved patrons can stake tokens. Your patron status is: ' + stakingData?.patronStatus);
+      alert('Only approved patrons can stake tokens. Your patron status is: ' + stakingData?.patronStatus + '. Please ensure you meet all patron eligibility requirements.');
       return;
     }
     
@@ -538,7 +538,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           <button
             onClick={handleClaimYield}
             disabled={claiming || (stakingData?.rewards || 0) <= 0}
-            className="btn btn-primary"
+            className="primary-btn"
           >
             {claiming ? (
               <>
@@ -654,9 +654,24 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
 
                 <div className="alert alert-info">
                   <small>
-                    <strong>Note:</strong> Staked tokens will be locked for the selected duration. 
+                    <strong>Important:</strong> Staked tokens will be locked for the selected duration. 
                     You'll earn rewards based on the APY and can claim them periodically.
                   </small>
+                  {stakingData?.userRole === 'patron' && (
+                    <div className="mt-2">
+                      <small>
+                        <strong>Patron Requirements:</strong> This role requires ≥250k tokens, 30+ day wallet age, 
+                        Phase 1 mining history, and 6+ months of staking experience.
+                      </small>
+                    </div>
+                  )}
+                  {stakingData?.userRole === 'staker' && (
+                    <div className="mt-2">
+                      <small>
+                        <strong>Staker Requirements:</strong> This role requires 3+ months of previous staking history.
+                      </small>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

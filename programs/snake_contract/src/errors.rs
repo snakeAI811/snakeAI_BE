@@ -2,178 +2,176 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum SnakeError {
-    #[msg("Unauthorized owner key")]
+    #[msg("[SNAKE:6000] Unauthorized owner key")]
     Unauthorized,
-    #[msg("Cooldown period not passed")]
+    #[msg("[SNAKE:6001] Cooldown period not passed")]
     CooldownNotPassed,
-    #[msg("Insufficient funds in treasury")]
+    #[msg("[SNAKE:6002] Insufficient funds in treasury")]
     InsufficientFundsInTreasury,
-    #[msg("Insufficient funds")]
+    #[msg("[SNAKE:6003] Insufficient funds")]
     InsufficientFunds,
-    #[msg("Invalid treasury authority")]
+    #[msg("[SNAKE:6004] Invalid treasury authority")]
     InvalidTreasuryAuthority,
-    #[msg("Arithmetic overflow occurred")]
+    #[msg("[SNAKE:6005] Arithmetic overflow occurred")]
     ArithmeticOverflow,
-    #[msg("Claim is ended")]
+    #[msg("[SNAKE:6006] Claim is ended")]
     EndedClaim,
-    
+
     // Patron-related errors
-    #[msg("Patron application already exists")]
+    #[msg("[SNAKE:6007] Patron application already exists")]
     PatronApplicationExists,
-    #[msg("Patron not approved")]
+    #[msg("[SNAKE:6008] Patron not approved")]
     PatronNotApproved,
-    #[msg("Patron already approved")]
+    #[msg("[SNAKE:6009] Patron already approved")]
     PatronAlreadyApproved,
-    #[msg("Cannot exit as patron - tokens are locked")]
+    #[msg("[SNAKE:6010] Cannot exit as patron - tokens are locked")]
     PatronTokensLocked,
-    #[msg("Only approved patrons can perform this action")]
+    #[msg("[SNAKE:6011] Only approved patrons can perform this action")]
     OnlyApprovedPatrons,
-    
+
     // Lock and staking errors
-    #[msg("Tokens are currently locked")]
+    #[msg("[SNAKE:6012] Tokens are currently locked")]
     TokensLocked,
-    #[msg("No tokens locked for staking")]
+    #[msg("[SNAKE:6013] No tokens locked for staking")]
     NoTokensLocked,
-    #[msg("Lock period not completed")]
+    #[msg("[SNAKE:6014] Lock period not completed")]
     LockPeriodNotCompleted,
-    #[msg("Invalid lock duration")]
+    #[msg("[SNAKE:6015] Invalid lock duration")]
     InvalidLockDuration,
-    #[msg("Cannot lock zero tokens")]
+    #[msg("[SNAKE:6016] Cannot lock zero tokens")]
     CannotLockZeroTokens,
-    
+
     // DAO errors
-    #[msg("Not eligible for DAO membership")]
+    #[msg("[SNAKE:6017] Not eligible for DAO membership")]
     NotEligibleForDAO,
-    #[msg("No available DAO seats")]
+    #[msg("[SNAKE:6018] No available DAO seats")]
     NoAvailableSeats,
-    #[msg("Not a DAO seat holder")]
+    #[msg("[SNAKE:6019] Not a DAO seat holder")]
     NotDAOSeatHolder,
-    #[msg("Insufficient stake for DAO eligibility")]
+    #[msg("[SNAKE:6020] Insufficient stake for DAO eligibility")]
     InsufficientStakeForDAO,
-    #[msg("Lock duration requirement not met for DAO")]
+    #[msg("[SNAKE:6021] Lock duration requirement not met for DAO")]
     LockDurationRequirementNotMet,
-    
+
     // Transfer restrictions
-    #[msg("Patron tokens can only be transferred to other patrons")]
+    #[msg("[SNAKE:6022] Patron tokens can only be transferred to other patrons")]
     PatronTransferRestricted,
-    #[msg("Cannot sell tokens before lock period ends")]
+    #[msg("[SNAKE:6023] Cannot sell tokens before lock period ends")]
     CannotSellBeforeLockEnds,
-    #[msg("Early sale detected - commitment violated")]
+    #[msg("[SNAKE:6024] Early sale detected - commitment violated")]
     EarlySaleDetected,
-    
+
     // ========== MILESTONE 2: OTC SWAP ERRORS ==========
-    
-    // OTC Swap errors
-    #[msg("Invalid amount specified")]
+    #[msg("[SNAKE:6025] Invalid amount specified")]
     InvalidAmount,
-    #[msg("Invalid rate specified")]
+    #[msg("[SNAKE:6026] Invalid rate specified")]
     InvalidRate,
-    #[msg("Invalid rebate percentage")]
+    #[msg("[SNAKE:6027] Invalid rebate percentage")]
     InvalidRebate,
-    #[msg("Only normal users can sell tokens")]
+    #[msg("[SNAKE:6028] Only normal users can sell tokens")]
     OnlyNormalUsersCanSell,
-    #[msg("Only patrons can buy in this swap")]
+    #[msg("[SNAKE:6029] Only patrons can buy in this swap")]
     OnlyPatronsCanBuy,
-    #[msg("Swap is not active")]
+    #[msg("[SNAKE:6030] Swap is not active")]
     SwapInactive,
-    #[msg("Swap already accepted")]
+    #[msg("[SNAKE:6031] Swap already accepted")]
     SwapAlreadyAccepted,
-    #[msg("Cannot buy your own swap")]
+    #[msg("[SNAKE:6032] Cannot buy your own swap")]
     CannotBuyOwnSwap,
-    #[msg("Swap has expired")]
+    #[msg("[SNAKE:6033] Swap has expired")]
     SwapExpired,
-    #[msg("Swap has not expired yet")]
+    #[msg("[SNAKE:6034] Swap has not expired yet")]
     SwapNotExpired,
-    #[msg("Invalid swap type")]
+    #[msg("[SNAKE:6035] Invalid swap type")]
     InvalidSwapType,
-    #[msg("Treasury fallback not allowed for this swap")]
+    #[msg("[SNAKE:6036] Treasury fallback not allowed for this swap")]
     TreasuryFallbackNotAllowed,
-    #[msg("Math overflow occurred")]
+    #[msg("[SNAKE:6037] Math overflow occurred")]
     MathOverflow,
-    
+
     // ========== MILESTONE 3: GOVERNANCE ERRORS ==========
-    
-    // Governance errors
-    #[msg("Governance is not active")]
+    #[msg("[SNAKE:6038] Governance is not active")]
     GovernanceNotActive,
-    #[msg("Invalid proposal title")]
+    #[msg("[SNAKE:6039] Invalid proposal title")]
     InvalidProposalTitle,
-    #[msg("Invalid proposal description")]
+    #[msg("[SNAKE:6040] Invalid proposal description")]
     InvalidProposalDescription,
-    #[msg("Invalid proposal")]
+    #[msg("[SNAKE:6041] Invalid proposal")]
     InvalidProposal,
-    #[msg("Proposal is not active")]
+    #[msg("[SNAKE:6042] Proposal is not active")]
     ProposalNotActive,
-    #[msg("Proposal has not passed")]
+    #[msg("[SNAKE:6043] Proposal has not passed")]
     ProposalNotPassed,
-    #[msg("Voting period has ended")]
+    #[msg("[SNAKE:6044] Voting period has ended")]
     VotingPeriodEnded,
-    #[msg("Voting period has not ended")]
+    #[msg("[SNAKE:6045] Voting period has not ended")]
     VotingPeriodNotEnded,
-    #[msg("Cannot cancel proposal with votes")]
+    #[msg("[SNAKE:6046] Cannot cancel proposal with votes")]
     CannotCancelProposal,
-    #[msg("Already voted on this proposal")]
+    #[msg("[SNAKE:6047] Already voted on this proposal")]
     AlreadyVoted,
-    
+
     // Role transition errors
-    #[msg("Invalid role transition")]
+    #[msg("[SNAKE:6048] Invalid role transition")]
     InvalidRoleTransition,
-    #[msg("Insufficient qualification score for patron")]
+    #[msg("[SNAKE:6049] Insufficient qualification score for patron")]
     InsufficientQualificationScore,
-    #[msg("No mining history - user must mine tokens in Phase 1")]
+    #[msg("[SNAKE:6050] No mining history - user must mine tokens in Phase 1")]
     NoMiningHistory,
-    
+
     // ========== VESTING ERRORS ==========
-    
-    #[msg("Vesting not unlocked yet")]
+    #[msg("[SNAKE:6051] Vesting not unlocked yet")]
     VestingNotUnlocked,
-    #[msg("Vesting already withdrawn")]
+    #[msg("[SNAKE:6052] Vesting already withdrawn")]
     VestingAlreadyWithdrawn,
-    
+
     // ========== ENHANCED OTC SWAP ERRORS ==========
-    
-    #[msg("Swap is not active")]
+    #[msg("[SNAKE:6053] Swap is not active")]
     SwapNotActive,
-    #[msg("Not whitelisted for this swap")]
+    #[msg("[SNAKE:6054] Not whitelisted for this swap")]
     NotWhitelistedBuyer,
-    #[msg("Insufficient role for this swap")]
+    #[msg("[SNAKE:6055] Insufficient role for this swap")]
     InsufficientRole,
-    
+
     // ========== STUB OTC SWAP/BURN ERRORS ==========
-    
-    #[msg("Only patrons can perform this action")]
+    #[msg("[SNAKE:6056] Only patrons can perform this action")]
     OnlyPatrons,
-    #[msg("No exit to track")]
+    #[msg("[SNAKE:6057] No exit to track")]
     NoExitToTrack,
-    
+
     // ========== NEW PATRON FRAMEWORK ERRORS ==========
-    
-    #[msg("Not eligible for OTC trading")]
+    #[msg("[SNAKE:6058] Not eligible for OTC trading")]
     NotEligibleForOTC,
-    #[msg("Order is for patrons only")]
+    #[msg("[SNAKE:6059] Order is for patrons only")]
     PatronOnlyOrder,
-    #[msg("Order is for treasury only")]
+    #[msg("[SNAKE:6060] Order is for treasury only")]
     TreasuryOnlyOrder,
-    #[msg("Insufficient patron score")]
+    #[msg("[SNAKE:6061] Insufficient patron score")]
     InsufficientPatronScore,
-    #[msg("Order is not active")]
+    #[msg("[SNAKE:6062] Order is not active")]
     OrderNotActive,
-    #[msg("Invalid role for this action")]
+    #[msg("[SNAKE:6063] Invalid role for this action")]
     InvalidRole,
-    #[msg("Not approved patron")]
+    #[msg("[SNAKE:6064] Not approved patron")]
     NotApprovedPatron,
-    #[msg("Patron sold early")]
+    #[msg("[SNAKE:6065] Patron sold early")]
     PatronSoldEarly,
-    #[msg("Vesting is not active")]
+    #[msg("[SNAKE:6066] Vesting is not active")]
     VestingNotActive,
-    #[msg("Nothing to claim")]
+    #[msg("[SNAKE:6067] Nothing to claim")]
     NothingToClaim,
-    #[msg("Month 6 milestone not reached")]
+    #[msg("[SNAKE:6068] Month 6 milestone not reached")]
     Month6NotReached,
-    #[msg("Maximum DAO seats reached")]
+    #[msg("[SNAKE:6069] Maximum DAO seats reached")]
     MaxSeatsReached,
-    #[msg("DAO seat is not active")]
+    #[msg("[SNAKE:6070] DAO seat is not active")]
     SeatNotActive,
-    #[msg("Failed to fetch DAO seats")]
+    #[msg("[SNAKE:6071] Failed to fetch DAO seats")]
     FailedToFetchSeats,
+    
+    // Patron eligibility errors
+    #[msg("[SNAKE:6072] Insufficient staking history")]
+    InsufficientStakingHistory,
+    #[msg("[SNAKE:6073] Patron eligibility criteria not met")]
+    PatronEligibilityNotMet,
 }

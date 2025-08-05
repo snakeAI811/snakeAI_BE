@@ -260,7 +260,7 @@ function TweetMiningPage() {
                             {miningStats && (
                                 <div className="row mb-4">
                                     <div className="col-12">
-                                        <div className="card bg-light">
+                                        <div className="card">
                                             <div className="card-body">
                                                 <h5 className="card-title"> Mining Statistics</h5>
                                                 <div className="row">
@@ -326,7 +326,7 @@ function TweetMiningPage() {
                                             )}
 
                                             <button
-                                                className={`btn btn-lg ${isMining ? 'btn-warning' : 'btn-primary'}`}
+                                                className={`${isMining ? 'second-btn' : 'primary-btn'}`}
                                                 onClick={handleStartMining}
                                                 disabled={isLoading || !user?.twitter_username}
                                             >
@@ -361,7 +361,7 @@ function TweetMiningPage() {
                                         <div className="card-header d-flex justify-content-between align-items-center">
                                             <h5 className="mb-0">Your Tweets ({tweets.length})</h5>
                                             <button
-                                                className="btn btn-outline-primary btn-sm"
+                                                className="primary-btn py-1"
                                                 onClick={loadData}
                                                 disabled={isLoading}
                                             >

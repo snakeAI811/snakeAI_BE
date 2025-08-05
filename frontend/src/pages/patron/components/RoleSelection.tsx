@@ -11,6 +11,7 @@ import {
   clusterApiUrl
 } from '@solana/web3.js';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
+import { parseSmartContractError } from '../../../utils/common';
 
 interface RoleSelectionProps {
     userRole: UserRole;
@@ -45,9 +46,9 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     const connection = new Connection(process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
     // Constants from smart contract
-    const MINIMUM_STAKER_TOKENS = 500; // 500 SNAKE tokens (STAKE_AMOUNT)
+    const MINIMUM_STAKER_TOKENS = 5000; // 500 SNAKE tokens (STAKE_AMOUNT)
     const MINIMUM_PATRON_QUALIFICATION_SCORE = 50; // Minimum score needed
-    const MINIMUM_PATRON_MINED_TOKENS = 100; // 100 SNAKE tokens minimum mined in Phase 1
+    const MINIMUM_PATRON_MINED_TOKENS = 250000; // 100 SNAKE tokens minimum mined in Phase 1
 
     // useEffect(() => {
     //     fetchUserData();
@@ -245,7 +246,8 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             showSuccess(`Successfully changed role to ${selectedRole}!`);
         } catch (error) {
             if (!isUserRejection(error)) {
-                handleError(error, 'Failed to select role');
+                let msg = parseSmartContractError(error)
+                handleError(msg, 'Failed to select role');
             }
             console.error('Error selecting role:', error);
             setSelectedRole(userRole.role);
@@ -373,7 +375,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                 )}
 
                 <button
-                    className={`btn btn-${roleDescriptions[selectedRole].color} btn-lg`}
+                    className={`primary-btn btn-lg`}
                     onClick={handleRoleSelect}
                     disabled={loading || selectedRole === userRole.role}
                 >
@@ -392,7 +394,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
 
             {/* Important Information */}
             <div className="mt-4">
-                <div className="card border-info">
+                <div className="card border border-3 border-dashed">
                     <div className="card-body">
                         <h6 className="card-title">📋 Role Requirements & Information</h6>
                         <div className="row">

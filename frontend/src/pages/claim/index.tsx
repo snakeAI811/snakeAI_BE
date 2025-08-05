@@ -177,7 +177,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
   //           <div className="alert alert-danger">
   //             <h4>Error</h4>
   //             <p>{error}</p>
-  //             <button className="btn btn-primary" onClick={fetchClaimData}>
+  //             <button className="primary-btn" onClick={fetchClaimData}>
   //               Try Again
   //             </button>
   //           </div>
@@ -228,7 +228,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                   <div className="alert alert-warning text-center">
                     <h4>🔗 Connect Your Phantom Wallet</h4>
                     <p>Please connect your Phantom wallet to get reward</p>
-                    <button className="btn btn-primary btn-lg" onClick={connect}>
+                    <button className="primary-btn btn-lg" onClick={connect}>
                       Connect Phantom Wallet
                     </button>
                   </div>
@@ -305,7 +305,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                               </div>
                             </div>
                             <div className="col-md-6">
-                              <div className="card bg-light">
+                              <div className="card">
                                 <div className="card-body text-center">
                                   <div className={`badge bg-${claimData.phase === 'Phase1' ? 'success' : 'info'} fs-6 mb-2`}>
                                     {claimData.phase}
@@ -319,7 +319,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
 
                         {/* Current Balance Display */}
                         <div className="mb-4">
-                          <div className="card bg-light">
+                          <div className="card">
                             <div className="card-body">
                               <div className="row">
                                 <div className="col-md-6">
@@ -363,7 +363,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                         {/* Claim Button */}
                         <div className="d-grid">
                           <button
-                            className="btn btn-primary btn-lg"
+                            className="primary-btn btn-lg"
                             onClick={handleClaim}
                             disabled={claiming || claimData.claimed || !claimData.tweetId}
                           >

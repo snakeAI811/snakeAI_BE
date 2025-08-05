@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole } from '../index';
-import { patronApi } from '../services/apiService';
+import { patronApi, roleApi } from '../services/apiService';
 
 interface PatronApplicationProps {
   userRole: UserRole;
@@ -13,11 +13,24 @@ interface Application {
   qualification_score: number;
 }
 
+interface EligibilityCheck {
+  eligible: boolean;
+  requirements: {
+    token_amount: { required: number; current: number; met: boolean };
+    wallet_age: { required_days: number; current_days: number; met: boolean };
+    mining_history: { required: number; current: number; met: boolean };
+    staking_history: { required_months: number; met: boolean; note: string };
+  };
+  errors: string[];
+}
+
 function PatronApplication({ userRole }: PatronApplicationProps) {
   const [application, setApplication] = useState<Application | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pendingApplications, setPendingApplications] = useState<Application[]>([]);
+  const [eligibilityCheck, setEligibilityCheck] = useState<EligibilityCheck | null>(null);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   useEffect(() => {
     fetchApplicationStatus();
@@ -62,6 +75,25 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
     } catch (error) {
       console.error('Failed to fetch pending applications:', error);
       setPendingApplications([]);
+    }
+  };
+
+  const checkPatronEligibility = async () => {
+    setCheckingEligibility(true);
+    try {
+      // Mock values - in real app, these would come from user data and wallet
+      const tokenAmount = 250000 * 1_000_000_000; // 250k tokens in smallest units
+      const walletAgeDays = 35; // Mock wallet age
+      const totalMinedPhase1 = 1000 * 1_000_000_000; // Mock mined amount
+      
+      const response = await roleApi.checkPatronEligibility(tokenAmount, walletAgeDays, totalMinedPhase1);
+      if (response.success && response.data) {
+        setEligibilityCheck(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to check patron eligibility:', error);
+    } finally {
+      setCheckingEligibility(false);
     }
   };
 
@@ -177,13 +209,78 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
             </div>
 
             <div className="alert alert-info">
-              <strong>Requirements:</strong>
-              <ul className="mb-0 mt-2">
-                <li>Must be a Staker in good standing</li>
-                <li>Minimum token holding requirements</li>
-                <li>6-month commitment period</li>
-                <li>Community approval process</li>
-              </ul>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <strong>Requirements:</strong>
+                <button 
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={checkPatronEligibility}
+                  disabled={checkingEligibility}
+                >
+                  {checkingEligibility ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" />
+                      Checking...
+                    </>
+                  ) : (
+                    'Check Eligibility'
+                  )}
+                </button>
+              </div>
+              
+              {eligibilityCheck ? (
+                <div className="mt-3">
+                  <h6 className={`mb-2 ${eligibilityCheck.eligible ? 'text-success' : 'text-warning'}`}>
+                    {eligibilityCheck.eligible ? '✅ Eligible for Patron Role' : '⚠️ Requirements Not Met'}
+                  </h6>
+                  
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-2">
+                        <span className={`badge ${eligibilityCheck.requirements.token_amount.met ? 'bg-success' : 'bg-danger'} me-2`}>
+                          {eligibilityCheck.requirements.token_amount.met ? '✓' : '✗'}
+                        </span>
+                        <small>Token Amount: {(eligibilityCheck.requirements.token_amount.current / 1_000_000_000).toLocaleString()} / {(eligibilityCheck.requirements.token_amount.required / 1_000_000_000).toLocaleString()} SNAKE</small>
+                      </div>
+                      <div className="mb-2">
+                        <span className={`badge ${eligibilityCheck.requirements.wallet_age.met ? 'bg-success' : 'bg-danger'} me-2`}>
+                          {eligibilityCheck.requirements.wallet_age.met ? '✓' : '✗'}
+                        </span>
+                        <small>Wallet Age: {eligibilityCheck.requirements.wallet_age.current_days} / {eligibilityCheck.requirements.wallet_age.required_days} days</small>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-2">
+                        <span className={`badge ${eligibilityCheck.requirements.mining_history.met ? 'bg-success' : 'bg-danger'} me-2`}>
+                          {eligibilityCheck.requirements.mining_history.met ? '✓' : '✗'}
+                        </span>
+                        <small>Mining History: {(eligibilityCheck.requirements.mining_history.current / 1_000_000_000).toLocaleString()} SNAKE mined</small>
+                      </div>
+                      <div className="mb-2">
+                        <span className="badge bg-info me-2">ℹ</span>
+                        <small>Staking History: {eligibilityCheck.requirements.staking_history.required_months} months (validated at token lock)</small>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {eligibilityCheck.errors.length > 0 && (
+                    <div className="alert alert-warning mt-2 mb-0">
+                      <small><strong>Issues to resolve:</strong></small>
+                      <ul className="mb-0 mt-1">
+                        {eligibilityCheck.errors.map((error, index) => (
+                          <li key={index}><small>{error}</small></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <ul className="mb-0 mt-2">
+                  <li>Must have ≥250k SNAKE tokens</li>
+                  <li>Minimum 30 days wallet age</li>
+                  <li>Mining history in Phase 1</li>
+                  <li>6-month staking commitment</li>
+                </ul>
+              )}
             </div>
 
             <button

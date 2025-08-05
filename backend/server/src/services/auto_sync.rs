@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use sqlx::types::Uuid;
 use crate::state::AppState;
 use super::SolanaSync;

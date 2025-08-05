@@ -27,7 +27,7 @@ const WalletDisplay: React.FC = () => {
         <div className='d-flex justify-content-center'>
           <button 
             onClick={connect} 
-            className="btn btn-primary px-4 py-2"
+            className="primary-btn px-4 py-2"
             style={{
               background: '#A9E000',
               color: 'black',

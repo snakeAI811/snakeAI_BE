@@ -1,13 +1,10 @@
-use std::str::FromStr;
-
 use crate::state::AppState;
 use anchor_client::solana_sdk::{
-    message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, system_program,
+    message::Message, pubkey::Pubkey, system_program,
     transaction::Transaction,
 };
 use axum::{Extension, Json, extract::State};
 use base64::{Engine, engine};
-use serde_json::{json, Value};
 use types::{
     error::ApiError,
     model::User,

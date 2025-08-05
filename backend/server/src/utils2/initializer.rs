@@ -1,9 +1,7 @@
 use anchor_client::{
     solana_sdk::{
         pubkey::Pubkey,
-        signature::Signer,
     },
-    Client,
 };
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::ID as TOKEN_PROGRAM_ID;

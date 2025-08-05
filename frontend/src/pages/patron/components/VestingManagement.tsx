@@ -437,7 +437,7 @@ function VestingManagement({ userRole }: VestingManagementProps) {
                                 </div>
 
                                 <button
-                                    className="btn btn-primary w-100"
+                                    className="primary-btn w-100"
                                     onClick={handleCreateVesting}
                                     disabled={loading || !vestingAmount || Number(vestingAmount) <= 0 || showBalanceWarning || Number(vestingAmount) < 100}
                                 >

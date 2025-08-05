@@ -22,8 +22,7 @@ function Home() {
         tokenInfo, 
         loading, 
         error, 
-        showWalletWarning,
-        refreshData 
+        refreshAllAppData 
     } = useAppContext();
 
     // Calculate mining progress
@@ -82,7 +81,7 @@ function Home() {
                             </div>
                             <button 
                                 className="btn btn-outline-danger btn-sm"
-                                onClick={refreshData}
+                                onClick={refreshAllAppData}
                             >
                                 Retry
                             </button>
@@ -105,14 +104,14 @@ function Home() {
                         </div>
 
                         {/* Current Status */}
-                        <div className="d-flex align-items-center py-3 custom-border-top w-100">
+                        <div className="align-items-center py-3 custom-border-top w-100 mining-progress">
                             <div className="bg-black p-2 px-4 text-light-green-950 rounded-3" style={{ minWidth: '180px'}}>
                                 <div className="fs-4 fw-bold">
                                     {miningStatus?.current_phase === 1 ? 'PHASE 1:' : 'PHASE 2:'}
                                 </div>
                                 <div className="fs-6">MINING EPOCH</div>
                             </div>
-                            <div className="custom-border-left mx-3" style={{height: '70px'}} > </div>
+                            <div className="custom-border-left mx-3 divide-y " style={{height: '70px'}} > </div>
                             <div className="d-flex align-items-center">
                                 <div className="progress-bar-container rounded me-3">
                                     <div 

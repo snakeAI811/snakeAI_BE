@@ -12,6 +12,7 @@ import { UserRole } from "../patron/index";
 import './index.css';
 // icons
 import { ReactComponent as IconLeftLogo } from "../../svgs/logo-left.svg";
+import { useAppContext } from "../../contexts/AppContext";
 
 interface ProfileData {
     twitter_username: string;
@@ -73,6 +74,11 @@ function Profile() {
         balance: 0, locked: 0, staked: 0, rewards: 0
     });
 
+    const { 
+            userProfile, 
+            tokenInfo, 
+        } = useAppContext();
+
     const [userStats, setUserStats] = useState<UserStats>({
         total_mined_phase1: 0,
         wallet_age_days: 0,
@@ -86,18 +92,18 @@ function Profile() {
             try {
                 setLoading(true);
 
-                const [profileResponse, userResponse, roleResponse, tokenResponse] = await Promise.all([
-                    userApi.getProfile(),
+                const [userResponse, roleResponse] = await Promise.all([
+                    // userApi.getProfile(),
                     userApi.getMe(),
                     roleApi.getUserRole(),
-                    tokenApi.getTokenInfo()
+                    // tokenApi.getTokenInfo()
                 ]);
 
-                if (profileResponse.success && profileResponse.data) {
-                    setProfileData(profileResponse.data);
-                    const tweets = profileResponse.data.tweets || 0;
-                    const likes = profileResponse.data.likes || 0;
-                    const mined = profileResponse.data.reward_balance || 0;
+                if (userProfile ) {
+                    setProfileData(userProfile);
+                    const tweets = userProfile.tweets || 0;
+                    const likes = userProfile.likes || 0;
+                    const mined = userProfile.reward_balance || 0;
 
                     setUserStats({
                         total_mined_phase1: mined,
@@ -111,7 +117,7 @@ function Profile() {
                     setUserDetails({
                         selected_role: userResponse.data.selected_role,
                         patron_status: userResponse.data.patron_status,
-                        ranking: calculateRanking(profileResponse.data?.reward_balance || 0)
+                        ranking: calculateRanking(userResponse.data?.reward_balance || 0)
                     });
                 }
 
@@ -123,12 +129,12 @@ function Profile() {
                     setUserRole({ ...roleResponse.data, role: mappedRole });
                 }
 
-                if (tokenResponse.success && tokenResponse.data) {
+                if (tokenInfo) {
                     setTokenBalance({
-                        balance: tokenResponse.data.balance || 0,
-                        locked: tokenResponse.data.locked || 0,
-                        staked: tokenResponse.data.staked || 0,
-                        rewards: tokenResponse.data.rewards || 0
+                        balance: tokenInfo.balance || 0,
+                        locked: tokenInfo.locked || 0,
+                        staked: tokenInfo.staked || 0,
+                        rewards: tokenInfo.rewards || 0
                     });
                 }
             } catch (error) {
@@ -137,8 +143,21 @@ function Profile() {
                 setLoading(false);
             }
         };
-
-        fetchProfileData();
+        if (connected) {
+            fetchProfileData();
+        } else {
+            setProfileData(null);
+            setUserDetails(null);
+            setUserRole({ role: 'none' });
+            setTokenBalance({ balance: 0, locked: 0, staked: 0, rewards: 0 });
+            setUserStats({
+                total_mined_phase1: 0,
+                wallet_age_days: 0,
+                community_score: 0,
+                patron_qualification_score: 0
+            });
+            setLoading(false);
+        }
     }, [connected]); // Add connected as dependency
 
     // Countdown timer effect
@@ -229,8 +248,8 @@ function Profile() {
                         <div className="row ">
                             {/* Left Column - Profile Info */}
                             <div className="col-12 col-lg-7 custom-border mt-4">
-                                <div className="profile-section p-3">
-                                    <div className="row align-items-center gap-4">
+                                <div className=" p-3">
+                                    <div className="profile-section gap-4">
                                         <div className="col-auto">
                                             <div className="avatar-container">
                                                 <div className="pixel-avatar"><IconLeftLogo /></div>
@@ -311,7 +330,7 @@ function Profile() {
                         )}
 
                         {/* Countdown Section */}
-                        <div className="countdown-section mt-4 py-3 custom-border-top w-100">
+                        {/* <div className="countdown-section mt-4 py-3 custom-border-top w-100">
                             <div className="retro-text mb-3">COUNTDOWN TO "EVENT NAME"</div>
                             <div className="row g-2 justify-content-center">
                                 <div className="col-auto">
@@ -339,7 +358,7 @@ function Profile() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

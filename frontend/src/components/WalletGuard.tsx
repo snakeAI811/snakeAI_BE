@@ -33,7 +33,7 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
         ) : (
           <button 
             onClick={connect} 
-            className="btn btn-primary btn-lg"
+            className="primary-btn btn-lg"
             style={{
               background: '#A9E000',
               color: 'black',

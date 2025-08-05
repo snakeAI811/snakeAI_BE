@@ -1030,3 +1030,24 @@ body {
     min-height: 600px;
   }
 }
+
+.primary-btn {
+  padding: 10px 20px;
+  background-color: #A9E000;
+  color: black;
+  border: none;
+}
+
+.second-btn {
+  padding: 10px 20px;
+  background-color: #FCFCFCCC;
+  color: black;
+  border: none;
+}
+
+.card, .card:focus, .card:focus-visible, .card-body {
+  background: transparent;
+  background-color: transparent !important;
+  border-radius: none !important;
+  border: 1px solid black !important;
+}

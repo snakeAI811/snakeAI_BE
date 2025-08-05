@@ -35,7 +35,7 @@ function DemoMode({ onEnableDemo }: DemoModeProps) {
           <h6>What's New in Phase 2:</h6>
           <div className="row g-3">
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card">
                 <div className="card-body p-2">
                   <h6 className="card-title fs-6">🎭 Role Selection</h6>
                   <small>Choose between Exit, Staker, or Patron paths during token claiming</small>
@@ -43,7 +43,7 @@ function DemoMode({ onEnableDemo }: DemoModeProps) {
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card">
                 <div className="card-body p-2">
                   <h6 className="card-title fs-6">💰 Enhanced Mining</h6>
                   <small>Anyone can mine, but roles unlock special benefits and rewards</small>
@@ -51,7 +51,7 @@ function DemoMode({ onEnableDemo }: DemoModeProps) {
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card">
                 <div className="card-body p-2">
                   <h6 className="card-title fs-6">🔒 Token Vesting</h6>
                   <small>Custom vesting contracts with 5% APY for stakers</small>

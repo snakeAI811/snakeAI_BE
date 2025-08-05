@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { tokenApi } from '../services/apiService';
+import { useAppContext } from '../../../contexts/AppContext';
 
 interface MiningStatusData {
   current_phase: 1 | 2;
@@ -11,32 +12,14 @@ interface MiningStatusData {
 }
 
 function MiningStatus() {
-  const [miningData, setMiningData] = useState<MiningStatusData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
 
-  useEffect(() => {
-    fetchMiningStatus();
-  }, []);
-
-  const fetchMiningStatus = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await tokenApi.getMiningStatus();
-      if (response.success && response.data) {
-        setMiningData(response.data);
-      } else {
-        throw new Error(response.error || 'Failed to fetch mining status');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch mining status');
-      console.error('Error fetching mining status:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    miningStatus : miningData,
+    loading,
+    error,
+    fetchMiningStatus,
+  } = useAppContext();
 
   if (loading) {
     return (
@@ -114,7 +97,7 @@ function MiningStatus() {
         {/* Mining Statistics */}
         <div className="row g-3">
           <div className="col-md-6">
-            <div className="card bg-light">
+            <div className="card">
               <div className="card-body text-center">
                 <div className="fs-2 fw-bold text-success">{miningData.phase1_tweet_count}</div>
                 <small className="text-muted">Phase 1 Tweets</small>
@@ -122,7 +105,7 @@ function MiningStatus() {
             </div>
           </div>
           <div className="col-md-6">
-            <div className="card bg-light">
+            <div className="card">
               <div className="card-body text-center">
                 <div className="fs-2 fw-bold text-primary">{miningData.phase2_tweet_count}</div>
                 <small className="text-muted">Phase 2 Tweets</small>
@@ -169,7 +152,7 @@ function MiningStatus() {
                   <h6 className="fs-6">🎭 Role Benefits in Phase 2:</h6>
                   <div className="row g-2">
                     <div className="col-12">
-                      <div className="card bg-light">
+                      <div className="card">
                         <div className="card-body p-2">
                           <div className="d-flex align-items-center">
                             <span className="badge bg-secondary me-2">👤 None</span>
@@ -179,7 +162,7 @@ function MiningStatus() {
                       </div>
                     </div>
                     <div className="col-12">
-                      <div className="card bg-light">
+                      <div className="card">
                         <div className="card-body p-2">
                           <div className="d-flex align-items-center">
                             <span className="badge bg-primary me-2">🏦 Staker</span>
@@ -189,7 +172,7 @@ function MiningStatus() {
                       </div>
                     </div>
                     <div className="col-12">
-                      <div className="card bg-light">
+                      <div className="card">
                         <div className="card-body p-2">
                           <div className="d-flex align-items-center">
                             <span className="badge bg-warning me-2">👑 Patron</span>

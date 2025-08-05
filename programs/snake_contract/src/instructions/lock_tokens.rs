@@ -4,7 +4,14 @@ use crate::{
     state::{UserClaim, UserRole, PatronStatus, RewardPool},
     events::TokensLocked,
     errors::SnakeError,
-    constants::{STAKER_LOCK_DURATION_MONTHS, PATRON_LOCK_DURATION_MONTHS},
+    constants::{
+        STAKER_LOCK_DURATION_MONTHS, 
+        PATRON_LOCK_DURATION_MONTHS,
+        PATRON_MIN_TOKEN_AMOUNT,
+        PATRON_MIN_WALLET_AGE_DAYS,
+        PATRON_MIN_STAKING_MONTHS,
+        STAKER_MIN_STAKING_MONTHS,
+    },
 };
 
 #[derive(Accounts)]
@@ -43,6 +50,44 @@ pub struct LockTokens<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// Helper function to check if user has sufficient staking history
+fn has_sufficient_staking_history(user_claim: &UserClaim, required_months: u8) -> bool {
+    if user_claim.lock_start_timestamp == 0 {
+        return false; // No staking history
+    }
+    
+    let current_time = Clock::get().unwrap().unix_timestamp;
+    let staking_duration_seconds = current_time.saturating_sub(user_claim.lock_start_timestamp);
+    let required_seconds = (required_months as i64) * 30 * 24 * 60 * 60; // Approximate months to seconds
+    
+    staking_duration_seconds >= required_seconds
+}
+
+/// Helper function to validate patron eligibility
+fn validate_patron_eligibility(user_claim: &UserClaim, token_amount: u64) -> bool {
+    // Check token amount (>=250k)
+    if token_amount < PATRON_MIN_TOKEN_AMOUNT {
+        return false;
+    }
+    
+    // Check minimum mining threshold (> 0)
+    if user_claim.total_mined_phase1 == 0 {
+        return false;
+    }
+    
+    // Check wallet age (>= 30 days)
+    if user_claim.wallet_age_days < PATRON_MIN_WALLET_AGE_DAYS {
+        return false;
+    }
+    
+    // Check staking history (6 months)
+    if !has_sufficient_staking_history(user_claim, PATRON_MIN_STAKING_MONTHS) {
+        return false;
+    }
+    
+    true
+}
+
 pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     let current_time = Clock::get()?.unix_timestamp;
@@ -50,10 +95,23 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     require!(amount > 0, SnakeError::CannotLockZeroTokens);
     require!(!user_claim.is_locked(), SnakeError::TokensLocked);
     
-    // Validate duration based on user role
+    // Validate duration and eligibility based on user role
     let valid_duration = match user_claim.role {
-        UserRole::Staker => duration_months == STAKER_LOCK_DURATION_MONTHS,
+        UserRole::Staker => {
+            // Check if user has staking history (3+ months)
+            require!(
+                has_sufficient_staking_history(user_claim, STAKER_MIN_STAKING_MONTHS),
+                SnakeError::InsufficientStakingHistory
+            );
+            duration_months == STAKER_LOCK_DURATION_MONTHS
+        },
         UserRole::Patron => {
+            // Validate patron eligibility criteria
+            require!(
+                validate_patron_eligibility(user_claim, amount),
+                SnakeError::PatronEligibilityNotMet
+            );
+            
             // Only approved patrons can lock for 6 months
             require!(
                 user_claim.patron_status == PatronStatus::Approved,

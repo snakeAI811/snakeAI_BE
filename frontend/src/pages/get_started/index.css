@@ -128,3 +128,18 @@
     padding-top: 2rem !important;
   }
 }
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(10px);
+    opacity: 1;
+  }
+}
+
+.scroll-down-icon {
+  animation: bounce 1.5s infinite ease-in-out;
+}

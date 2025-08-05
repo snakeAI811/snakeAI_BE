@@ -18,8 +18,14 @@ pub const STAKING_APY_PERCENT: u64 = 5; // 5% APY
 pub const SECONDS_IN_YEAR: i64 = 365 * 24 * 60 * 60;
 
 // DAO constants
-pub const MIN_DAO_STAKE_AMOUNT: u64 = 1_000_000_000; // 1000 tokens
+pub const MIN_DAO_STAKE_AMOUNT: u64 = 250_000_000_000_000; // 250k tokens
 pub const DAO_TOTAL_SEATS: u32 = 50;
 
 // Patron exit penalty
 pub const PATRON_EXIT_BURN_PERCENT: u64 = 20; // 20% burn on exit
+
+// Patron qualification constants
+pub const PATRON_MIN_TOKEN_AMOUNT: u64 = 250_000_000_000_000; // 250k tokens
+pub const PATRON_MIN_WALLET_AGE_DAYS: u32 = 1; // 30 days minimum wallet age
+pub const PATRON_MIN_STAKING_MONTHS: u8 = 6; // 6 months staking history required
+pub const STAKER_MIN_STAKING_MONTHS: u8 = 3; // 3 months staking history required

@@ -20,9 +20,7 @@ function MainHeader() {
                             {/* <span className="text-white">Welcome, {user?.twitter_username || 'User'}!</span> */}
                             <button
                                 onClick={() => navigate('/home')}
-                                className="border border-0 rounded fs-6 fw-bold py-1 px-2 text-decoration-none text-center"
-                                style={{ backgroundColor: "#a9e000", color: "white" }}
-                            >
+                                className="fs-5 fw-bold primary-btn text-decoration-none text-center" >
                                 DashBoard
                             </button>
                             <button
@@ -30,9 +28,7 @@ function MainHeader() {
                                     await logout();
                                     navigate('/');
                                 }}
-                                className="border border-0 rounded fs-6 fw-bold py-1 px-2 text-decoration-none text-center"
-                                style={{ backgroundColor: "#ff4444", color: "white" }}
-                            >
+                                className="fs-5 fw-bold second-btn text-decoration-none text-center">
                                 LOGOUT
                             </button>
                         </div>

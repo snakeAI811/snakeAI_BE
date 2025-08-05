@@ -54,21 +54,21 @@ function MiningInstructions({ onClose }: MiningInstructionsProps) {
                 <h6>📋 Mining Phases</h6>
                 <div className="row g-2">
                     <div className="col-md-4">
-                        <div className="card bg-light">
+                        <div className="card ">
                             <div className="card-body p-2">
                                 <small><strong>Phase 1:</strong> Basic mining for Twitter engagement</small>
                             </div>
                         </div>
                     </div>
                     <div className="col-md-4">
-                        <div className="card bg-light">
+                        <div className="card ">
                             <div className="card-body p-2">
                                 <small><strong>Phase 2:</strong> Role-based mining with enhanced rewards</small>
                             </div>
                         </div>
                     </div>
                     <div className="col-md-4">
-                        <div className="card bg-light">
+                        <div className="card ">
                             <div className="card-body p-2">
                                 <small><strong>Goal:</strong> 100M tweets to complete mining</small>
                             </div>

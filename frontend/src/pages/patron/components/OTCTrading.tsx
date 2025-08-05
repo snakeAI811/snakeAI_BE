@@ -160,7 +160,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="card-title mb-0">📝 Create OTC Swap</h5>
               <button
-                className="btn btn-primary"
+                className="primary-btn"
                 onClick={() => setShowCreateForm(!showCreateForm)}
               >
                 {showCreateForm ? 'Cancel' : 'Create New Swap'}

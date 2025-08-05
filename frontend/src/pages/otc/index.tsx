@@ -397,7 +397,7 @@ const OTCTrading: React.FC = () => {
                     <div className="d-flex justify-content-between align-items-center">
                       <button
                         onClick={() => setShowCreateForm(true)}
-                        className="btn btn-primary"
+                        className="primary-btn"
                         disabled={loading || !connected}
                       >
                         {loading ? (
@@ -438,7 +438,7 @@ const OTCTrading: React.FC = () => {
                   </div>
 
                   {showCreateForm && (
-                    <div className="card-body bg-light border-bottom">
+                    <div className="card-bodyborder-bottom">
                       <h5 className="card-title">📝 Create Sell Order</h5>
                       <div className="row g-3">
                         <div className="col-md-6">
@@ -520,7 +520,7 @@ const OTCTrading: React.FC = () => {
                         {activeTab === 'my' && (
                           <button
                             onClick={() => setShowCreateForm(true)}
-                            className="btn btn-primary mt-2"
+                            className="primary-btn mt-2"
                             disabled={!connected}
                           >
                             Create Your First Order
@@ -619,7 +619,7 @@ const OTCTrading: React.FC = () => {
                                       )}
                                     </button>
                                   ) : (
-                                    <span className="badge bg-light text-dark">Not Eligible</span>
+                                    <span className="badgetext-dark">Not Eligible</span>
                                   )}
                                 </td>
                               </tr>

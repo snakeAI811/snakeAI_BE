@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use types::error::ApiError;
 
 pub struct SolanaSync {

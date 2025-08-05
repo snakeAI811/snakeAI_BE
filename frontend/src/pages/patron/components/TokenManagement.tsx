@@ -6,7 +6,7 @@ import { useWalletContext } from '../../../contexts/WalletContext';
 import { Connection, Transaction, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { SOLANA_RPC_URL, TOKEN_MINT } from '../../../config/program';
-import { parseSmartContractError } from '../../../utils/errorParser';
+import { parseSmartContractError } from '../../../utils/common';
 
 interface TokenManagementProps {
     userRole: UserRole;
@@ -610,7 +610,7 @@ function TokenManagement({ userRole }: TokenManagementProps) {
                             )}
 
                             <button
-                                className="btn btn-primary w-100"
+                                className="primary-btn w-100"
                                 onClick={handleLockTokens}
                                 disabled={loading || !lockAmount || Number(lockAmount) <= 0 || showBalanceWarning || Number(lockAmount) < 100}
                             >

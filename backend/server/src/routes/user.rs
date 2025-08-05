@@ -14,7 +14,7 @@ use crate::{
             // Smart contract interaction endpoints
             save_role_selection, select_role_tx, apply_patron_tx, approve_patron_tx, claim_tokens_with_role_tx,
             lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
-            initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx,
+            initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx, check_patron_eligibility,
         },
     },
     state::AppState,
@@ -52,6 +52,7 @@ pub fn routes() -> Router<AppState> {
         .route("/initialize_user_claim", post(get_initialize_user_claim_tx))
         .route("/select_role", post(select_role_tx))
         .route("/save_role_selection", post(save_role_selection))
+        .route("/check_patron_eligibility", post(check_patron_eligibility))
         .route("/apply_patron", post(apply_patron_tx))
         .route("/approve_patron", post(approve_patron_tx))
         .route("/claim_tokens_with_role", post(claim_tokens_with_role_tx))

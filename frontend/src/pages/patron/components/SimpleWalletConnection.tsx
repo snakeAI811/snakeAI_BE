@@ -5,14 +5,7 @@ const SimpleWalletConnection: React.FC = () => {
   const { publicKey, connected, connecting, connect, disconnect } = useWalletContext();
 
   return (
-    <div style={{
-      // background: '#f5f5f5',
-      // padding: '20px',
-      // borderRadius: '8px',
-      // marginBottom: '20px'
-    }}>
-      {/* <h3 style={{ marginTop: 0, color: '#333' }}>Wallet Connection</h3> */}
-      
+    <div>
       <div>
         {!connected && !connecting && (
           <div className='d-flex justify-content-center'>
@@ -24,7 +17,7 @@ const SimpleWalletConnection: React.FC = () => {
                 color: 'black',
                 border: 'none',
                 padding: '10px 20px',
-                borderRadius: '4px',
+                borderRadius: '2px',
                 cursor: 'pointer',
               }}
             >
@@ -42,7 +35,7 @@ const SimpleWalletConnection: React.FC = () => {
             marginTop: '15px',
             padding: '15px',
             background: 'transparent',
-            borderRadius: '5px',
+            borderRadius: '3px',
             border: '2px dashed #333'
           }}>
             <p style={{ margin: '5px 0', fontSize: '14px' }}>

@@ -1,7 +1,7 @@
 // Custom hook for handling smart contract errors consistently
 
 import { useCallback } from 'react';
-import { parseSmartContractError } from '../utils/errorParser';
+import { parseSmartContractError } from '../utils/common';
 import { useToast } from '../contexts/ToastContext';
 
 /**

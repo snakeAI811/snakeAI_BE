@@ -96,6 +96,26 @@ export const roleApi = {
         });
     },
 
+    checkPatronEligibility: async (tokenAmount: number, walletAgeDays: number, totalMinedPhase1: number) => {
+        return apiCall<{
+            eligible: boolean;
+            requirements: {
+                token_amount: { required: number; current: number; met: boolean };
+                wallet_age: { required_days: number; current_days: number; met: boolean };
+                mining_history: { required: number; current: number; met: boolean };
+                staking_history: { required_months: number; met: boolean; note: string };
+            };
+            errors: string[];
+        }>('/user/check_patron_eligibility', {
+            method: 'POST',
+            body: JSON.stringify({
+                token_amount: tokenAmount,
+                wallet_age_days: walletAgeDays,
+                total_mined_phase1: totalMinedPhase1,
+            }),
+        });
+    },
+
     getUserRole: async () => {
         return apiCall<{ role: string; status?: string }>('/user/profile', {
             method: 'GET',
