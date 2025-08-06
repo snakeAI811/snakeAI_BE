@@ -36,7 +36,7 @@ impl UserRepository {
                 lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,
                 initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
                 total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
-                role_transaction_signature, role_updated_at
+                role_transaction_signature, role_updated_at,  is_following
             "#,
             twitter_id,
             twitter_username,
@@ -201,4 +201,22 @@ impl UserRepository {
 
         Ok(user)
     }
+
+    pub async fn update_is_following_by_twitter_id(
+        &self,
+        twitter_id: &str,
+        is_following: bool,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET is_following = $1 WHERE twitter_id = $2 RETURNING *",
+            is_following,
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
 }

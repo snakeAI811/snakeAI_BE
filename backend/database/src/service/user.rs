@@ -152,4 +152,15 @@ impl UserService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn update_is_following_by_twitter_id(
+        &self,
+        twitter_id: &str,
+        is_following: bool,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .update_is_following_by_twitter_id(twitter_id, is_following)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }
