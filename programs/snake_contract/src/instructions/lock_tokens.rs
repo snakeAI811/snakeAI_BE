@@ -11,8 +11,9 @@ use crate::{
         PATRON_MIN_WALLET_AGE_DAYS,
         PATRON_MIN_STAKING_MONTHS,
         STAKER_MIN_STAKING_MONTHS,
+        USER_CLAIM_SEED
     },
-};
+};  
 
 #[derive(Accounts)]
 pub struct LockTokens<'info> {
@@ -21,7 +22,7 @@ pub struct LockTokens<'info> {
     
     #[account(
         mut,
-        seeds = [b"user_claim", user.key().as_ref()],
+        seeds = [USER_CLAIM_SEED, user.key().as_ref()],
         bump,
         constraint = user_claim.initialized @ SnakeError::Unauthorized,
     )]
@@ -96,33 +97,33 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     require!(!user_claim.is_locked(), SnakeError::TokensLocked);
     
     // Validate duration and eligibility based on user role
-    let valid_duration = match user_claim.role {
-        UserRole::Staker => {
-            // Check if user has staking history (3+ months)
-            require!(
-                has_sufficient_staking_history(user_claim, STAKER_MIN_STAKING_MONTHS),
-                SnakeError::InsufficientStakingHistory
-            );
-            duration_months == STAKER_LOCK_DURATION_MONTHS
-        },
-        UserRole::Patron => {
-            // Validate patron eligibility criteria
-            require!(
-                validate_patron_eligibility(user_claim, amount),
-                SnakeError::PatronEligibilityNotMet
-            );
+    // let valid_duration = match user_claim.role {
+    //     UserRole::Staker => {
+    //         // Check if user has staking history (3+ months)
+    //         require!(
+    //             has_sufficient_staking_history(user_claim, STAKER_MIN_STAKING_MONTHS),
+    //             SnakeError::InsufficientStakingHistory
+    //         );
+    //         duration_months == STAKER_LOCK_DURATION_MONTHS
+    //     },
+    //     UserRole::Patron => {
+    //         // Validate patron eligibility criteria
+    //         require!(
+    //             validate_patron_eligibility(user_claim, amount),
+    //             SnakeError::PatronEligibilityNotMet
+    //         );
             
-            // Only approved patrons can lock for 6 months
-            require!(
-                user_claim.patron_status == PatronStatus::Approved,
-                SnakeError::OnlyApprovedPatrons
-            );
-            duration_months == PATRON_LOCK_DURATION_MONTHS
-        },
-        _ => false,
-    };
+    //         // Only approved patrons can lock for 6 months
+    //         require!(
+    //             user_claim.patron_status == PatronStatus::Approved,
+    //             SnakeError::OnlyApprovedPatrons
+    //         );
+    //         duration_months == PATRON_LOCK_DURATION_MONTHS
+    //     },
+    //     _ => false,
+    // };
     
-    require!(valid_duration, SnakeError::InvalidLockDuration);
+    require!(duration_months >= 3, SnakeError::InvalidLockDuration);
     
     // Calculate lock end time
     let seconds_in_month = 30 * 24 * 60 * 60; // Approximate

@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole } from '../index';
-import { roleApi, tokenApi, userApi } from '../services/apiService';
-import { useToast } from '../../../contexts/ToastContext';
-import { useAppContext } from '../../../contexts/AppContext';
-import { useWalletContext } from '../../../contexts/WalletContext';
+import { roleApi, tokenApi, userApi } from '../patron/services/apiService';
+import { useToast } from '../../contexts/ToastContext';
+import { useAppContext } from '../../contexts/AppContext';
+import { useWalletContext } from '../../contexts/WalletContext';
 import {
   Connection,
   PublicKey,
   Transaction,
   clusterApiUrl
 } from '@solana/web3.js';
-import { useErrorHandler } from '../../../hooks/useErrorHandler';
-import { parseSmartContractError } from '../../../utils/common';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+
+export interface UserRole {
+  role: 'none' | 'staker' | 'patron';
+  status?: string;
+  locked_until?: number;
+  stake_amount?: number;
+}
 
 interface RoleSelectionProps {
     userRole: UserRole;
@@ -246,8 +251,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             showSuccess(`Successfully changed role to ${selectedRole}!`);
         } catch (error) {
             if (!isUserRejection(error)) {
-                let msg = parseSmartContractError(error)
-                handleError(msg, 'Failed to select role');
+                handleError(error, 'Failed to select role');
             }
             console.error('Error selecting role:', error);
             setSelectedRole(userRole.role);

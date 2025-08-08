@@ -91,7 +91,7 @@ const MyComponent = () => {
                 // Handle user rejection quietly
                 return;
             }
-            handleError(error, 'Failed to complete transaction');
+            handleError(error, 'Failed to complete transaction'); 
         }
     };
     

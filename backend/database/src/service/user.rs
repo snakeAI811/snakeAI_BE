@@ -119,13 +119,13 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn update_selected_role(
+    pub async fn update_role(
         &self,
         user_id: &Uuid,
-        selected_role: &str,
+        role: &str,
     ) -> Result<User, ApiError> {
         self.user_repo
-            .update_selected_role(user_id, selected_role)
+            .update_role(user_id, role)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

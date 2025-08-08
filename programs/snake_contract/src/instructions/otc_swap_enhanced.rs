@@ -2,15 +2,20 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer, Approve, Burn, Mint};
 use crate::state::{UserClaim, UserRole, PatronStatus, OtcSwap, RewardPool};
 use crate::errors::SnakeError;
-use crate::events::{SwapInitiated, SwapCompleted, TokensBurned};
+use crate::events::{SwapInitiated, SwapCompleted, SwapCancelled, TokensBurned};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum SwapType {
-    NormalToPatron,     // Normal user → Patron
-    NormalToStaker,     // Normal user → Staker
-    PatronToPatron,     // Patron → Patron (with restrictions)
-    TreasuryBuyback,    // Treasury buyback
-    AnyToAny,           // Open market
+    ExiterToPatron,     // Phase 1: Exiter (None role) → Patron at fixed price
+    ExiterToTreasury,   // Phase 1: Exiter → Treasury (fallback)
+    PatronToPatron,     // Phase 2: Patron → Patron with 20% burn
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+pub enum BuyerMatchingMethod {
+    FIFO,               // First In, First Out
+    ScoreWeighted,      // Based on mining/reputation score
+    Randomized,         // Random selection
 }
 
 // ========== INITIATE OTC SWAP (ENHANCED) ==========
@@ -62,81 +67,110 @@ pub fn initiate_otc_swap_enhanced(
     require!(token_amount > 0, SnakeError::InvalidAmount);
     require!(sol_rate > 0, SnakeError::InvalidRate);
     
-    // Validate seller can create this type of swap
+    // Phase 1 & 2 Role Validation
     match swap_type {
-        SwapType::NormalToPatron => {
-            require!(seller_claim.role == UserRole::None, SnakeError::OnlyNormalUsersCanSell);
+        SwapType::ExiterToPatron => {
+            // Phase 1: Only "None" role users (Exiters) can sell to Patrons
+            require!(
+                seller_claim.role == UserRole::None, 
+                SnakeError::OnlyExitersCanSell
+            );
+            
+            // Ensure tokens are unlocked and eligible for sale
+            require!(
+                seller_claim.can_unlock(), 
+                SnakeError::TokensStillLocked
+            );
         },
-        SwapType::NormalToStaker => {
-            require!(seller_claim.role == UserRole::None, SnakeError::OnlyNormalUsersCanSell);
+        SwapType::ExiterToTreasury => {
+            // Phase 1: Treasury fallback for Exiters
+            require!(
+                seller_claim.role == UserRole::None, 
+                SnakeError::OnlyExitersCanSell
+            );
+            
+            require!(
+                seller_claim.can_unlock(), 
+                SnakeError::TokensStillLocked
+            );
         },
         SwapType::PatronToPatron => {
+            // Phase 2: Only active Patrons can sell to other Patrons
             require!(
                 seller_claim.role == UserRole::Patron && 
                 seller_claim.patron_status == PatronStatus::Approved,
                 SnakeError::OnlyApprovedPatrons
             );
             
-            // Check if patron is within 6-month commitment
+            // Check if patron is within 6-month commitment for burn calculation
             let six_months_in_seconds = 6 * 30 * 24 * 60 * 60;
             let commitment_end = seller_claim.patron_approval_timestamp + six_months_in_seconds;
             
             if current_time < commitment_end {
-                // Mark as early sale
-                // This will be handled in the accept function
+                msg!("Patron exiting before 6-month commitment - 20% burn will apply");
             }
-        },
-        SwapType::TreasuryBuyback => {
-            // Anyone can sell to treasury
-        },
-        SwapType::AnyToAny => {
-            // Anyone can sell to anyone
+            
+            // Verify patron has not already been marked as exited
+            require!(
+                !seller_claim.sold_early, 
+                SnakeError::PatronAlreadyExited
+            );
         }
     }
     
     // Ensure seller has unlocked tokens
     require!(!seller_claim.is_locked(), SnakeError::TokensLocked);
     
-    let swap = &mut ctx.accounts.otc_swap;
+    // Initialize OTC swap account based on Phase 1 or Phase 2 logic
+    let otc_swap = &mut ctx.accounts.otc_swap;
     
-    // Initialize swap with basic data
-    swap.seller = ctx.accounts.seller.key();
-    swap.buyer = None;
-    swap.token_amount = token_amount;
-    swap.sol_rate = sol_rate;
-    swap.buyer_rebate = buyer_rebate;
-    swap.is_active = true;
-    swap.created_at = current_time;
-    swap.seller_role = seller_claim.role.clone();
-    swap.bump = ctx.bumps.otc_swap;
-    
-    // Set buyer role requirement based on swap type
     match swap_type {
-        SwapType::NormalToPatron => {
-            swap.buyer_role_required = UserRole::Patron;
-            swap.swap_type = crate::state::SwapType::NormalToPatron;
+        SwapType::ExiterToPatron => {
+            // Phase 1: Fixed-price OTC with rebate system
+            let fixed_price = sol_rate; // e.g., $0.0040 per token
+            let max_otc_limit = 1000000 * 1000000000; // 1M tokens max per user
+            
+            otc_swap.init_exiter_to_patron(
+                ctx.accounts.seller.key(),
+                token_amount,
+                fixed_price,
+                buyer_rebate, // e.g., 200 basis points = 2% rebate
+                max_otc_limit,
+                current_time,
+                ctx.bumps.otc_swap,
+            );
         },
-        SwapType::NormalToStaker => {
-            swap.buyer_role_required = UserRole::Staker;
-            swap.swap_type = crate::state::SwapType::NormalToStaker;
+        SwapType::ExiterToTreasury => {
+            // Phase 1: Treasury fallback
+            let fixed_price = sol_rate;
+            
+            otc_swap.init_treasury_buyback(
+                ctx.accounts.seller.key(),
+                token_amount,
+                fixed_price,
+                current_time,
+                ctx.bumps.otc_swap,
+            );
         },
         SwapType::PatronToPatron => {
-            swap.buyer_role_required = UserRole::Patron;
-            swap.swap_type = crate::state::SwapType::PatronToPatron;
-        },
-        SwapType::TreasuryBuyback => {
-            swap.buyer_role_required = UserRole::None;
-            swap.swap_type = crate::state::SwapType::TreasuryBuyback;
-        },
-        SwapType::AnyToAny => {
-            swap.buyer_role_required = UserRole::None;
-            swap.swap_type = crate::state::SwapType::AnyToAny;
+            // Phase 2: Patron-to-Patron with exit intent and burn
+            let cooldown_period = 24 * 60 * 60; // 24 hours cooldown
+            let asking_price = sol_rate;
+            
+            otc_swap.init_patron_to_patron(
+                ctx.accounts.seller.key(),
+                token_amount,
+                asking_price,
+                cooldown_period,
+                current_time,
+                ctx.bumps.otc_swap,
+            );
         }
     }
     
     // Store values before borrow
-    let buyer_role_required = swap.buyer_role_required.clone();
-    let buyer_rebate = swap.buyer_rebate;
+    let buyer_role_required = otc_swap.buyer_role_required.clone();
+    let buyer_rebate = otc_swap.buyer_rebate;
     let otc_swap_key = ctx.accounts.otc_swap.key();
     
     // Approve the OTC swap PDA to transfer tokens
@@ -156,6 +190,292 @@ pub fn initiate_otc_swap_enhanced(
         token_amount,
         sol_rate,
         buyer_rebate,
+    });
+    
+    Ok(())
+}
+
+// ========== ACCEPT OTC SWAP (GENERIC) ==========
+
+#[derive(Accounts)]
+pub struct AcceptOtcSwap<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    
+    #[account(
+        mut,
+        constraint = buyer_claim.initialized @ SnakeError::Unauthorized,
+        seeds = [b"user_claim", buyer.key().as_ref()],
+        bump,
+    )]
+    pub buyer_claim: Account<'info, UserClaim>,
+    
+    /// CHECK: Validated through PDA seeds and constraints
+    #[account(mut)]
+    pub seller: UncheckedAccount<'info>,
+    
+    #[account(
+        mut,
+        constraint = seller_claim.initialized @ SnakeError::Unauthorized,
+        seeds = [b"user_claim", seller.key().as_ref()],
+        bump,
+    )]
+    pub seller_claim: Account<'info, UserClaim>,
+    
+    #[account(
+        mut,
+        seeds = [b"otc_swap", seller.key().as_ref()],
+        bump = otc_swap.bump,
+        constraint = otc_swap.seller == seller.key() @ SnakeError::Unauthorized,
+        constraint = otc_swap.is_active @ SnakeError::SwapInactive,
+        constraint = otc_swap.buyer.is_none() @ SnakeError::SwapAlreadyAccepted,
+        constraint = otc_swap.buyer != Some(buyer.key()) @ SnakeError::CannotBuyOwnSwap,
+    )]
+    pub otc_swap: Account<'info, OtcSwap>,
+    
+    #[account(
+        mut,
+        constraint = seller_token_account.owner == seller.key(),
+    )]
+    pub seller_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        constraint = buyer_token_account.owner == buyer.key(),
+    )]
+    pub buyer_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        seeds = [b"treasury"],
+        bump,
+    )]
+    pub treasury: SystemAccount<'info>,
+    
+    #[account(mut)]
+    pub token_mint: Account<'info, Mint>,
+    
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+pub fn accept_otc_swap(ctx: Context<AcceptOtcSwap>) -> Result<()> {
+    let current_time = Clock::get()?.unix_timestamp;
+    
+    // Check if swap is expired
+    require!(!ctx.accounts.otc_swap.is_expired(current_time), SnakeError::SwapExpired);
+    
+    let token_amount = ctx.accounts.otc_swap.token_amount;
+    let sol_rate = ctx.accounts.otc_swap.sol_rate;
+    let buyer_rebate = ctx.accounts.otc_swap.buyer_rebate;
+    let seller_key = ctx.accounts.seller.key();
+    let buyer_key = ctx.accounts.buyer.key();
+    let otc_swap_key = ctx.accounts.otc_swap.key();
+    
+    // Check if listing is active (for Phase 2 cooldown)
+    require!(
+        ctx.accounts.otc_swap.is_listing_active(current_time),
+        SnakeError::ListingNotActive
+    );
+    
+    // Validate buyer role restrictions based on swap type
+    match ctx.accounts.otc_swap.swap_type {
+        crate::state::SwapType::ExiterToPatron => {
+            // Phase 1: Only Patrons can buy from Exiters
+            require!(
+                ctx.accounts.buyer_claim.role == UserRole::Patron,
+                SnakeError::OnlyPatronsCanBuy
+            );
+        },
+        crate::state::SwapType::ExiterToTreasury => {
+            // Phase 1: Only Treasury can buy (this should be handled differently)
+            require!(
+                buyer_key == ctx.accounts.treasury.key(),
+                SnakeError::OnlyTreasuryCanBuy
+            );
+        },
+        crate::state::SwapType::PatronToPatron => {
+            // Phase 2: Only Patrons can buy from other Patrons
+            require!(
+                ctx.accounts.buyer_claim.role == UserRole::Patron,
+                SnakeError::OnlyPatronsCanBuy
+            );
+        }
+    }
+    
+    // Calculate payments
+    let total_sol_payment = token_amount
+        .checked_mul(sol_rate)
+        .ok_or(SnakeError::MathOverflow)?;
+    
+    let rebate_amount = total_sol_payment
+        .checked_mul(buyer_rebate as u64)
+        .ok_or(SnakeError::MathOverflow)?
+        .checked_div(10000) // basis points
+        .unwrap_or(0);
+    
+    let net_payment_to_seller = total_sol_payment
+        .checked_sub(rebate_amount)
+        .ok_or(SnakeError::MathOverflow)?;
+    
+    // Verify buyer has sufficient SOL
+    require!(
+        ctx.accounts.buyer.to_account_info().lamports() >= total_sol_payment,
+        SnakeError::InsufficientFunds
+    );
+    
+    // Update swap state
+    let swap = &mut ctx.accounts.otc_swap;
+    swap.buyer = Some(buyer_key);
+    swap.is_active = false;
+    
+    // Mark seller as exited for Phase 2 (Patron exit)
+    if swap.swap_type == crate::state::SwapType::PatronToPatron {
+        let seller_claim = &mut ctx.accounts.seller_claim;
+        seller_claim.sold_early = true;
+        seller_claim.role = UserRole::None; // Remove Patron status
+        seller_claim.patron_status = PatronStatus::None;
+        
+        swap.mark_seller_as_exited();
+        
+        msg!("Patron marked as exited after P2P swap with 20% burn applied");
+    }
+    
+    // Handle token transfer based on swap type (with burn for Phase 2)
+    match ctx.accounts.otc_swap.swap_type {
+        crate::state::SwapType::ExiterToPatron | crate::state::SwapType::ExiterToTreasury => {
+            // Phase 1: Normal transfer, no burn
+            let transfer_accounts = Transfer {
+                from: ctx.accounts.seller_token_account.to_account_info(),
+                to: ctx.accounts.buyer_token_account.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
+            };
+            
+            token::transfer(
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_accounts),
+                token_amount,
+            )?;
+        },
+        crate::state::SwapType::PatronToPatron => {
+            // Phase 2: Transfer 80% to buyer, burn 20%
+            let burn_amount = ctx.accounts.otc_swap.calculate_burn_amount();
+            let net_tokens = ctx.accounts.otc_swap.calculate_net_tokens_after_burn();
+            
+            // Transfer net tokens to buyer (80%)
+            let transfer_accounts = Transfer {
+                from: ctx.accounts.seller_token_account.to_account_info(),
+                to: ctx.accounts.buyer_token_account.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
+            };
+            
+            token::transfer(
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_accounts),
+                net_tokens,
+            )?;
+            
+            // Burn 20% of tokens
+            if burn_amount > 0 {
+                let burn_accounts = Burn {
+                    mint: ctx.accounts.token_mint.to_account_info(),
+                    from: ctx.accounts.seller_token_account.to_account_info(),
+                    authority: ctx.accounts.seller.to_account_info(),
+                };
+                
+                token::burn(
+                    CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_accounts),
+                    burn_amount,
+                )?;
+                
+                // Emit burn event
+                emit!(TokensBurned {
+                    user: seller_key,
+                    amount: burn_amount,
+                    reason: "Patron exit".to_string(),
+                });
+            }
+        }
+    }
+    
+    // Transfer SOL from buyer to seller
+    let buyer_info = ctx.accounts.buyer.to_account_info();
+    let seller_info = ctx.accounts.seller.to_account_info();
+    
+    **buyer_info.try_borrow_mut_lamports()? = buyer_info
+        .lamports()
+        .checked_sub(net_payment_to_seller)
+        .ok_or(SnakeError::InsufficientFunds)?;
+    
+    **seller_info.try_borrow_mut_lamports()? = seller_info
+        .lamports()
+        .checked_add(net_payment_to_seller)
+        .ok_or(SnakeError::MathOverflow)?;
+    
+    // Handle rebate if applicable
+    if rebate_amount > 0 {
+        let treasury_info = ctx.accounts.treasury.to_account_info();
+        
+        **buyer_info.try_borrow_mut_lamports()? = buyer_info
+            .lamports()
+            .checked_sub(rebate_amount)
+            .ok_or(SnakeError::InsufficientFunds)?;
+        
+        **treasury_info.try_borrow_mut_lamports()? = treasury_info
+            .lamports()
+            .checked_add(rebate_amount)
+            .ok_or(SnakeError::MathOverflow)?;
+    }
+    
+    // Emit event
+    emit!(SwapCompleted {
+        seller: seller_key,
+        buyer: buyer_key,
+        otc_swap: otc_swap_key,
+        token_amount,
+        sol_payment: total_sol_payment,
+        rebate_amount,
+    });
+    
+    Ok(())
+}
+
+// ========== CANCEL OTC SWAP ==========
+
+#[derive(Accounts)]
+pub struct CancelOtcSwap<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"otc_swap", seller.key().as_ref()],
+        bump = otc_swap.bump,
+        constraint = otc_swap.seller == seller.key() @ SnakeError::Unauthorized,
+        constraint = otc_swap.is_active @ SnakeError::SwapInactive,
+        constraint = otc_swap.buyer.is_none() @ SnakeError::SwapAlreadyAccepted,
+    )]
+    pub otc_swap: Account<'info, OtcSwap>,
+    
+    #[account(
+        mut,
+        constraint = seller_token_account.owner == seller.key(),
+    )]
+    pub seller_token_account: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
+pub fn cancel_otc_swap(ctx: Context<CancelOtcSwap>) -> Result<()> {
+    let seller_key = ctx.accounts.seller.key();
+    let otc_swap_key = ctx.accounts.otc_swap.key();
+    
+    // Update swap state
+    let swap = &mut ctx.accounts.otc_swap;
+    swap.is_active = false;
+    
+    // Emit event
+    emit!(SwapCancelled {
+        seller: seller_key,
+        otc_swap: otc_swap_key,
     });
     
     Ok(())
@@ -360,7 +680,7 @@ pub struct AcceptTreasuryBuyback<'info> {
         bump = otc_swap.bump,
         constraint = otc_swap.seller == seller.key() @ SnakeError::Unauthorized,
         constraint = otc_swap.is_active @ SnakeError::SwapInactive,
-        constraint = otc_swap.swap_type == crate::state::SwapType::TreasuryBuyback @ SnakeError::InvalidSwapType,
+        constraint = otc_swap.swap_type == crate::state::SwapType::ExiterToTreasury @ SnakeError::InvalidSwapType,
     )]
     pub otc_swap: Account<'info, OtcSwap>,
     

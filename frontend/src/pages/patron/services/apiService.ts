@@ -117,7 +117,7 @@ export const roleApi = {
     },
 
     getUserRole: async () => {
-        return apiCall<{ role: string; status?: string }>('/user/profile', {
+        return apiCall<{ role: string; status?: string }>('/user/me', {
             method: 'GET',
         });
     },
@@ -356,12 +356,12 @@ export const otcApi = {
         return { success: false, data: '', requiresWalletSignature: false, error: response.error };
     },
 
-    // Enhanced OTC swap with swap types
+    // Enhanced OTC swap with swap types (Phase 1 & Phase 2)
     initiateSwapEnhanced: async (params: {
         token_amount: number;
         sol_rate: number;
         buyer_rebate: number;
-        swap_type: 'NormalToPatron' | 'NormalToStaker' | 'PatronToPatron' | 'TreasuryBuyback' | 'AnyToAny';
+        swap_type: 'ExiterToPatron' | 'ExiterToTreasury' | 'PatronToPatron';
     }): Promise<WalletTransactionResponse> => {
         const response = await apiCall<string>('/user/initiate_otc_swap_enhanced', {
             method: 'POST',

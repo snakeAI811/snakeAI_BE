@@ -41,10 +41,49 @@
   padding: 1rem;
 }
 
+.scroll-down-icon {
+  animation: bounce 1.5s infinite ease-in-out;
+}
+
+.role-icon-bg {
+  background-color: black;
+  height: 280px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15px;
+}
+
+.role-card {
+  width: 350px;
+}
+
+.role-card>div {
+  height: 100%;
+}
+
+.role-bundle {
+  display: flex;
+}
+
+.mint-footer-bar {
+  background-color: black;
+  color: #87B497;
+  padding: 1rem;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
 @media (max-width: 1400px) {
   .phase-title {
     width: 270px;
   }
+
   .roadmap-container {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -69,6 +108,10 @@
   .roadmap-container {
     display: block;
     margin-top: 2rem;
+  }
+
+  .role-bundle {
+    display: block;
   }
 }
 
@@ -130,16 +173,16 @@
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
     opacity: 0.7;
   }
+
   50% {
     transform: translateY(10px);
     opacity: 1;
   }
 }
 
-.scroll-down-icon {
-  animation: bounce 1.5s infinite ease-in-out;
-}

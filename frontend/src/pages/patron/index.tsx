@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
-import RoleSelection from './components/RoleSelection';
+import RoleSelection from '../profile/RoleSelection';
 import TokenManagement from './components/TokenManagement';
 import VestingManagement from './components/VestingManagement';
 import PatronApplication from './components/PatronApplication';

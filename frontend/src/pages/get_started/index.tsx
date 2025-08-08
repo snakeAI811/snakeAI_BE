@@ -6,7 +6,10 @@ import LandingHeader from '../../partials/landing-header';
 
 import DashboardPage from './dashboard';
 import WhatIsSnakePage from './what-is-snake';
-import HowItWorksPage from './how-it-works'; // needs to fix
+import HowItWorksPage from './how-it-works'; 
+import UserRolePage from './userrole';
+import WhyWaitToMintPage from './why-wait-to-mint';
+import JoinTheDaoPage from './join-the-dao';
 import TokennomicsPage from './tokenomics';
 import RoadmapPage from './roadmap';
 import SafetyTransparencyPage from './safety-transparency';
@@ -52,6 +55,15 @@ function GetStartedPage({ bar_status = 0 }: GetStartedPageProps) {
             </div>
             <div className='w-100 p-2 p-md-4 p-lg-4' style={{ minHeight: '90vh' }}>
                 <HowItWorksPage />
+            </div>
+            <div className='w-100 p-2 p-md-4 p-lg-4' style={{ minHeight: '90vh' }}>
+                <UserRolePage />
+            </div>
+            <div className='w-100 p-2 p-md-4 p-lg-4' style={{ minHeight: '90vh' }}>
+                <WhyWaitToMintPage />
+            </div>
+            <div className='w-100 p-2 p-md-4 p-lg-4' style={{ minHeight: '90vh' }}>
+                <JoinTheDaoPage />
             </div>
             <div className='w-100 p-2 p-md-4 p-lg-4' style={{ minHeight: '90vh' }}>
                 <TokennomicsPage />

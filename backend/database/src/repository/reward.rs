@@ -45,7 +45,7 @@ impl RewardRepository {
         tweet_id: &Uuid,
         phase: i32,
         reward_amount: u64,
-        burn_amount: u64,
+        _burn_amount: u64,
     ) -> Result<Reward, sqlx::Error> {
         let phase_str = format!("phase{}", phase);
         let reward = sqlx::query_as::<_, Reward>(

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import SimpleStakingDashboard from '../dashboard/SimpleStakingDashboard';
+import SimpleStakingDashboard from './SimpleStakingDashboard';
 import WalletGuard from "../../components/WalletGuard";
 import { useWalletContext } from '../../contexts/WalletContext';
 import { Connection } from '@solana/web3.js';

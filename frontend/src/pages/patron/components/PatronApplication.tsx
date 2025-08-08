@@ -257,7 +257,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
                       </div>
                       <div className="mb-2">
                         <span className="badge bg-info me-2">ℹ</span>
-                        <small>Staking History: {eligibilityCheck.requirements.staking_history.required_months} months (validated at token lock)</small>
+                        <small>Staking History: {eligibilityCheck.requirements.staking_history.required_months} months (validated on-chain)</small>
                       </div>
                     </div>
                   </div>
@@ -278,7 +278,7 @@ function PatronApplication({ userRole }: PatronApplicationProps) {
                   <li>Must have ≥250k SNAKE tokens</li>
                   <li>Minimum 30 days wallet age</li>
                   <li>Mining history in Phase 1</li>
-                  <li>6-month staking commitment</li>
+                  <li>6-month staking history (completed or in progress)</li>
                 </ul>
               )}
             </div>

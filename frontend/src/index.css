@@ -1036,6 +1036,19 @@ body {
   background-color: #A9E000;
   color: black;
   border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background-color: #8ecb00; /* slightly darker green */
+}
+
+.primary-btn:disabled {
+  background-color: #c8e77d;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .second-btn {
@@ -1043,7 +1056,21 @@ body {
   background-color: #FCFCFCCC;
   color: black;
   border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
+
+.second-btn:hover {
+  background-color: #e0e0e0; /* light gray hover */
+}
+
+.second-btn:disabled {
+  background-color: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 
 .card, .card:focus, .card:focus-visible, .card-body {
   background: transparent;

@@ -26,6 +26,10 @@ pub const PATRON_EXIT_BURN_PERCENT: u64 = 20; // 20% burn on exit
 
 // Patron qualification constants
 pub const PATRON_MIN_TOKEN_AMOUNT: u64 = 250_000_000_000_000; // 250k tokens
-pub const PATRON_MIN_WALLET_AGE_DAYS: u32 = 1; // 30 days minimum wallet age
+pub const PATRON_MIN_WALLET_AGE_DAYS: u32 = 30; // 30 days minimum wallet age
 pub const PATRON_MIN_STAKING_MONTHS: u8 = 6; // 6 months staking history required
 pub const STAKER_MIN_STAKING_MONTHS: u8 = 3; // 3 months staking history required
+
+// Time constants
+pub const SECONDS_PER_MONTH: i64 = 30 * 24 * 60 * 60; // Approximate seconds in a month
+pub const SIX_MONTHS_SECONDS: i64 = 6 * SECONDS_PER_MONTH;

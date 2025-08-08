@@ -57,7 +57,7 @@ impl RewardService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn get_rewards(
+    pub async fn get_rewards( 
         &self,
         user_id: &Option<Uuid>,
         offset: Option<i64>,

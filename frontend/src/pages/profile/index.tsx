@@ -6,7 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useWalletContext } from "../../contexts/WalletContext";
 import { usePhantom } from "../../hooks/usePhantom";
 import { userApi, roleApi, tokenApi } from "../patron/services/apiService";
-import RoleSelection from "../patron/components/RoleSelection";
+import RoleSelection from "./RoleSelection";
 import SimpleWalletConnection from "../patron/components/SimpleWalletConnection";
 import { UserRole } from "../patron/index";
 import './index.css';
@@ -25,7 +25,7 @@ interface ProfileData {
 }
 
 interface UserDetails {
-    selected_role: string | null;
+    role: string | null;
     patron_status: string | null;
     ranking?: number; // Based on token count
 }
@@ -115,7 +115,7 @@ function Profile() {
 
                 if (userResponse.success && userResponse.data) {
                     setUserDetails({
-                        selected_role: userResponse.data.selected_role,
+                        role: userResponse.data.role,
                         patron_status: userResponse.data.patron_status,
                         ranking: calculateRanking(userResponse.data?.reward_balance || 0)
                     });
@@ -183,7 +183,7 @@ function Profile() {
     const handleRoleChange = async (newRole: UserRole) => {
         setUserRole(newRole);
         // Refresh user details when role changes
-        setUserDetails(prev => prev ? { ...prev, selected_role: newRole.role } : null);
+        setUserDetails(prev => prev ? { ...prev, role: newRole.role } : null);
 
         // Refresh profile data to get updated information
         try {
@@ -195,7 +195,7 @@ function Profile() {
             const userResponse = await userApi.getMe();
             if (userResponse.success && userResponse.data) {
                 setUserDetails({
-                    selected_role: newRole.role,
+                    role: newRole.role,
                     patron_status: userResponse.data.patron_status,
                     ranking: calculateRanking(profileResponse.data?.reward_balance || 0)
                 });
@@ -275,7 +275,7 @@ function Profile() {
                                                 <div className="mb-2">
                                                     <span className="retro-text-small">ROLE:</span>
                                                     <div className="retro-text">
-                                                        {userRole.role.toUpperCase()}
+                                                        {userDetails?.role?.toUpperCase() || 'NONE'}
                                                         {userDetails?.patron_status === 'approved' && '♥'}
                                                     </div>
                                                 </div>
@@ -313,7 +313,14 @@ function Profile() {
                         {connected ? (
                             <div className="border border-3 border-dashed mt-4 p-3">
                                 <RoleSelection
-                                    userRole={userRole}
+                                    userRole={{
+                                        role:
+                                            userDetails?.role === 'staker'
+                                                ? 'staker'
+                                                : userDetails?.role === 'patron'
+                                                    ? 'patron'
+                                                    : 'none'
+                                    }}
                                     onRoleChange={handleRoleChange}
                                     tokenBalance={tokenBalance}
                                     userStats={userStats}

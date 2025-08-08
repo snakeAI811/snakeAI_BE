@@ -1,5 +1,6 @@
 
 import { ReactComponent as IconMoney } from "../../svgs/money.svg";
+import { ReactComponent as DivideChart } from "../../svgs/tokenomics.svg";
 
 function TokennomicsPage() {
     return (
@@ -9,34 +10,20 @@ function TokennomicsPage() {
                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
             </div>
             <div className="row mb-3">
-                <div className="col-md-3 d-flex justify-content-center align-items-center">
-                    <IconMoney style={{ width: '35vh', height: 'auto' }} />
+                <div className="col-md-5 d-flex flex-column justify-content-center">
+                    <div>
+                        <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FIXED SUPPLY:</div>
+                        <div className="fs-3 fs-lg-8 fs-xxl-14 fw-bolder px-4" style={{ lineHeight: 'normal' }}>1 Billion $SNAKE</div>
+                        <div className="px-3">
+                            <hr className="border border-dashed border-black border-3 opacity-100"></hr>
+                        </div>
+                        <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FINAL CIRCULATION:</div>
+                        <div className="fs-3 fs-lg-8 fs-xxl-14 fw-bolder px-4" style={{ lineHeight: 'normal' }}>750 Million $snake</div>
+                        <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>(250M burned)</div>
+                    </div>
                 </div>
-                <div className="col-md-9">
-                    <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FIXED SUPPLY:</div>
-                    <div className="fs-4 fs-lg-9 fs-xxl-14 fw-bolder px-4" style={{ lineHeight: 'normal' }}>1 Billion $SNAKE</div>
-                    <div className="px-3">
-                        <hr className="border border-dashed border-black border-3 opacity-100"></hr>
-                    </div>
-                    <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FINAL CIRCULATION:</div>
-                    <div className="fs-4 fs-lg-9 fs-xl-12 fs-xxl-14 fw-bolder px-4" style={{ lineHeight: 'normal' }}>750 Million $snake</div>
-                    <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>(250M burned)</div>
-                    <div className="px-3">
-                        <hr className="border border-dashed border-black border-3 opacity-100"></hr>
-                    </div>
-                    <div className="row justify-content-start">
-                        <div className="col-md-12 col-lg-4">
-                            <div className="fs-4 fs-lg-9 fs-xl-12 fs-xxl-14 px-4 mb-3" style={{ lineHeight: 'normal' }}>FAIR DISTRIBUTION:</div>
-                        </div>
-                        <div className="col-md-12 col-lg-8">
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>FUNDRAISE: 7,5%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>MINING TREASURY: 50%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>LIQUIDITY & MM: 15%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>TEAM & DEVELOPMENT: 10%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>MARKETING & GROWTH: 7,5%</div>
-                            <div className="fs-4 fs-lg-10 fs-xl-12 fs-xxl-14 px-4" style={{ lineHeight: 'normal' }}>ECOSYSTEM FUND/DAO: 10%</div>
-                        </div>
-                    </div>
+                <div className="col-md-7 d-flex justify-content-center align-items-center py-4 ps-3">
+                    <DivideChart />
                 </div>
                 <div className="px-3">
                     <hr className="border border-dashed border-black border-3 opacity-100"></hr>
@@ -44,7 +31,7 @@ function TokennomicsPage() {
             </div>
             <div className="row justify-content-center">
                 <div className="col-md-9 d-flex justify-content-center">
-                    <button className="border border-0 fs-4 fw-bold py-2 px-4 px-lg-5 text-green-300 bg-black">LEARN MORE →</button>
+                    <button className="border border-0 fs-4 fw-bold py-2 px-4 px-lg-5 text-green-300 bg-black">Learn more about tokenomics→</button>
                 </div>
             </div>
         </div>

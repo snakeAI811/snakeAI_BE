@@ -146,15 +146,15 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn update_selected_role(
+    pub async fn update_role(
         &self,
         user_id: &Uuid,
-        selected_role: &str,
+        role: &str,
     ) -> Result<User, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
-            "UPDATE users SET selected_role = $1 WHERE id = $2 RETURNING *",
-            selected_role,
+            "UPDATE users SET role = $1 WHERE id = $2 RETURNING *",
+            role,
             user_id,
         )
         .fetch_one(self.db_conn.get_pool())

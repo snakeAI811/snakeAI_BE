@@ -88,17 +88,29 @@ pub enum SnakeError {
     TreasuryFallbackNotAllowed,
     #[msg("[SNAKE:6037] Math overflow occurred")]
     MathOverflow,
+    #[msg("[SNAKE:6038] Only exiters (None role) can sell in Phase 1")]
+    OnlyExitersCanSell,
+    #[msg("[SNAKE:6039] Tokens are still locked and cannot be sold")]
+    TokensStillLocked,
+    #[msg("[SNAKE:6040] Patron has already been marked as exited")]
+    PatronAlreadyExited,
+    #[msg("[SNAKE:6041] Listing is not active yet (cooldown period)")]
+    ListingNotActive,
+    #[msg("[SNAKE:6042] Maximum OTC limit exceeded")]
+    MaxOTCLimitExceeded,
+    #[msg("[SNAKE:6043] Only treasury can buy in this swap")]
+    OnlyTreasuryCanBuy,
 
     // ========== MILESTONE 3: GOVERNANCE ERRORS ==========
-    #[msg("[SNAKE:6038] Governance is not active")]
+    #[msg("[SNAKE:6044] Governance is not active")]
     GovernanceNotActive,
-    #[msg("[SNAKE:6039] Invalid proposal title")]
+    #[msg("[SNAKE:6045] Invalid proposal title")]
     InvalidProposalTitle,
-    #[msg("[SNAKE:6040] Invalid proposal description")]
+    #[msg("[SNAKE:6046] Invalid proposal description")]
     InvalidProposalDescription,
-    #[msg("[SNAKE:6041] Invalid proposal")]
+    #[msg("[SNAKE:6047] Invalid proposal")]
     InvalidProposal,
-    #[msg("[SNAKE:6042] Proposal is not active")]
+    #[msg("[SNAKE:6048] Proposal is not active")]
     ProposalNotActive,
     #[msg("[SNAKE:6043] Proposal has not passed")]
     ProposalNotPassed,

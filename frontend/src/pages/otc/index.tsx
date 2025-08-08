@@ -6,9 +6,7 @@ import { SOLANA_RPC_URL } from '../../config/program';
 import WalletGuard from "../../components/WalletGuard";
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { otcApi, tokenApi } from '../patron/services/apiService';
-
-
-
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 interface OTCOrder {
   orderId: string;
   seller: string;
@@ -26,6 +24,8 @@ interface OTCOrder {
 const OTCTrading: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
   const { publicKey, connected } = useWalletContext();
+  const { handleError,handleWarning } = useErrorHandler();
+  
   
   // Create connection with proper configuration
   const connection = new Connection(SOLANA_RPC_URL, {
@@ -75,7 +75,7 @@ const OTCTrading: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      showError('Failed to fetch OTC orders');
+      handleError(error, 'Failed to fetch OTC orders');
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ const OTCTrading: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching my orders:', error);
-      showError('Failed to fetch your OTC orders');
+      handleError(error, 'Failed to fetch your OTC orders');
     }
   };
 
@@ -207,6 +207,7 @@ const OTCTrading: React.FC = () => {
           }
         } catch (initError) {
           console.error('❌ Failed to initialize user claim account:', initError);
+          handleError(initError, 'Failed to set up your account for OTC trading');
           throw new Error(`Failed to set up your account: ${initError instanceof Error ? initError.message : 'Unknown error'}`);
         }
       }
@@ -232,6 +233,7 @@ const OTCTrading: React.FC = () => {
             console.log('🔍 Updated with fresh blockhash:', blockhash);
           } catch (rpcError) {
             console.error('❌ RPC Connection Error:', rpcError);
+            handleError(rpcError, 'Failed to connect to Solana network. Please check your internet connection.');
             throw new Error(`Failed to connect to Solana network. Please check your internet connection and try again.`);
           }
           
@@ -260,6 +262,7 @@ const OTCTrading: React.FC = () => {
               console.log('✅ Transaction confirmed on blockchain');
             } catch (txError) {
               console.error('❌ Transaction Error:', txError);
+              handleError(txError, 'Transaction failed or was rejected');
               if (txError instanceof Error && txError.message.includes('User rejected')) {
                 throw new Error('Transaction cancelled by user');
               }
@@ -295,8 +298,7 @@ const OTCTrading: React.FC = () => {
       }
     } catch (error) {
       console.error('Error creating order:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create order';
-      showError(errorMessage);
+      // handleError(error, 'Failed to create OTC order');
     } finally {
       setLoading(false);
     }
@@ -323,8 +325,7 @@ const OTCTrading: React.FC = () => {
       }
     } catch (error) {
       console.error('Error executing order:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to execute order';
-      showError(errorMessage);
+      handleError(error, 'Failed to execute OTC order');
     } finally {
       setLoading(false);
     }
@@ -351,8 +352,7 @@ const OTCTrading: React.FC = () => {
       }
     } catch (error) {
       console.error('Error canceling order:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel order';
-      showError(errorMessage);
+      handleError(error, 'Failed to cancel OTC order');
     } finally {
       setLoading(false);
     }
@@ -378,7 +378,7 @@ const OTCTrading: React.FC = () => {
           </div>
           <div className="custom-border-y custom-content-height d-flex flex-column px-3">
             <WalletGuard>
-              <div className="container-fluid">
+              <div className="">
                 {!connected && (
                   <div className="alert alert-warning mb-4" role="alert">
                     <div className="d-flex">
@@ -392,7 +392,7 @@ const OTCTrading: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <div className="card shadow-lg">
+                <div className="card">
                   <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
                       <button
@@ -438,7 +438,7 @@ const OTCTrading: React.FC = () => {
                   </div>
 
                   {showCreateForm && (
-                    <div className="card-bodyborder-bottom">
+                    <div className="card-body border-bottom">
                       <h5 className="card-title">📝 Create Sell Order</h5>
                       <div className="row g-3">
                         <div className="col-md-6">
