@@ -8,12 +8,14 @@ function JoinTheDaoPage() {
             </div>
             <div className="px-1 pt-5 pt-lg-5 px-lg-5 px-xl-5">
                 <div className=" fs-lg-9">TO QUALIFY:</div>
-                <div className="py-3 d-flex gap-3">
-                    <div className="bg-black fs-lg-9 p-5">
-                        <p className="text-green-300 ">Stake during Phase 2 for 3 months.</p>
-                    </div>
-                    <div className="bg-black fs-lg-9 p-5">
-                        <p className="text-green-300 ">Stake during Phase 2 for 3 months.</p>
+                <div className="d-flex justify-content-center">
+                    <div className="py-3 d-flex gap-3">
+                        <div className="col-sm-12 col-md-6 bg-black fs-lg-9 p-5">
+                            <p className="text-green-300 ">Stake during Phase 2 for 3 months.</p>
+                        </div>
+                        <div className="col-sm-12 col-md-6 bg-black fs-lg-9 p-5">
+                            <p className="text-green-300 ">Hold at least 150,000 $SNAKE by Month 6.</p>
+                        </div>
                     </div>
                 </div>
                 <div className="text-center fs-lg-9 mt-3">DAO seats come with power, influence, and visibility.</div>

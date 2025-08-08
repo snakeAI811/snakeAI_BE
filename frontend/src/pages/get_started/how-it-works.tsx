@@ -11,10 +11,12 @@ function HowItWorksPage() {
                     <span className="fs-1 fs-lg-2 fs-xl-4 px-4 bg-green-950 fw-bolder position-absolute top-0 start-50 translate-middle" style={{ color: '#A9E000' }}>1</span>
                     <div className="border border-5 border-black pt-3 pt-lg-5 box-height-48vh">
                         <div className="pt-4">
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}> AVOID HIGH GAS FEES.</p>
+                            <h2 className="fw-bolder fs-3 fs-lg-10" style={{ lineHeight: 'normal' }}>TWEET</h2>
+
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>Post on X using #MineTheSnake and mention @playSnakeAI.</p>
                         </div>
                     </div>
                 </div>
