@@ -50,7 +50,6 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
   const { showSuccess, showError, showInfo } = useToast();
   const { userRole } = useAppContext();
 
-  console.log(userRole, 'userRole');
   const fetchStakingData = useCallback(async () => {
     if (!connected || !publicKey) return;
 
