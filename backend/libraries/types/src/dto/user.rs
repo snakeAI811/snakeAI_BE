@@ -33,6 +33,7 @@ pub struct SubmitTweetRequest {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TweetMiningStatusResponse {
+    pub current_phase: i32,
     pub total_tweets: i64,
     pub phase1_count: i64,
     pub phase2_count: i64,

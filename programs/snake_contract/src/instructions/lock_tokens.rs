@@ -118,12 +118,15 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     //             user_claim.patron_status == PatronStatus::Approved,
     //             SnakeError::OnlyApprovedPatrons
     //         );
-    //         duration_months == PATRON_LOCK_DURATION_MONTHS
+    //         duration_months == 
     //     },
     //     _ => false,
     // };
     
-    require!(duration_months >= 3, SnakeError::InvalidLockDuration);
+    require!(
+        duration_months == STAKER_LOCK_DURATION_MONTHS || duration_months == PATRON_LOCK_DURATION_MONTHS,
+        SnakeError::InvalidLockDuration
+    );
     
     // Calculate lock end time
     let seconds_in_month = 30 * 24 * 60 * 60; // Approximate

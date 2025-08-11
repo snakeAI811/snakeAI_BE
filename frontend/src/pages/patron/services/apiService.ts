@@ -236,7 +236,7 @@ export const tokenApi = {
             total_phase1_mined: number;
             total_phase2_mined: number;
             phase2_start_date: string;
-        }>('/user/mining_status', {
+        }>('/user/total_mining_status', {
             method: 'GET',
         });
     },
@@ -556,6 +556,7 @@ export const userApi = {
             phase2_count: number;
             pending_rewards: number;
             total_rewards_claimed: number;
+            current_phase: any;
         }>('/user/tweet_mining_status', {
             method: 'GET',
         });

@@ -10,6 +10,8 @@ import {
   clusterApiUrl
 } from '@solana/web3.js';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { SOLANA_RPC_URL, TOKEN_MINT } from '../../config/program';
+
 
 export interface UserRole {
   role: 'none' | 'staker' | 'patron';
@@ -48,7 +50,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     const [loading, setLoading] = useState(false);
 
     // Connection to Solana network
-    const connection = new Connection(process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
+    const connection = new Connection(SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
     // Constants from smart contract
     const MINIMUM_STAKER_TOKENS = 5000; // 500 SNAKE tokens (STAKE_AMOUNT)

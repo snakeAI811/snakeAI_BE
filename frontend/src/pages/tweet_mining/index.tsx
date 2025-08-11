@@ -5,7 +5,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../patron/services/apiService';
 import { Transaction, Connection, clusterApiUrl, Cluster } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { SOLANA_NETWORK } from '../../config/program';
+import { SOLANA_RPC_URL } from '../../config/program';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
+
 
 interface Tweet {
     id: string;
@@ -35,6 +37,8 @@ function TweetMiningPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [rewards, setRewards] = useState<any[]>([]);
+    const { handleError, isUserRejection } = useErrorHandler();
+    
 
     useEffect(() => {
         if (user) {
@@ -53,7 +57,7 @@ function TweetMiningPage() {
             const response = await userApi.getTweetMiningStatus();
             if (response.success && response.data) {
                 setMiningStats({
-                    current_stage: "Phase 1", // Current mining phase
+                    current_stage: 'Phase ' + response.data.current_phase || 'Phase', // Current mining phase
                     total_reward_amount: response.data.total_rewards_claimed,
                     new_reward_amount: response.data.pending_rewards,
                     total_tweets: response.data.total_tweets,
@@ -161,7 +165,7 @@ function TweetMiningPage() {
                     await solana.connect();
                 }
 
-                const connection = new Connection(clusterApiUrl(SOLANA_NETWORK as Cluster), 'confirmed');
+                const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
                 // ✅ Get fresh blockhash and rebuild transaction
                 const { blockhash } = await connection.getLatestBlockhash('confirmed');
@@ -219,12 +223,15 @@ function TweetMiningPage() {
 
                 // ✅ Reload data from backend to ensure consistency
                 setTimeout(async () => {
-                    await loadData();
+                    // await loadData();
                     await loadMiningStats();
-                }, 1500);
+                }, 3000);
             }
         } catch (err) {
             console.error(err);
+            if (!isUserRejection(err)) {
+                handleError(err, 'Failed to select role');
+            }
             setError('Failed to claim reward. Please try again.');
         } finally {
             setIsLoading(false);

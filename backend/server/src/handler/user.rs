@@ -24,6 +24,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 use sha2::{Sha256, Digest};
 use crate::services::{MiningPhase, get_current_mining_phase};
+use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 
 #[derive(Deserialize)]
 pub struct UpdatePatronStatusRequest {
@@ -147,7 +148,7 @@ pub async fn get_mining_status(
         "total_mining_count": total_mining_count,
         "current_phase": if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
         "is_phase2": is_phase2,
-        "phase2_start_date": state.env.phase2_start_date,
+        // "phase2_start_date": state.env.phase2_start_date,
         "user_id": user.id,
         "wallet_address": user.wallet_address
     })))
@@ -167,16 +168,19 @@ pub async fn get_user_mining_status(
     let phase2_mining_count = state.service.tweet.get_phase2_mining_count(&user.id).await?;
     let phase1_mining_count = state.service.tweet.get_phase1_mining_count(&user.id).await?;
     let total_mining_count = phase1_mining_count + phase2_mining_count;
-    let current_phase = state.env.get_mining_phase();
-    let is_phase2 = state.env.is_phase2();
+
+    let phase1_mining_count_all = state.service.tweet.get_all_phase1_mining_count().await?;
+    let mining_phase = get_current_mining_phase(phase1_mining_count_all);
+    // let current_phase = state.env.get_mining_phase();
+    // let is_phase2 = state.env.is_phase2();
     
     Ok(Json(json!({
         "phase1_mining_count": phase1_mining_count,
         "phase2_mining_count": phase2_mining_count,
         "total_mining_count": total_mining_count,
-        "current_phase": current_phase,
-        "is_phase2": is_phase2,
-        "phase2_start_date": state.env.phase2_start_date,
+        "current_phase": if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
+        // "is_phase2": is_phase2,
+        // "phase2_start_date": state.env.phase2_start_date,
         "wallet_address": user.wallet_address
     })))
 }
@@ -310,7 +314,7 @@ pub async fn update_lock_details(
 }
 
 // Get Phase 2 tweets for a user
-pub async fn get_user_phase2_tweets(
+pub async fn get_user_phase2_tweets (
     Path(user_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<Value>>, ApiError> {
@@ -974,8 +978,16 @@ pub async fn get_tweet_mining_status(
     // Get total claimed rewards
     let claimed_rewards = state.service.reward.get_rewards(&Some(user.id), Some(0), Some(1000), Some(false)).await?;
     let total_rewards_claimed = claimed_rewards.len() as i64;
+
+    let phase1_mining_count_all = state.service.tweet.get_all_phase1_mining_count().await?;
+    let mining_phase = get_current_mining_phase(phase1_mining_count_all);
+    // let current_phase = state.env.get_mining_phase();
+    // let is_phase2 = state.env.is_phase2();
+    
+    let current_phase = if mining_phase == MiningPhase::Phase2 { 2 } else { 1 };
     
     let response = TweetMiningStatusResponse {
+        current_phase,
         total_tweets,
         phase1_count,
         phase2_count,
@@ -1125,7 +1137,8 @@ pub async fn claim_tweet_reward_tx(
             reward_pool_pda: reward_pool, 
             treasury_token_account: pool_token_ata, 
             mint, 
-            token_program: spl_token::ID, 
+            token_program: spl_token::ID,  
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
             system_program: system_program::ID, 
         }) 
         .args(snake_contract::instruction::ClaimTokensWithRole { 
@@ -1368,6 +1381,7 @@ pub async fn claim_tokens_with_role_tx(
             treasury_token_account: treasury,
             mint,
             token_program: spl_token::ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
             system_program: system_program::ID,
         })
         .args(snake_contract::instruction::ClaimTokensWithRole {

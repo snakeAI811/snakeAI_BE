@@ -4,12 +4,13 @@ import SimpleStakingDashboard from './SimpleStakingDashboard';
 import WalletGuard from "../../components/WalletGuard";
 import { useWalletContext } from '../../contexts/WalletContext';
 import { Connection } from '@solana/web3.js';
+import { SOLANA_RPC_URL } from '../../config/program';
 
 function StakingPage() {
   const { connected, publicKey } = useWalletContext();
   
   const connection = useMemo(() => 
-    new Connection(process.env.REACT_APP_RPC_URL || 'https://api.devnet.solana.com'),
+    new Connection(SOLANA_RPC_URL || 'https://api.devnet.solana.com'),
     []
   );
 

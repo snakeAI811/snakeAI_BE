@@ -34,3 +34,6 @@ target/
 test-ledger/
 node_modules/
 M1_2_testing_result/
+solana-token-metadata/package-lock.json
+setup_contract.sh
+tests/

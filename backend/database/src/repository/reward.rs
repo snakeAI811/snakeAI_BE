@@ -149,6 +149,8 @@ impl RewardRepository {
             .bind(offset)
             .bind(limit);
 
+        println!("Constructed SQL Query---hahahah: {}", query);
+
         if let Some(user_id) = user_id {
             sql_query = sql_query.bind(user_id);
         }

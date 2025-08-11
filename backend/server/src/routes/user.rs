@@ -30,7 +30,7 @@ pub fn routes() -> Router<AppState> {
         .route("/token", get(token_validation))
         .route("/me", get(get_me))
         .route("/profile", get(get_profile))
-        .route("/mining_status", get(get_mining_status))
+        .route("/total_mining_status", get(get_mining_status))
         .route("/wallet_address", post(set_wallet_address))
         .route("/rewards", get(get_rewards))
         .route("/tweets", get(get_tweets))

@@ -5,7 +5,7 @@ import { ReactComponent as IconStop } from '../svgs/stop.svg';
 import { ReactComponent as IconHourGlass } from '../svgs/hourglass.svg';
 
 import MessageTable from '../components/message-table';
-import TableData from '../data';
+// import TableData from '../data';
 
 interface MineTweetsProps {
     state?: number
@@ -39,7 +39,7 @@ function MineTweets({ state = 1 }: MineTweetsProps) {
                         </>}
                     </div>
                     {state === 3 ? null : <div className="w-100 border border-5 border-dashed p-3 text-center " style={{ height: '38vh' }}></div>}
-                    {state === 3 ? <MessageTable height='38vh' data={TableData.message_table} /> : null}
+                    {/* {state === 3 ? <MessageTable height='38vh' data={TableData.message_table} /> : null} */}
                 </>;
             })()}
         </div>

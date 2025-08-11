@@ -81,8 +81,8 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           rewards: tokenResponse.data?.rewards || 0,
           lockEndDate: tokenResponse.data?.lockEndDate,
           miningCount: tokenResponse.data?.mining_count || 0,
-          totalPhase1Mined: miningResponse.data?.total_phase1_mined || 0,
-          totalPhase2Mined: miningResponse.data?.total_phase2_mined || 0,
+          totalPhase1Mined: tweetMiningResponse.data?.phase1_count || 0,
+          totalPhase2Mined: tweetMiningResponse.data?.phase2_count || 0,
           currentPhase: miningResponse.data?.current_phase || 1,
           userRole,
           patronStatus,
@@ -444,7 +444,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               </div>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Pending Rewards:</span>
-                <strong>{stakingData?.tweetMiningStatus.pendingRewards.toLocaleString() || 0} SNAKE</strong>
+                <strong>{stakingData?.tweetMiningStatus.pendingRewards.toLocaleString() || 0} </strong>
               </div>
             </div>
           </div>
@@ -452,11 +452,11 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             <div className='me-3 px-3 border border-3 border-dashed '>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Phase 1 Mined:</span>
-                <strong>{stakingData?.totalPhase1Mined.toLocaleString() || 0} SNAKE</strong>
+                <strong>{stakingData?.totalPhase1Mined.toLocaleString() || 0} </strong>
               </div>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Phase 2 Mined:</span>
-                <strong>{stakingData?.totalPhase2Mined.toLocaleString() || 0} SNAKE</strong>
+                <strong>{stakingData?.totalPhase2Mined.toLocaleString() || 0} </strong>
               </div>
             </div>
           </div>
@@ -464,7 +464,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             <div className='px-3 border border-3 border-dashed '>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Total Claimed:</span>
-                <strong>{stakingData?.tweetMiningStatus.totalRewardsClaimed.toLocaleString() || 0} SNAKE</strong>
+                <strong>{stakingData?.tweetMiningStatus.totalRewardsClaimed.toLocaleString() || 0} </strong>
                 </div>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Lock End Date:</span>
@@ -509,7 +509,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
         <h5 className="mb-3">⚡ Actions</h5>
         <div className="d-flex flex-wrap gap-2">
           {/* Stake Tokens - Only show if user has balance and no existing stake */}
-          {(!stakingData?.locked || stakingData.locked === 0) && (stakingData?.balance || 0) > 0 && (
+          {/* {(!stakingData?.locked || stakingData.locked === 0) && (stakingData?.balance || 0) > 0 && ( */}
             <button
               onClick={() => {
                 // Set default duration based on user role
@@ -528,7 +528,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               <i className="bi bi-lock-fill me-2"></i>
               Stake Tokens
             </button>
-          )}
+          {/* )} */}
 
           <button
             onClick={handleClaimYield}
@@ -548,10 +548,10 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             )}
           </button>
 
-          {(stakingData?.lockEndDate && getTimeRemaining(stakingData.lockEndDate) === 'Unlocked') ? (
+          {/* {(stakingData?.lockEndDate && getTimeRemaining(stakingData?.lockEndDate ? formatDate(parseInt(stakingData.lockEndDate) * 1000) : 'N/A') === 'Unlocked') ? ( */}
             <button
               onClick={handleUnlockTokens}
-              disabled={unlocking || (stakingData?.locked || 0) <= 0}
+              disabled={unlocking || (stakingData?.locked || 0) > 0}
               className="second-btn"
             >
               {unlocking ? (
@@ -566,7 +566,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                 </>
               )}
             </button>
-          ) : null}
+          {/* ) : null} */}
 
           <button
             onClick={fetchStakingData}

@@ -4,7 +4,7 @@ import WalletGuard from "../../components/WalletGuard";
 
 import TableMiningProgress from "../../partials/mining-progress-table";
 
-import MessageTable from "../../components/message-table";
+// import MessageTable from "../../components/message-table";
 
 import { ReactComponent as IconHourGlass } from '../../svgs/hourglass.svg';
 import { ReactComponent as IconPause } from '../../svgs/pause.svg';
@@ -15,7 +15,7 @@ import { ReactComponent as IconReply } from '../../svgs/refresh.svg';
 import { ReactComponent as IconRetweet } from '../../svgs/repost.svg';
 import { ReactComponent as IconTrash } from '../../svgs/trash.svg';
 
-import TableData from '../../data'
+// import TableData from '../../data'
 
 interface GenerateMemeProps {
     page_number?: number
@@ -75,7 +75,7 @@ function GenerateMeme({ page_number = 1 }: GenerateMemeProps) {
                                 </div>
                             </div>
                             {page_number === 3 ? null : <TableMiningProgress container_height="86vh" />}
-                            {page_number === 3 ? <TableMiningProgress container_height="86vh" table={<MessageTable height="58vh" data={TableData.message_table} />} /> : null}
+                            {/* {page_number === 3 ? <TableMiningProgress container_height="86vh" table={<MessageTable height="58vh" data={TableData.message_table} />} /> : null} */}
                         </div>
                     </WalletGuard>
                 </div>
