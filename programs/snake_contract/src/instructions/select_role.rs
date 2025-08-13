@@ -3,7 +3,6 @@ use crate::state::{UserClaim, UserRole, PatronStatus};
 use crate::errors::SnakeError;
 use crate::constants::{
     PATRON_MIN_WALLET_AGE_DAYS,
-    STAKER_MIN_STAKING_MONTHS,
     PATRON_MIN_STAKING_MONTHS,
     USER_CLAIM_SEED
 };

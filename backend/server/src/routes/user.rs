@@ -16,6 +16,7 @@ use crate::{
             lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
             initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx, check_patron_eligibility,
         },
+        otc_swap::{get_swap_stats, get_swap_by_pda},
     },
     state::AppState,
 };
@@ -65,6 +66,8 @@ pub fn routes() -> Router<AppState> {
         .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
         .route("/accept_otc_swap", post(accept_otc_swap_tx))
         .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
+        .route("/swap_stats", get(get_swap_stats))
+        .route("/swap/:pda", get(get_swap_by_pda))
         // User ID specific routes (must be at the end to avoid conflicts)
         .route("/{user_id}", get(get_user_profile))
         .route("/{user_id}/mining_status", get(get_user_mining_status))

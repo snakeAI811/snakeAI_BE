@@ -16,7 +16,7 @@ use axum::{
 use base64::{Engine, engine};
 use serde_json::{json, Value};
 use types::{
-    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse},
+    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse, InitiateOtcSwapRequest, AcceptOtcSwapRequest},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
@@ -668,21 +668,35 @@ pub async fn get_patron_application_status(
 
 // Get active OTC swaps
 pub async fn get_active_swaps(
-    Extension(_user): Extension<User>,
-    State(_state): State<AppState>,
-) -> Result<Json<Vec<Value>>, ApiError> {
-    // In a real implementation, this would query the database for active OTC swaps
-    // For now, return empty array as placeholder
-    Ok(Json(vec![]))
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<types::dto::ActiveSwapsResponse>, ApiError> {
+    let page = params.get("page")
+        .and_then(|p| p.parse::<i32>().ok())
+        .unwrap_or(1);
+    let per_page = params.get("per_page")
+        .and_then(|p| p.parse::<i32>().ok())
+        .unwrap_or(20)
+        .min(100); // Cap at 100 per page
+
+    let user_role = user.role.as_deref().unwrap_or("none");
+    
+    match state.service.otc_swap.get_active_swaps(user_role, page, per_page).await {
+        Ok(response) => Ok(Json(response)),
+        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
+    }
 }
 
 // Get user's OTC swaps
 pub async fn get_my_swaps(
-    Extension(_user): Extension<User>,
-    State(_state): State<AppState>,
-) -> Result<Json<Vec<Value>>, ApiError> {
-    // In a real implementation, this would query user's OTC swap history
-    Ok(Json(vec![]))
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<types::dto::MySwapsResponse>, ApiError> {
+    match state.service.otc_swap.get_user_swaps(&user).await {
+        Ok(response) => Ok(Json(response)),
+        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
+    }
 }
 
 // Get vesting information
@@ -804,18 +818,7 @@ pub struct VestingRequest {
     pub role_type: String, // "staker", "patron"
 }
 
-#[derive(Deserialize)]
-pub struct InitiateOtcSwapRequest {
-    pub token_amount: u64,
-    pub sol_rate: u64,
-    pub buyer_rebate: u64,
-    pub buyer_role_required: String, // "none", "staker", "patron"
-}
-
-#[derive(Deserialize)]
-pub struct AcceptOtcSwapRequest {
-    pub seller_pubkey: String,
-}
+// OTC swap request structs are now imported from types::dto
 
 // const PATRON_APPLICATION_SEED: &[u8] = b"patron_application";
 // const TOKEN_LOCK_SEED: &[u8] = b"token_lock";
@@ -1566,6 +1569,10 @@ pub async fn lock_tokens_tx(
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
     let treasury_token_account = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+
+    // Derive missing PDAs
+    let (global_staking_stats, _) = Pubkey::find_program_address(&[b"global_staking_stats"], &state.program.id());
+    let (user_staking_history, _) = Pubkey::find_program_address(&[b"user_staking_history", wallet.as_ref()], &state.program.id());
     
     let mut instructions = Vec::new();
     
@@ -1630,6 +1637,9 @@ pub async fn lock_tokens_tx(
             user_token_account: user_token_ata,
             reward_pool_pda: reward_pool,
             treasury_token_account, // Match smart contract account name
+            global_staking_stats,
+            user_staking_history,
+            system_program: system_program::ID,
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::LockTokens {
@@ -1687,6 +1697,8 @@ pub async fn unlock_tokens_tx(
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
     let treasury_token_account = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let (global_staking_stats, _) = Pubkey::find_program_address(&[b"global_staking_stats"], &state.program.id());
+    let (user_staking_history, _) = Pubkey::find_program_address(&[b"user_staking_history", wallet.as_ref()], &state.program.id());
 
     // ✅ Build unlock instruction with correct account names
     let instructions = state
@@ -1698,6 +1710,9 @@ pub async fn unlock_tokens_tx(
             user_token_account: user_token_ata,
             reward_pool_pda: reward_pool,
             treasury_token_account, // Match smart contract account name
+            global_staking_stats,
+            user_staking_history,
+            system_program: system_program::ID,
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::UnlockTokens {})
@@ -1749,6 +1764,8 @@ pub async fn claim_yield_tx(
     );
     
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    let (global_staking_stats, _) = Pubkey::find_program_address(&[b"global_staking_stats"], &state.program.id());
+    let (user_staking_history, _) = Pubkey::find_program_address(&[b"user_staking_history", wallet.as_ref()], &state.program.id());
 
     // ✅ Build claim yield instruction with correct account names
     let instructions = state
@@ -1761,6 +1778,9 @@ pub async fn claim_yield_tx(
             mint,
             reward_pool_pda: reward_pool,
             treasury, // This account name is correct for ClaimYield
+            global_staking_stats,
+            user_staking_history,
+            system_program: system_program::ID,
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::ClaimYield {})
@@ -1933,8 +1953,16 @@ pub async fn initiate_otc_swap_tx(
         &state.program.id(),
     );
     
+    // Validate payload
+    if payload.token_amount == 0 {
+        return Err(ApiError::BadRequest("Token amount must be greater than 0".to_string()));
+    }
+    if payload.sol_rate == 0 {
+        return Err(ApiError::BadRequest("SOL rate must be greater than 0".to_string()));
+    }
+    
     // Convert role string to enum
-    let buyer_role_required = match payload.buyer_role_required.as_str() {
+    let _buyer_role_required = match payload.buyer_role_required.as_str() {
         "none" => snake_contract::state::UserRole::None,
         "staker" => snake_contract::state::UserRole::Staker,
         "patron" => snake_contract::state::UserRole::Patron,
@@ -1973,6 +2001,18 @@ pub async fn initiate_otc_swap_tx(
     let mut transaction = Transaction::new_unsigned(message);
     transaction.message.recent_blockhash = latest_blockhash;
     
+    // Create database record (will be updated with tx signature after user signs)
+    let otc_swap_pda = otc_swap.to_string();
+    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, None).await {
+        Ok(_) => {
+            // Successfully created database record
+        },
+        Err(err) => {
+            // Log error but don't fail the transaction creation
+            eprintln!("Failed to create OTC swap database record: {}", err);
+        }
+    }
+    
     let serialized_transaction = bincode::serialize(&transaction).unwrap();
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
     Ok(Json(base64_transaction))
@@ -1992,6 +2032,16 @@ pub async fn accept_otc_swap_tx(
     let seller_pubkey = Pubkey::from_str(&payload.seller_pubkey)
         .map_err(|_| ApiError::BadRequest("Invalid seller pubkey".to_string()))?;
     
+    // Check if the swap exists and can be accepted by this user
+    match state.service.otc_swap.accept_swap(&user, &payload.seller_pubkey, None).await {
+        Ok(_) => {
+            // Successfully validated and prepared database update
+        },
+        Err(err) => {
+            return Err(ApiError::BadRequest(format!("Cannot accept swap: {}", err)));
+        }
+    }
+    
     let buyer_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let seller_token_ata = spl_associated_token_account::get_associated_token_address(&seller_pubkey, &mint);
     let (buyer_claim, _) = Pubkey::find_program_address(
@@ -2007,10 +2057,6 @@ pub async fn accept_otc_swap_tx(
         &state.program.id(),
     );
 
-    let (buyer_claim, _) = Pubkey::find_program_address(
-        &[b"user_claim", wallet.as_array()],
-        &state.program.id(),
-    );
     let (seller_claim, _) = Pubkey::find_program_address(
         &[b"user_claim", seller_pubkey.as_array()],
         &state.program.id(),
@@ -2061,6 +2107,16 @@ pub async fn cancel_otc_swap_tx(
 ) -> Result<Json<String>, ApiError> {
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    // Check if user has an active swap to cancel
+    match state.service.otc_swap.cancel_swap(&user, None).await {
+        Ok(_) => {
+            // Successfully validated and prepared database update
+        },
+        Err(err) => {
+            return Err(ApiError::BadRequest(format!("Cannot cancel swap: {}", err)));
+        }
+    }
 
     let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
