@@ -52,25 +52,44 @@ const OTCTrading: React.FC = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching active orders...');
       const result = await otcApi.getActiveSwaps();
-
+      console.log('🔍 Active orders result:', result);
+      
       if (result.success && result.data) {
-        const activeOrders = result.data.map((swap: any) => ({
+        // Access the swaps array from the paginated response
+        const { swaps = [], total_count, page, per_page } = result.data;
+        
+        console.log(`📊 Found ${total_count} total swaps, showing page ${page} (${swaps.length} items)`);
+        
+        const activeOrders = swaps.map((swap: any) => ({
           orderId: swap.id,
-          seller: swap.seller,
+          seller: swap.seller_username || swap.seller || 'Unknown', // Use seller_username from API
+          sellerWallet: swap.seller_wallet,
           amount: swap.token_amount.toString(),
           price: (swap.sol_rate / 1_000_000_000).toString(), // Convert lamports to SOL
           isActive: swap.status === 'active',
+          status: swap.status,
           createdAt: new Date(swap.created_at).toLocaleString(),
+          expiresAt: new Date(swap.expires_at).toLocaleString(),
           buyerRestrictions: {
-            patronsOnly: false,
-            treasuryOnly: false,
+            patronsOnly: swap.buyer_role_required === 'patron',
+            treasuryOnly: swap.buyer_role_required === 'treasury',
             minPatronScore: 0,
           },
+          // Additional fields from the API
+          buyerRebate: swap.buyer_rebate,
+          sellerId: swap.seller_id,
         }));
-
+        
+        console.log('🔍 Processed active orders:', activeOrders);
         setOrders(activeOrders);
+        
+        // You might also want to store pagination info
+        // setPaginationInfo({ page, per_page, total_count });
+        
       } else {
+        console.log('❌ Failed to fetch active orders:', result.error);
         throw new Error(result.error || 'Failed to fetch orders');
       }
     } catch (error) {
@@ -83,26 +102,38 @@ const OTCTrading: React.FC = () => {
 
   const fetchMyOrders = async () => {
     try {
-      console.log('🔍 Fetching my orders...');
+      console.log('🔍 Fetching my active orders...');
       const result = await otcApi.getMySwaps();
       console.log('🔍 My orders result:', result);
-
+      
       if (result.success && result.data) {
-        const myActiveOrders = result.data.map((swap: any) => ({
+        // Only process active swaps
+        const { active_swaps = [] } = result.data;
+        
+        console.log('🔍 Active swaps:', active_swaps);
+        
+        const myActiveOrders = active_swaps.map((swap: any) => ({
           orderId: swap.id,
           seller: publicKey?.toString() || '',
           amount: swap.token_amount.toString(),
-          price: (swap.sol_rate / 1_000_000_000).toString(), // Convert lamports to SOL
-          isActive: swap.status === 'active',
+          price: (swap.sol_rate / 1_000_000_000).toString(),
+          isActive: true, // Always true since we're only processing active swaps
+          status: 'active',
           createdAt: new Date(swap.created_at).toLocaleString(),
+          expiresAt: new Date(swap.expires_at).toLocaleString(),
           buyerRestrictions: {
-            patronsOnly: false,
-            treasuryOnly: false,
+            patronsOnly: swap.buyer_role_required === 'patron',
+            treasuryOnly: swap.buyer_role_required === 'treasury',
             minPatronScore: 0,
           },
+          buyerRebate: swap.buyer_rebate,
+          totalSolPayment: swap.total_sol_payment,
+          netSolPayment: swap.net_sol_payment,
+          canAccept: swap.can_accept,
+          isExpired: swap.is_expired,
         }));
-
-        console.log('🔍 Processed my orders:', myActiveOrders);
+        
+        console.log('🔍 Processed my active orders:', myActiveOrders);
         setMyOrders(myActiveOrders);
       } else {
         console.log('❌ Failed to fetch my orders:', result.error);

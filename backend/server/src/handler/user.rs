@@ -1003,101 +1003,75 @@ pub struct DaoUser {
 }
 
 /// Get DAO users list with search and sorting
+
 pub async fn get_dao_users(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(query): Query<DaoUsersQuery>,
     Extension(_user): Extension<User>,
 ) -> Result<Json<Vec<DaoUser>>, ApiError> {
-    // For now, return mock data - this will need to be replaced with actual database queries
-    // when the backend implements proper DAO user management
-    
-    let mut mock_users = vec![
-        DaoUser {
-            id: "1".to_string(),
-            username: "alice_trader".to_string(),
-            wallet_address: "0x1234...5678".to_string(),
-            score: 950,
-            role_duration: 180,
-            activity: 85,
-            user_icon: "👤".to_string(),
-            avatar: Some("https://avatars.githubusercontent.com/u/1?v=4".to_string()),
-        },
-        DaoUser {
-            id: "2".to_string(),
-            username: "crypto_master".to_string(),
-            wallet_address: "0xabcd...efgh".to_string(),
-            score: 820,
-            role_duration: 90,
-            activity: 92,
-            user_icon: "🎯".to_string(),
-            avatar: None, // This will use default avatar
-        },
-        DaoUser {
-            id: "3".to_string(),
-            username: "moon_walker".to_string(),
-            wallet_address: "0x9876...5432".to_string(),
-            score: 1200,
-            role_duration: 365,
-            activity: 78,
-            user_icon: "🚀".to_string(),
-            avatar: Some("https://avatars.githubusercontent.com/u/3?v=4".to_string()),
-        },
-        DaoUser {
-            id: "4".to_string(),
-            username: "dao_voter".to_string(),
-            wallet_address: "0xdef0...1234".to_string(),
-            score: 650,
-            role_duration: 60,
-            activity: 95,
-            user_icon: "⭐".to_string(),
-            avatar: None, // This will use default avatar
-        },
-        DaoUser {
-            id: "5".to_string(),
-            username: "yield_farmer".to_string(),
-            wallet_address: "0x5678...abcd".to_string(),
-            score: 1050,
-            role_duration: 240,
-            activity: 88,
-            user_icon: "🔥".to_string(),
-            avatar: Some("https://avatars.githubusercontent.com/u/5?v=4".to_string()),
-        },
-    ];
-
+    // Get user IDs who have at least one reward (i.e., started mining)
+    let mining_user_ids = state.service.reward.get_distinct_user_ids_with_rewards().await?;
+    let mut dao_users = Vec::new();
+    for user_id in mining_user_ids {
+        if let Some(user) = state.service.user.get_user_by_id(&user_id).await? {
+            let mining_count = state.service.tweet.get_tweets_count(Some(user.id)).await?;
+            dao_users.push(DaoUser {
+                id: user.id.to_string(),
+                username: user.twitter_username.unwrap_or_default(),
+                wallet_address: user.wallet_address.unwrap_or_default(),
+                score: mining_count as i32,
+                role_duration: user.lock_duration_months.unwrap_or(0),
+                activity: mining_count as i32,
+                user_icon: "👤".to_string(),
+                avatar: None,
+            });
+        }
+    }
     // Apply search filter if provided
     if let Some(search_term) = &query.search {
         let search_lower = search_term.to_lowercase();
-        mock_users.retain(|user| {
+        dao_users.retain(|user| {
             user.username.to_lowercase().contains(&search_lower) ||
             user.wallet_address.to_lowercase().contains(&search_lower)
         });
     }
-
     // Apply sorting if provided
     if let Some(sort_by) = &query.sort_by {
         match sort_by.as_str() {
-            "score" => mock_users.sort_by(|a, b| b.score.cmp(&a.score)),
-            "activity" => mock_users.sort_by(|a, b| b.activity.cmp(&a.activity)),
-            "address" => mock_users.sort_by(|a, b| a.wallet_address.cmp(&b.wallet_address)),
-            "roleDuration" => mock_users.sort_by(|a, b| b.role_duration.cmp(&a.role_duration)),
+            "score" => dao_users.sort_by(|a, b| b.score.cmp(&a.score)),
+            "activity" => dao_users.sort_by(|a, b| b.activity.cmp(&a.activity)),
+            "address" => dao_users.sort_by(|a, b| a.wallet_address.cmp(&b.wallet_address)),
+            "roleDuration" => dao_users.sort_by(|a, b| b.role_duration.cmp(&a.role_duration)),
             _ => {} // Default sorting by score
         }
     } else {
         // Default sort by score descending
-        mock_users.sort_by(|a, b| b.score.cmp(&a.score));
+        dao_users.sort_by(|a, b| b.score.cmp(&a.score));
     }
-
-    Ok(Json(mock_users))
+    Ok(Json(dao_users))
 }
 
-/// Get DAO user count
 pub async fn get_dao_user_count(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Extension(_user): Extension<User>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    // Mock response - replace with actual database query
+    // Get user IDs who have at least one reward (i.e., started mining)
+    let mining_user_ids = state.service.reward.get_distinct_user_ids_with_rewards().await?;
+    let mut mining_users = Vec::new();
+    for user_id in mining_user_ids {
+        if let Some(user) = state.service.user.get_user_by_id(&user_id).await? {
+            let mining_count = state.service.tweet.get_tweets_count(Some(user.id)).await?;
+            mining_users.push(json!({
+                "id": user.id,
+                "username": user.twitter_username,
+                "wallet_address": user.wallet_address,
+                "mining_count": mining_count
+            }));
+        }
+    }
     Ok(Json(json!({
-        "total_users": 5
+        "total_users": mining_users.len(),
+        "users": mining_users
     })))
 }
 
@@ -1171,7 +1145,6 @@ pub async fn get_tweet_mining_status(
 // }
 
 /// Claim reward for a specific tweet
-/// Claim reward for a specific tweet 
 pub async fn claim_tweet_reward_tx( 
     Extension(user): Extension<User>, 
     State(state): State<AppState>, 
@@ -1948,8 +1921,11 @@ pub async fn initiate_otc_swap_tx(
         &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
+    // Add a unique salt to the PDA derivation to prevent collisions
+    use uuid::Uuid;
+    let unique_salt = Uuid::new_v4().as_bytes().to_vec();
     let (otc_swap, _) = Pubkey::find_program_address(
-        &[OTC_SWAP_SEED, wallet.as_ref()],
+        &[OTC_SWAP_SEED, wallet.as_ref(), &unique_salt],
         &state.program.id(),
     );
     
@@ -2003,7 +1979,8 @@ pub async fn initiate_otc_swap_tx(
     
     // Create database record (will be updated with tx signature after user signs)
     let otc_swap_pda = otc_swap.to_string();
-    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, None).await {
+    // Pass the unique salt to the database for reference if needed
+    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, Some(hex::encode(&unique_salt))).await {
         Ok(_) => {
             // Successfully created database record
         },

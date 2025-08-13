@@ -14,6 +14,26 @@ export interface WalletTransactionResponse {
     error?: string;
 }
 
+export interface ActiveSwapsResponse {
+  page: number;
+  per_page: number;
+  swaps: Array<{
+    id: string;
+    seller_id: string;
+    seller_username: string;
+    seller_wallet: string;
+    token_amount: number;
+    sol_rate: number;
+    buyer_rebate: number;
+    buyer_role_required: string;
+    status: string;
+    created_at: string;
+    expires_at: string;
+    // Add other fields as needed
+  }>;
+  total_count: number;
+}
+
 // Get session token from cookies
 function getSessionToken(): string | null {
     const cookies = document.cookie.split(';');
@@ -404,30 +424,20 @@ export const otcApi = {
     },
 
     getActiveSwaps: async () => {
-        return apiCall<Array<{
-            id: string;
-            seller: string;
-            token_amount: number;
-            sol_rate: number;
-            buyer_rebate: number;
-            buyer_role_required: string;
-            status: string;
-            created_at: string;
-        }>>('/user/active_swaps', {
+        return apiCall<ActiveSwapsResponse>('/user/active_swaps', {
             method: 'GET',
         });
     },
 
     getMySwaps: async () => {
-        return apiCall<Array<{
-            id: string;
-            token_amount: number;
-            sol_rate: number;
-            buyer_rebate: number;
-            buyer_role_required: string;
-            status: string;
-            created_at: string;
-        }>>('/user/my_swaps', {
+        return apiCall<{
+            active_swaps: any[];
+            cancelled_swaps: any[];
+            completed_swaps: any[];
+            total_active: number;
+            total_cancelled: number;
+            total_completed: number;
+        }>('/user/my_swaps', {
             method: 'GET',
         });
     },

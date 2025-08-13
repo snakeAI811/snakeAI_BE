@@ -67,7 +67,7 @@ pub fn routes() -> Router<AppState> {
         .route("/accept_otc_swap", post(accept_otc_swap_tx))
         .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
         .route("/swap_stats", get(get_swap_stats))
-        .route("/swap/:pda", get(get_swap_by_pda))
+        .route("/swap/{pda}", get(get_swap_by_pda))
         // User ID specific routes (must be at the end to avoid conflicts)
         .route("/{user_id}", get(get_user_profile))
         .route("/{user_id}/mining_status", get(get_user_mining_status))

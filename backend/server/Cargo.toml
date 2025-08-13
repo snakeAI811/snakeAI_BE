@@ -31,3 +31,4 @@ snake_contract = { path = "../../programs/snake_contract", features = [
 anyhow.workspace = true
 log = "0.4.27"
 sha2 = "0.10.9"
+hex = "0.4.3"

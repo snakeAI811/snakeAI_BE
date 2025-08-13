@@ -8,12 +8,12 @@ export const PROGRAM_ID = new PublicKey(
 
 // Token Mint Address (will be set after token creation)
 export const TOKEN_MINT = new PublicKey(
-  process.env.REACT_APP_TOKEN_MINT || 'EdfpKd5MLAfAgTHCkzSEW1QvmksVxM2GmkookjCZxXZV'
+  process.env.REACT_APP_TOKEN_MINT || 'AfCCVWYwfzdLbbBzG1De1dRsQ7DhjgT1zggF6pHU11YV'
 );
 
 // Solana Network Configuration
-export const SOLANA_NETWORK = process.env.REACT_APP_SOLANA_NETWORK || 'devnet';
-export const SOLANA_RPC_URL = process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+export const SOLANA_NETWORK = process.env.REACT_APP_SOLANA_NETWORK || 'localnet';
+export const SOLANA_RPC_URL = process.env.REACT_APP_SOLANA_RPC_URL || 'http://localhost:8899';
 
 // API Configuration
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';

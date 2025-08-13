@@ -13,6 +13,13 @@ pub struct RewardRepository {
 }
 
 impl RewardRepository {
+    /// Returns distinct user IDs who have at least one reward (i.e., started mining)
+    pub async fn get_distinct_user_ids_with_rewards(&self) -> Result<Vec<Uuid>, sqlx::Error> {
+        let rows = sqlx::query!("SELECT DISTINCT user_id FROM rewards")
+            .fetch_all(self.db_conn.get_pool())
+            .await?;
+        Ok(rows.into_iter().map(|row| row.user_id).collect())
+    }
     pub fn new(db_conn: &Arc<DatabasePool>) -> Self {
         Self {
             db_conn: Arc::clone(db_conn),

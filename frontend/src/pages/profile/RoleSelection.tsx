@@ -57,39 +57,6 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     const MINIMUM_PATRON_QUALIFICATION_SCORE = 50; // Minimum score needed
     const MINIMUM_PATRON_MINED_TOKENS = 250000; // 100 SNAKE tokens minimum mined in Phase 1
 
-    // useEffect(() => {
-    //     fetchUserData();
-    // }, []);
-
-    // const fetchUserData = async () => {
-    //     try {
-    //         // Fetch token balance
-    //         const tokenResponse = await tokenApi.getTokenInfo();
-    //         if (tokenResponse.success && tokenResponse.data) {
-    //             setTokenBalance({
-    //                 balance: tokenResponse.data.balance || 0,
-    //                 locked: tokenResponse.data.locked || 0,
-    //                 staked: tokenResponse.data.staked || 0,
-    //                 rewards: tokenResponse.data.rewards || 0,
-    //             });
-    //         }
-
-    //         // Fetch user profile for stats
-    //         const profileResponse = await userApi.getProfile();
-    //         if (profileResponse.success && profileResponse.data) {
-    //             // For now use available data, these fields might need to be added to backend
-    //             setUserStats({
-    //                 total_mined_phase1: profileResponse.data.reward_balance || 0, // Use reward balance as proxy for now
-    //                 wallet_age_days: 30, // Default assumption - could be calculated from user creation date
-    //                 community_score: Math.min(profileResponse.data.tweets + profileResponse.data.likes, 30), // Based on engagement
-    //                 patron_qualification_score: 0, // Will be calculated client-side
-    //             });
-    //         }
-    //     } catch (error) {
-    //         console.error('Failed to fetch user data:', error);
-    //     }
-    // };
-
     // Calculate patron qualification score (from smart contract logic)
     const calculatePatronScore = () => {
         let score = 0;

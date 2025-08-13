@@ -37,15 +37,37 @@ function OTCTrading({ userRole }: OTCTradingProps) {
 
   const fetchActiveSwaps = async () => {
     try {
+      console.log('🔍 Fetching active swaps...');
       const response = await otcApi.getActiveSwaps();
+      console.log('🔍 Active swaps response:', response);
+      
       if (response.success && response.data) {
+        // Extract the swaps array from the paginated response
+        const { swaps = [], total_count, page, per_page } = response.data;
+        
+        console.log(`📊 Found ${total_count} total active swaps, showing page ${page} (${swaps.length} items)`);
+        
+        // Handle empty swaps array
+        if (swaps.length === 0) {
+          console.log('📭 No active swaps found');
+          setActiveSwaps([]);
+          return;
+        }
+        
         // Map the API response to match our interface
-        const mappedSwaps = response.data.map(swap => ({
+        const mappedSwaps = swaps.map(swap => ({
           ...swap,
           status: swap.status as 'active' | 'completed' | 'cancelled'
         }));
+        
+        console.log('🔍 Mapped active swaps:', mappedSwaps);
         setActiveSwaps(mappedSwaps);
+        
+        // Optionally store pagination info if you need it
+        // setPaginationInfo({ page, per_page, total_count });
+        
       } else {
+        console.log('❌ Failed to fetch active swaps:', response.error);
         setActiveSwaps([]);
       }
     } catch (error) {
@@ -54,25 +76,44 @@ function OTCTrading({ userRole }: OTCTradingProps) {
     }
   };
 
+  
+
   const fetchMySwaps = async () => {
-    try {
-      const response = await otcApi.getMySwaps();
-      if (response.success && response.data) {
-        // Map the API response to match our interface
-        const mappedSwaps = response.data.map(swap => ({
-          ...swap,
-          seller: (swap as any).seller || 'You', // Add seller field if missing
-          status: swap.status as 'active' | 'completed' | 'cancelled'
-        }));
-        setMySwaps(mappedSwaps);
-      } else {
+      try {
+        const response = await otcApi.getMySwaps();
+        if (response.success && response.data) {
+          const { active_swaps = [], cancelled_swaps = [], completed_swaps = [] } = response.data;
+          
+          // Process each array separately with explicit status
+          const activeSwaps = active_swaps.map(swap => ({
+            ...swap,
+            seller: swap.seller_username || 'You',
+            status: 'active' as const
+          }));
+          
+          const cancelledSwaps = cancelled_swaps.map(swap => ({
+            ...swap,
+            seller: swap.seller_username || 'You',
+            status: 'cancelled' as const
+          }));
+          
+          const completedSwaps = completed_swaps.map(swap => ({
+            ...swap,
+            seller: swap.seller_username || 'You',
+            status: 'completed' as const
+          }));
+          
+          // Combine all arrays
+          const allSwaps = [...activeSwaps, ...cancelledSwaps, ...completedSwaps];
+          setMySwaps(allSwaps);
+        } else {
+          setMySwaps([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch my swaps:', error);
         setMySwaps([]);
       }
-    } catch (error) {
-      console.error('Failed to fetch my swaps:', error);
-      setMySwaps([]);
-    }
-  };
+    };
 
   const handleCreateSwap = async () => {
     if (!tokenAmount || !solRate || !buyerRebate) return;

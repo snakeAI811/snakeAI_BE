@@ -65,7 +65,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       );
       
       const balance = await connection.getTokenAccountBalance(userTokenAta);
-      console.log('🔍 Direct on-chain balance check:', balance.value.uiAmount);
+      console.log('🔍 Direct on-chain balance check:', balance.value.uiAmount, mint);
       return balance.value.uiAmount;
     } catch (error) {
       console.error('❌ Error checking on-chain balance:', error);
@@ -90,7 +90,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       if (accountInfo) {
         console.log('✅ User Claim account exists');
         console.log('📊 Account data length:', accountInfo.data.length);
-        console.log('💰 Account lamports:', accountInfo.lamports);
+        console.log('💰 Account lamports:', accountInfo.lamports, programId);
       } else {
         console.log('❌ User Claim account does not exist');
       }

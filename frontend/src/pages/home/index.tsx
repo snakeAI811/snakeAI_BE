@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useEffect } from "react";
 
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletDisplay from "../../components/WalletDisplay";
@@ -174,20 +174,87 @@ const Home: React.FC = () => {
     refreshAllAppData: () => void;
   } = useAppContext();
 
+  // Effect to refresh data when component mounts or when user/connected status changes
+  useEffect(() => {
+    // Refresh data when page loads or when authentication/wallet status changes
+    if (user || connected) {
+      refreshAllAppData();
+    }
+  }, [user, connected, refreshAllAppData]);
+
+  // Enhanced periodic refresh with Page Visibility API
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    let lastRefreshTime = Date.now();
+
+    const startPeriodicRefresh = () => {
+      if (interval) clearInterval(interval);
+      
+      interval = setInterval(() => {
+        if (user && connected && !document.hidden) {
+          refreshAllAppData();
+          lastRefreshTime = Date.now();
+        }
+      }, 30000); // 30 seconds
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page became hidden, stop the interval to save resources
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      } else {
+        // Page became visible
+        const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+        const shouldRefreshImmediately = timeSinceLastRefresh > 60000; // 1 minute
+
+        if (shouldRefreshImmediately && user && connected) {
+          // Refresh immediately if it's been more than 1 minute since last refresh
+          refreshAllAppData();
+          lastRefreshTime = Date.now();
+        }
+        
+        // Restart periodic refresh
+        startPeriodicRefresh();
+      }
+    };
+
+    // Start initial periodic refresh
+    if (user && connected) {
+      startPeriodicRefresh();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, connected, refreshAllAppData]);
+
   // Memoized mining progress calculation with proper typing
   const miningProgress: MiningProgress = useMemo(() => {
     if (!miningStatus) return FALLBACK_VALUES;
     
     const total: number = PHASE_1_TARGET;
-    // TODO: Replace hardcoded values with real data
-    const mined: number = 30000; // miningStatus.total_phase1_mined || 0;
-    const percentage: number = 50; // Math.min((mined / total) * 100, 100);
+    // Use actual data from mining status instead of hardcoded values
+    const mined: number = miningStatus.total_phase1_mined || 0;
+    const percentage: number = Math.min((mined / total) * 100, 100);
     
     return { percentage, mined, total };
   }, [miningStatus]);
 
   // Memoized retry handler to prevent unnecessary re-renders
   const handleRetry = useCallback((): void => {
+    refreshAllAppData();
+  }, [refreshAllAppData]);
+
+  // Manual refresh handler for user-initiated updates
+  const handleManualRefresh = useCallback((): void => {
     refreshAllAppData();
   }, [refreshAllAppData]);
 
@@ -210,10 +277,19 @@ const Home: React.FC = () => {
               <h1 className="fs-1 m-0" style={{ lineHeight: 'normal' }}>
                 DASHBOARD
               </h1>
-              <div className="text-end">
+              <div className="text-end d-flex align-items-center gap-2">
                 <div className="fs-6 text-muted">
                   Connected: @{user?.twitter_username || 'Not authenticated'}
                 </div>
+                <button 
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={handleManualRefresh}
+                  disabled={loading}
+                  type="button"
+                  title="Refresh mining status"
+                >
+                  <i className="bi bi-arrow-clockwise" />
+                </button>
               </div>
             </div>
           </header>

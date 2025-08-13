@@ -16,6 +16,10 @@ pub struct RewardService {
 }
 
 impl RewardService {
+    /// Returns distinct user IDs who have at least one reward (i.e., started mining)
+    pub async fn get_distinct_user_ids_with_rewards(&self) -> Result<Vec<Uuid>, ApiError> {
+        self.reward_repo.get_distinct_user_ids_with_rewards().await.map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
     pub fn new(db_conn: &Arc<DatabasePool>) -> Self {
         Self {
             reward_repo: RewardRepository::new(db_conn),

@@ -32,23 +32,62 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     try {
       // Check if Phantom wallet is available
       if (typeof window !== 'undefined' && (window as any).solana && (window as any).solana.isPhantom) {
+        // First, connect to get the public key
         const response = await (window as any).solana.connect();
-        setPublicKey(response.publicKey.toString());
-        setConnected(true);
+        const walletPublicKey = response.publicKey.toString();
+
+        // Create a message for the user to sign (proves ownership)
+        const message = new TextEncoder().encode(
+          `Sign this message to authenticate with our app.\n\nWallet: ${walletPublicKey}\nTimestamp: ${Date.now()}`
+        );
+
+        // Request signature to verify wallet ownership
+        const signedMessage = await (window as any).solana.signMessage(message, 'utf8');
+        
+        if (signedMessage && signedMessage.signature) {
+          // Only set connected state after successful signature
+          setPublicKey(walletPublicKey);
+          setConnected(true);
+          console.log('Wallet connected and authenticated successfully');
+        } else {
+          throw new Error('Failed to get signature from wallet');
+        }
       } else {
         alert('Phantom wallet not found! Please install it.');
       }
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error & { code?: number };
       console.error('Failed to connect wallet:', error);
-      alert('Failed to connect wallet. Please try again.');
+
+      // Handle specific error cases
+      if ((error as any)?.code === 4001) {
+        alert('Connection cancelled by user.');
+      } else if (error.message && error.message.includes('User rejected')) {
+        alert('Signature request was rejected. Please approve to continue.');
+      } else {
+        alert('Failed to connect wallet. Please try again.');
+      }
+
+      // Reset state on error
+      setConnected(false);
+      setPublicKey(null);
     } finally {
       setConnecting(false);
     }
   };
 
   const disconnect = () => {
-    setConnected(false);
-    setPublicKey(null);
+    try {
+      // Disconnect from Phantom if available
+      if (typeof window !== 'undefined' && (window as any).solana && (window as any).solana.isConnected) {
+        (window as any).solana.disconnect();
+      }
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+    } finally {
+      setConnected(false);
+      setPublicKey(null);
+    }
   };
 
   const value: WalletContextState = {
