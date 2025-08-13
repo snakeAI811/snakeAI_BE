@@ -19,15 +19,17 @@ interface MiningProgress {
 interface UserProfile {
   tweets?: number;
   reward_balance?: number;
+  claimable_rewards?: number;
 }
 
 interface TokenInfo {
-  balance?: number;
+  balance_ui?: number;
 }
 
 interface MiningStatus {
   current_phase?: number;
   total_phase1_mined?: number;
+  pending_rewards?: number;
 }
 
 interface User {
@@ -43,6 +45,7 @@ interface ErrorAlertProps {
 interface UserStatsProps {
   userProfile: UserProfile;
   tokenInfo?: TokenInfo | null;
+  miningStatus?: MiningStatus;
 }
 
 interface MiningProgressProps {
@@ -86,12 +89,18 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({ error, onRetry }) => (
   </div>
 );
 
-const UserStats: React.FC<UserStatsProps> = ({ userProfile, tokenInfo }) => (
+const UserStats: React.FC<UserStatsProps> = ({ userProfile, tokenInfo, miningStatus }) => (
   <div className="d-flex gap-3 mt-3">
     <div className="bg-white-custom p-3 rounded flex-fill">
       <div className="fs-6 text-muted">Your Tweets</div>
       <div className="fs-4 fw-bold">
         {(userProfile?.tweets || 0).toLocaleString()}
+      </div>
+    </div>
+    <div className="bg-white-custom p-3 rounded flex-fill">
+      <div className="fs-6 text-muted">Claimable Tweets</div>
+      <div className="fs-4 fw-bold">
+        {(userProfile?.claimable_rewards || 0).toLocaleString()}
       </div>
     </div>
     <div className="bg-white-custom p-3 rounded flex-fill">
@@ -104,7 +113,7 @@ const UserStats: React.FC<UserStatsProps> = ({ userProfile, tokenInfo }) => (
       <div className="bg-white-custom p-3 rounded flex-fill">
         <div className="fs-6 text-muted">Token Balance</div>
         <div className="fs-4 fw-bold">
-          {(tokenInfo.balance || 0).toFixed(4)} SNAKE
+          {(tokenInfo.balance_ui || 0).toFixed(4)} SNAKE
         </div>
       </div>
     )}
@@ -237,7 +246,7 @@ const Home: React.FC = () => {
 
             {/* User Stats */}
             {connected && userProfile && (
-              <UserStats userProfile={userProfile} tokenInfo={tokenInfo} />
+              <UserStats userProfile={userProfile} tokenInfo={tokenInfo} miningStatus={miningStatus ?? undefined} />
             )}
           </main>
         </div>

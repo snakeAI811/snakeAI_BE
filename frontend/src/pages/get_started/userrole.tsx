@@ -29,7 +29,7 @@ function UserRolePage() {
                                     <StakerIcon />
                                 </div>
                                 <h2 className="fw-bolder px-3 fs-3 fs-lg-10" style={{ lineHeight: 'normal' }}>STAKERES</h2>
-                                <p className="fs-7 fs-lg-12 p-3" style={{ lineHeight: 'normal' }}> Lock tokens for 3 months. Earn APY and join Phase 2 mining.</p>
+                                <p className="fs-7 fs-lg-12 p-3" style={{ lineHeight: 'normal' }}> Lock your tokens for 3 months. Earn APY and joining mining phase 2.</p>
                             </div>
                         </div>
                     </div>

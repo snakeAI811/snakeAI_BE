@@ -218,11 +218,26 @@ export const tokenApi = {
     getTokenInfo: async () => {
         return apiCall<{
             balance: number;
+            balance_ui: number;
+            decimals: number;
+            lockEndDate: number; // Unix timestamp
             locked: number;
-            staked: number;
-            rewards: number;
+            locked_ui: number;
             mining_count: number;
-            lockEndDate?: string;
+            mining_rewards: number;
+            rewards: number;
+            rewards_ui: number;
+            staked: number;
+            staked_ui: number;
+            staking: {
+                apy_rate: number;
+                can_claim_yield: boolean;
+                is_locked: boolean;
+                lock_duration_months: number;
+                user_role: string;
+            };
+            yield_rewards: number;
+            yield_rewards_ui: number;
         }>('/user/token_info', {
             method: 'GET',
         });
@@ -466,6 +481,7 @@ export const userApi = {
             wallet_address: string;
             latest_claim_timestamp: string | null;
             reward_balance: number;
+            claimable_rewards: number;
             tweets: number;
             likes: number;
             replies: number;

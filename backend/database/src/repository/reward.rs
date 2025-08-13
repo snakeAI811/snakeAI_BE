@@ -149,7 +149,6 @@ impl RewardRepository {
             .bind(offset)
             .bind(limit);
 
-        println!("Constructed SQL Query---hahahah: {}", query);
 
         if let Some(user_id) = user_id {
             sql_query = sql_query.bind(user_id);
@@ -292,5 +291,19 @@ impl RewardRepository {
             .await?;
 
         Ok(reward.unwrap_or_default())
+    }
+
+    pub async fn count_available_rewards(
+        &self,
+        user_id: &Uuid,
+    ) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM rewards WHERE user_id = $1 AND available = true",
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+        
+        Ok(count.unwrap_or(0))
     }
 }

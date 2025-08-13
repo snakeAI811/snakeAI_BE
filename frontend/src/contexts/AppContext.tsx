@@ -31,6 +31,7 @@ interface UserProfile {
   wallet_address: string;
   latest_claim_timestamp: string | null;
   reward_balance: number;
+  claimable_rewards: number;
   tweets: number;
   likes: number;
   replies: number;
@@ -38,9 +39,26 @@ interface UserProfile {
 
 interface TokenInfo {
   balance: number;
+  balance_ui: number;
+  decimals: number;
+  lockEndDate: number; // Unix timestamp
   locked: number;
-  staked: number;
+  locked_ui: number;
+  mining_count: number;
+  mining_rewards: number;
   rewards: number;
+  rewards_ui: number;
+  staked: number;
+  staked_ui: number;
+  staking: {
+    apy_rate: number;
+    can_claim_yield: boolean;
+    is_locked: boolean;
+    lock_duration_months: number;
+    user_role: string;
+  };
+  yield_rewards: number;
+  yield_rewards_ui: number;
 }
 
 interface AppContextState {
@@ -51,7 +69,7 @@ interface AppContextState {
   loading: boolean;
   error: string | null;
   refreshAllAppData: () => Promise<void>;
-  fetchMiningStatus: () => Promise<void>; 
+  fetchMiningStatus: () => Promise<void>;
   updateUserRole: (role: UserRole) => void;
   isWalletRequired: boolean;
   showWalletWarning: boolean;
@@ -72,9 +90,9 @@ const AppContext = createContext<AppContextState>({
   userRole: { role: 'none' },
   loading: false,
   error: null,
-  refreshAllAppData: async () => {},
-  fetchMiningStatus: async () => {},
-  updateUserRole: () => {},
+  refreshAllAppData: async () => { },
+  fetchMiningStatus: async () => { },
+  updateUserRole: () => { },
   isWalletRequired: false,
   showWalletWarning: false,
 });
@@ -255,7 +273,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
       refreshAllAppData,
       fetchMiningStatus,
       updateUserRole,
-      isWalletRequired,  
+      isWalletRequired,
       showWalletWarning,
     }),
     [

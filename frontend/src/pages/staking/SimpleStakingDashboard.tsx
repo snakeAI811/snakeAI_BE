@@ -2,9 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useWalletContext } from '../../contexts/WalletContext';
 import { tokenApi, userApi, roleApi } from '../patron/services/apiService';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import * as spl_associated_token_account from '@solana/spl-token';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../contexts/ToastContext';
 import { useAppContext } from '../../contexts/AppContext';
+import { PROGRAM_ID, TOKEN_MINT } from '../../config/program';
+
 interface StakingData {
   balance: number;
   locked: number;
@@ -50,6 +53,63 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
   const { showSuccess, showError, showInfo } = useToast();
   const { userRole } = useAppContext();
 
+  // Debug function to check on-chain balance directly
+  const checkOnChainBalance = useCallback(async () => {
+    if (!connected || !publicKey || !connection) return;
+    
+    try {
+      const mint = new PublicKey(TOKEN_MINT); // Actual token mint from backend
+      const userTokenAta = spl_associated_token_account.getAssociatedTokenAddressSync(
+        mint,
+        new PublicKey(publicKey)
+      );
+      
+      const balance = await connection.getTokenAccountBalance(userTokenAta);
+      console.log('🔍 Direct on-chain balance check:', balance.value.uiAmount);
+      return balance.value.uiAmount;
+    } catch (error) {
+      console.error('❌ Error checking on-chain balance:', error);
+      return null;
+    }
+  }, [connected, publicKey, connection]);
+
+  // Debug function to check user claim account state
+  const checkUserClaimState = useCallback(async () => {
+    if (!connected || !publicKey || !connection) return;
+    
+    try {
+      const programId = new PublicKey(PROGRAM_ID); // From backend env
+      const [userClaimPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from('user_claim'), new PublicKey(publicKey).toBuffer()],
+        programId
+      );
+      
+      console.log('🔍 User Claim PDA:', userClaimPda.toString());
+      
+      const accountInfo = await connection.getAccountInfo(userClaimPda);
+      if (accountInfo) {
+        console.log('✅ User Claim account exists');
+        console.log('📊 Account data length:', accountInfo.data.length);
+        console.log('💰 Account lamports:', accountInfo.lamports);
+      } else {
+        console.log('❌ User Claim account does not exist');
+      }
+      
+      return accountInfo;
+    } catch (error) {
+      console.error('❌ Error checking user claim state:', error);
+      return null;
+    }
+  }, [connected, publicKey, connection]);
+
+  // Make debug functions available globally for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).checkOnChainBalance = checkOnChainBalance;
+      (window as any).checkUserClaimState = checkUserClaimState;
+    }
+  }, [checkOnChainBalance, checkUserClaimState]);
+
   const fetchStakingData = useCallback(async () => {
     if (!connected || !publicKey) return;
 
@@ -63,6 +123,14 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       const vestingResponse = await tokenApi.getVestingInfo();
       const roleResponse = await roleApi.getUserRole();
 
+      // Debug logging for balance tracking
+      console.log('🔍 Token Response:', tokenResponse);
+      if (tokenResponse.success && tokenResponse.data) {
+        console.log('💰 Current Balance:', tokenResponse.data.balance);
+        console.log('🔒 Locked Amount:', tokenResponse.data.locked);
+        console.log('📊 Staked Amount:', tokenResponse.data.staked);
+      }
+
       if (tokenResponse.success && miningResponse.success && tweetMiningResponse.success) {
         // Parse user role
         let userRole: 'none' | 'staker' | 'patron' = 'none';
@@ -75,11 +143,11 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
         }
 
         const stakingData: StakingData = {
-          balance: tokenResponse.data?.balance || 0,
-          locked: tokenResponse.data?.locked || 0,
-          staked: tokenResponse.data?.staked || 0,
-          rewards: tokenResponse.data?.rewards || 0,
-          lockEndDate: tokenResponse.data?.lockEndDate,
+          balance: tokenResponse.data?.balance_ui || 0,
+          locked: tokenResponse.data?.locked_ui || 0,
+          staked: tokenResponse.data?.staked_ui || 0,
+          rewards: tokenResponse.data?.yield_rewards_ui || 0,
+          lockEndDate: tokenResponse.data?.lockEndDate !== undefined ? String(tokenResponse.data.lockEndDate) : undefined,
           miningCount: tokenResponse.data?.mining_count || 0,
           totalPhase1Mined: tweetMiningResponse.data?.phase1_count || 0,
           totalPhase2Mined: tweetMiningResponse.data?.phase2_count || 0,
@@ -158,7 +226,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
         }
         await fetchStakingData();
       } else {
-        showError('Phantom wallet not found');
+        showError(`Failed to claim yield: ${response.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error claiming yield:', error);
@@ -236,9 +304,15 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
       return;
     }
 
+    if (amount < 5000) {
+      showError('Minimum stake amount is 5000 SNAKE');
+      return;
+    }
+
     try {
       setStaking(true);
       console.log(`🔄 Starting stake process: ${amount} SNAKE for ${stakeDuration} months`);
+      console.log('💰 Balance before staking:', stakingData?.balance);
 
       const response = await tokenApi.lockTokens(amount, stakeDuration);
 
@@ -270,26 +344,74 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             });
             console.log('📤 Transaction submitted with signature:', signature);
 
+            // Wait for transaction confirmation with more robust checking
+            const latestBlockhash = await connection.getLatestBlockhash();
             await connection.confirmTransaction({
               signature,
               blockhash: transaction.recentBlockhash!,
-              lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-            }, 'confirmed');
+              lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+            }, 'finalized'); // Use 'finalized' for stronger confirmation
 
-            console.log('✅ Transaction confirmed');
-            alert(`Tokens staked successfully! Transaction: ${signature}`);
+            // Verify transaction was successful
+            const txResult = await connection.getTransaction(signature, {
+              commitment: 'finalized'
+            });
+            
+            if (txResult?.meta?.err) {
+              throw new Error(`Transaction failed: ${JSON.stringify(txResult.meta.err)}`);
+            }
+            
+            console.log('✅ Transaction confirmed with finalized commitment');
+            console.log('📋 Transaction result:', txResult?.meta);
+            
+            // Log detailed transaction information
+            if (txResult?.meta) {
+              console.log('💸 Pre-token balances:', txResult.meta.preTokenBalances);
+              console.log('💰 Post-token balances:', txResult.meta.postTokenBalances);
+              console.log('📝 Log messages:', txResult.meta.logMessages);
+              
+              // Check if balances actually changed
+              const preBalance = txResult.meta.preTokenBalances?.find((b: any) => b.owner === publicKey);
+              const postBalance = txResult.meta.postTokenBalances?.find((b: any) => b.owner === publicKey);
+              
+              if (preBalance && postBalance) {
+                const balanceChange = (postBalance.uiTokenAmount.uiAmount || 0) - (preBalance.uiTokenAmount.uiAmount || 0);
+                console.log(`💹 Balance change: ${balanceChange} tokens`);
+                
+                if (balanceChange === 0) {
+                  console.warn('⚠️ WARNING: Balance did not change after transaction!');
+                }
+              }
+            }
+            
+            showSuccess(`Tokens staked successfully! Transaction: ${signature}`);
           } else {
             throw new Error('Phantom wallet not found. Please install Phantom wallet.');
           }
         } else {
-          alert('Tokens staked successfully!');
+          showSuccess('Tokens staked successfully!');
         }
 
         setShowStakeModal(false);
         setStakeAmount('');
-        await fetchStakingData(); // Refresh data
+        
+        // Wait longer for blockchain state to update, then refresh data multiple times
+        setTimeout(async () => {
+          // Check on-chain balance directly before fetching from backend
+          const directBalance = await checkOnChainBalance();
+          console.log('🔍 Direct on-chain balance after staking:', directBalance);
+          
+          await fetchStakingData();
+          
+          // Refresh again after another 3 seconds to ensure we get updated data
+          setTimeout(async () => {
+            const directBalance2 = await checkOnChainBalance();
+            console.log('🔍 Direct on-chain balance (second check):', directBalance2);
+            await fetchStakingData();
+          }, 3000);
+        }, 3000);
       } else {
-        alert(`Failed to stake tokens: ${response.error}`);
+        showError(`Failed to stake tokens: ${response.error}`);
       }
     } catch (error) {
       console.error('Error staking tokens:', error);
@@ -308,19 +430,23 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
     return date.toLocaleDateString();
   };
 
-  const getTimeRemaining = (endDate?: string) => {
-    if (!endDate) return 'N/A';
+  const getTimeRemaining = (endTimestamp?: string | number) => {
+    if (!endTimestamp) return 'N/A';
 
     const now = new Date().getTime();
-    const end = new Date(endDate).getTime();
-    const remaining = end - now;
+    // Convert Unix timestamp (seconds) to milliseconds
+    const endTime = typeof endTimestamp === 'string' 
+      ? parseInt(endTimestamp) * 1000 
+      : endTimestamp * 1000;
+    const remaining = endTime - now;
 
     if (remaining <= 0) return 'Unlocked';
 
     const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
     const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor(remaining / (1000 * 60 )) ;
 
-    return `${days}d ${hours}h`;
+    return `${days}d ${hours}h ${minutes}m`;
   };
 
   if (!connected || !publicKey) {
@@ -354,7 +480,15 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
         <div>
           <small className="text-muted">Wallet: {publicKey}</small>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
+          <button 
+            className="btn btn-outline-primary btn-sm" 
+            onClick={fetchStakingData}
+            disabled={loading}
+            title="Refresh balance"
+          >
+            <i className="bi bi-arrow-clockwise"></i> Refresh
+          </button>
           <span className="badge bg-success">Connected</span>
           <span className="badge bg-primary">Phase {stakingData?.currentPhase || 1}</span>
           {userRole?.role && userRole.role !== 'none' && (
@@ -392,7 +526,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               <div className="text-success mb-2">
                 <i className="bi bi-award-fill" style={{ fontSize: '2rem' }}></i>
               </div>
-              <h6 className="card-title text-muted mb-1">Available Rewards</h6>
+              <h6 className="card-title text-muted mb-1">Claimable Rewards</h6>
               <h4 className="card-text text-success mb-0">
                 {stakingData?.rewards.toLocaleString() || 0}
               </h4>
@@ -409,7 +543,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               </div>
               <h6 className="card-title text-muted mb-1">Lock Status</h6>
               <h6 className="card-text text-warning mb-0">
-                {getTimeRemaining(stakingData?.lockEndDate ? formatDate(parseInt(stakingData.lockEndDate) * 1000) : 'N/A')}
+                {getTimeRemaining(stakingData?.lockEndDate)}
               </h6>
               <small className="text-muted">Remaining</small>
             </div>
@@ -548,10 +682,10 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             )}
           </button>
 
-          {/* {(stakingData?.lockEndDate && getTimeRemaining(stakingData?.lockEndDate ? formatDate(parseInt(stakingData.lockEndDate) * 1000) : 'N/A') === 'Unlocked') ? ( */}
+          {(stakingData?.lockEndDate && getTimeRemaining(stakingData?.lockEndDate) === 'Unlocked') ? (
             <button
               onClick={handleUnlockTokens}
-              disabled={unlocking || (stakingData?.locked || 0) > 0}
+              disabled={unlocking || (stakingData?.locked || 0) <= 0}
               className="second-btn"
             >
               {unlocking ? (
@@ -566,7 +700,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                 </>
               )}
             </button>
-          {/* ) : null} */}
+           ) : null} 
 
           <button
             onClick={fetchStakingData}
@@ -608,6 +742,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                     <input
                       type="number"
                       className="form-control"
+                      min={5000}
                       value={stakeAmount}
                       onChange={(e) => setStakeAmount(e.target.value)}
                       placeholder="Enter amount"
@@ -632,14 +767,14 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                       <option value={6}>6 months (7% APY) - Patron</option>
                     )}
                     {stakingData?.patronStatus !== 'Approved' && (
-                      <option value={6}>6 months (5% APY) - Staker</option>
+                      <option value={6}>6 months (5% APY) - Staker, Patron</option>
                     )}
                   </select>
-                  {/* {stakingData?.userRole === 'none' && (
+                  {stakingData?.userRole === 'none' && (
                     <div className="form-text text-warning">
-                      You must select a role (Staker or Patron) before staking. Visit the Patron Framework page to choose your role.
+                      You must select a role (Staker or Patron) before staking. Visit the Profile page to choose your role.
                     </div>
-                  )} */}
+                  )}
                 </div>
 
                 <div className="alert alert-info">

@@ -142,4 +142,11 @@ impl RewardService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn count_available_rewards(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.reward_repo
+            .count_available_rewards(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

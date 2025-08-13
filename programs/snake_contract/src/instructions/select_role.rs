@@ -4,7 +4,8 @@ use crate::errors::SnakeError;
 use crate::constants::{
     PATRON_MIN_WALLET_AGE_DAYS,
     STAKER_MIN_STAKING_MONTHS,
-    PATRON_MIN_STAKING_MONTHS
+    PATRON_MIN_STAKING_MONTHS,
+    USER_CLAIM_SEED
 };
 
 #[derive(Accounts)]
@@ -13,7 +14,7 @@ pub struct SelectRole<'info> {
     pub user: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"user_claim", user.key().as_ref()],
+        seeds = [USER_CLAIM_SEED, user.key().as_ref()],
         bump,
     )]
     pub user_claim: Account<'info, UserClaim>,

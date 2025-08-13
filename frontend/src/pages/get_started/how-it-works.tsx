@@ -40,7 +40,7 @@ function HowItWorksPage() {
                             <div className="px-3">
                                 <hr className="border border-dashed border-black border-3 opacity-100"></hr>
                             </div>
-                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>No tokens are minted until TCE (Token Claim Event).</p>
+                            <p className="fs-4 fs-lg-10 p-3 px-lg-4" style={{ lineHeight: 'normal' }}>No tokens will be minted until TCE (Token claim event), and this will be once we reach 1M tweets.</p>
                         </div>
                     </div>
                 </div>

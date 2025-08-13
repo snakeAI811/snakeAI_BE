@@ -91,6 +91,24 @@ pub mod snake_contract {
         instructions::claim_yield(ctx)
     }
 
+    // ========== STAKING HISTORY TRACKING FUNCTIONS ==========
+    
+    pub fn initialize_staking_history(ctx: Context<InitializeStakingHistory>) -> Result<()> {
+        instructions::initialize_staking_history(ctx)
+    }
+
+    pub fn initialize_global_stats(ctx: Context<InitializeGlobalStats>) -> Result<()> {
+        instructions::initialize_global_stats(ctx)
+    }
+
+    pub fn get_user_staking_summary(ctx: Context<GetStakingHistory>) -> Result<()> {
+        instructions::get_user_staking_summary(ctx)
+    }
+
+    pub fn get_global_staking_stats(ctx: Context<GetGlobalStats>) -> Result<()> {
+        instructions::get_global_staking_stats(ctx)
+    }
+
     // ========== NEW PATRON FRAMEWORK FUNCTIONS ==========
 
     pub fn create_otc_order(

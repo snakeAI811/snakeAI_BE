@@ -119,12 +119,15 @@ pub async fn get_profile(
     Extension(user): Extension<User>,
 ) -> Result<Json<Profile>, ApiError> {
     let reward_balance = state.service.reward.get_reward_balance(&user.id).await?;
+    let claimable_rewards = state.service.reward.count_available_rewards(&user.id).await?;
+
     let tweets = state.service.tweet.get_tweets_count(Some(user.id)).await?;
     Ok(Json(Profile {
         twitter_username: user.twitter_username.unwrap_or_default(),
         wallet_address: user.wallet_address.unwrap_or_default(),
         latest_claim_timestamp: user.latest_claim_timestamp,
         reward_balance,
+        claimable_rewards,
         tweets,
         likes: 0,
         replies: 0,
@@ -440,79 +443,212 @@ pub async fn get_token_info(
     Extension(user): Extension<User>,
     State(state): State<AppState>,
 ) -> Result<Json<Value>, ApiError> {
-    let mining_status = state.service.tweet.get_phase1_mining_count(&user.id).await? 
+    let mining_status = state.service.tweet.get_phase1_mining_count(&user.id).await?
         + state.service.tweet.get_phase2_mining_count(&user.id).await?;
-    
+
     if let Some(wallet_address) = &user.wallet_address {
         let wallet = Pubkey::from_str(wallet_address)
             .map_err(|_| ApiError::BadRequest("Invalid wallet address".to_string()))?;
         let mint = Pubkey::from_str(&state.env.token_mint)
             .map_err(|_| ApiError::InternalServerError("Invalid token mint".to_string()))?;
-        
+
         // Get associated token account address
         let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
-        
+        log::info!("Checking token account: {} for wallet: {}", user_token_ata, wallet);
+
         // Get token account balance from blockchain
-        let wallet_balance = match state.program.rpc().get_token_account_balance(&user_token_ata) {
-            Ok(balance) => balance.ui_amount.unwrap_or(0.0) as i64,
-            Err(_) => 0, // If account doesn't exist or has no balance
+        let (wallet_balance_raw, token_decimals) = {
+            let mut attempts = 0;
+            let max_attempts = 3;
+            let mut balance = 0u64;
+            let mut decimals = 9u8; // Default to 9 decimals
+
+            while attempts < max_attempts {
+                match state.program.rpc().get_token_account_balance(&user_token_ata) {
+                    Ok(balance_response) => {
+                        // Use raw amount to maintain precision
+                        balance = balance_response.amount.parse::<u64>().unwrap_or(0);
+                        decimals = balance_response.decimals;
+                        
+                        let ui_amount = balance as f64 / 10_f64.powi(decimals as i32);
+                        log::info!("Successfully retrieved balance: {} raw units = {} tokens (decimals: {}, attempt: {})", 
+                                  balance, ui_amount, decimals, attempts + 1);
+                        break;
+                    },
+                    Err(e) => {
+                        attempts += 1;
+                        log::warn!("Failed to get token account balance (attempt {}): {:?}", attempts, e);
+                        if attempts < max_attempts {
+                            // Use async sleep instead of thread sleep
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        } else {
+                            log::error!("Failed to get token balance after {} attempts", max_attempts);
+                        }
+                    }
+                }
+            }
+            (balance, decimals)
         };
-        
+
         // Get staking/lock information from smart contract
+        // ✅ FIXED: Use consistent seed derivation with as_ref()
         let (user_claim, _) = Pubkey::find_program_address(
-            &[USER_CLAIM_SEED, wallet.as_array()],
+            &[USER_CLAIM_SEED, wallet.as_ref()], // Changed from as_array() to as_ref()
             &state.program.id(),
         );
-        
-        let (locked_amount, lock_end_timestamp, staked_amount) = match state.program.rpc().get_account_data(&user_claim) {
+
+        log::info!("Checking UserClaim account at address: {} for wallet: {}", user_claim, wallet);
+
+        let (locked_amount, lock_end_timestamp, yield_rewards, user_role, apy_rate, lock_duration) = match state.program.rpc().get_account_data(&user_claim) {
             Ok(data) => {
+                log::info!("UserClaim account found, data length: {} bytes", data.len());
                 // Try to deserialize the UserClaim account data
                 match snake_contract::state::UserClaim::try_deserialize(&mut data.as_slice()) {
                     Ok(user_claim_data) => {
+                        let role_str = match user_claim_data.role {
+                            snake_contract::state::UserRole::Staker => "Staker",
+                            snake_contract::state::UserRole::Patron => "Patron",
+                            snake_contract::state::UserRole::None => "None",
+                        };
+
+                        // ✅ FIXED: Get APY rate based on role
+                        let apy_rate = match user_claim_data.role {
+                            snake_contract::state::UserRole::Staker => 5u8,  // 5% APY
+                            snake_contract::state::UserRole::Patron => 7u8,  // 7% APY
+                            _ => 0u8,
+                        };
+                        
+                       // Replace this section in your get_token_info function:
+
                         let current_time = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap()
                             .as_secs() as i64;
-                        
-                        // Calculate available yield for staking
-                        let staked_amount = if user_claim_data.role == snake_contract::state::UserRole::Staker 
-                            && user_claim_data.locked_amount > 0 
-                            && current_time < user_claim_data.lock_end_timestamp {
-                            user_claim_data.calculate_yield().unwrap_or(0)
-                        } else {
-                            0
+
+                        println!("UserClaim deserialized successfully - locked_amount: {}, lock_end: {}, role: {}, APY: {}%, current_time: {}",  
+                                user_claim_data.locked_amount, user_claim_data.lock_end_timestamp, role_str, apy_rate, current_time);
+
+                        // ✅ FIXED: Use backend-compatible yield calculation
+                        let yield_rewards = if (user_claim_data.role == snake_contract::state::UserRole::Staker  
+                                            || user_claim_data.role == snake_contract::state::UserRole::Patron) 
+                            && user_claim_data.locked_amount > 0 {
+                            
+                            // Use the new backend-compatible method
+                            let calculated_yield = user_claim_data.calculate_yield_backend(current_time);
+                            println!("Calculated yield rewards: {} for role: {} ({}% APY)",  
+                                    calculated_yield, role_str, apy_rate);
+                            calculated_yield
+                        } else { 
+                            println!("No yield rewards - role: {}, locked: {}, current_time: {}, lock_end: {}",  
+                                    role_str, user_claim_data.locked_amount, current_time, user_claim_data.lock_end_timestamp); 
+                            0 
                         };
-                        
-                        (user_claim_data.locked_amount, user_claim_data.lock_end_timestamp, staked_amount)
+
+                        (
+                            user_claim_data.locked_amount, 
+                            user_claim_data.lock_end_timestamp, 
+                            yield_rewards,
+                            role_str.to_string(),
+                            apy_rate,
+                            user_claim_data.lock_duration_months
+                        )
                     },
-                    Err(_) => (0, 0, 0), // Account exists but can't deserialize
+                    Err(e) => {
+                        log::warn!("Failed to deserialize UserClaim account for wallet {}: {:?}", wallet, e);
+                        log::debug!("Raw account data: {:?}", data);
+                        (0, 0, 0, "None".to_string(), 0u8, 0u8) // Account exists but can't deserialize
+                    }
                 }
             },
-            Err(_) => (0, 0, 0), // Account doesn't exist
+            Err(e) => {
+                log::info!("UserClaim account not found for wallet {}: {:?}", wallet, e);
+                (0, 0, 0, "None".to_string(), 0u8, 0u8) // Account doesn't exist
+            }
         };
-        
-        // Get pending rewards from database
-        let pending_rewards = state.service.reward.get_reward_balance(&user.id).await?;
-        
+
+        // Get pending rewards from database (mining rewards)
+        let mining_rewards = state.service.reward.get_reward_balance(&user.id).await?;
+        log::info!("Mining rewards from database: {}", mining_rewards);
+
+        // Total claimable rewards = yield rewards + mining rewards
+        let total_rewards = yield_rewards + (mining_rewards.max(0) as u64);
+
+        // Convert raw amounts to UI amounts for logging
+        let wallet_balance_ui = wallet_balance_raw as f64 / 10_f64.powi(token_decimals as i32);
+        let locked_amount_ui = locked_amount as f64 / 10_f64.powi(token_decimals as i32);
+        let total_rewards_ui = total_rewards as f64 / 10_f64.powi(token_decimals as i32);
+        let yield_rewards_ui = yield_rewards as f64 / 10_f64.powi(token_decimals as i32);
+
+        log::info!("Final token info (UI amounts) - wallet_balance: {} tokens, locked: {} tokens, yield_rewards: {} tokens, mining_rewards: {}, total_rewards: {} tokens, role: {}, APY: {}%", 
+                  wallet_balance_ui, locked_amount_ui, yield_rewards_ui, mining_rewards, total_rewards_ui, user_role, apy_rate);
+        log::info!("Final token info (raw amounts) - wallet_balance: {}, locked: {}, yield_rewards: {}, total_rewards: {}", 
+                  wallet_balance_raw, locked_amount, yield_rewards, total_rewards);
+
+        // ✅ ENHANCED: Include more staking details in response
         Ok(Json(json!({
-            "balance": wallet_balance,
-            "locked": locked_amount,
-            "staked": staked_amount,
-            "rewards": pending_rewards,
+            "balance": wallet_balance_raw,           // Raw amount for precision
+            "locked": locked_amount,                 // Raw amount for precision
+            "staked": locked_amount,                 // Raw amount for precision
+            "rewards": total_rewards,                // Raw amount for precision
+            "yield_rewards": yield_rewards,          // Raw yield rewards separately
+            "mining_rewards": mining_rewards.max(0),// Mining rewards from database
             "mining_count": mining_status,
-            "lockEndDate": lock_end_timestamp
+            "lockEndDate": lock_end_timestamp,
+            "decimals": token_decimals,              // Include decimals for frontend conversion
+            
+            // ✅ NEW: Staking details
+            "staking": {
+                "user_role": user_role,              // "Staker", "Patron", or "None"
+                "apy_rate": apy_rate,                // 5% for Stakers, 7% for Patrons
+                "lock_duration_months": lock_duration, // 3 or 6 months
+                "is_locked": locked_amount > 0 && lock_end_timestamp > std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64,
+                "can_claim_yield": yield_rewards > 0,
+            },
+            
+            // Include UI amounts for easy display
+            "balance_ui": wallet_balance_ui,
+            "locked_ui": locked_amount_ui,
+            "staked_ui": locked_amount_ui,
+            "rewards_ui": total_rewards_ui,
+            "yield_rewards_ui": yield_rewards_ui
         })))
     } else {
+        log::info!("No wallet connected for user {}, returning database fallback values", user.id);
         // No wallet connected - return database values as fallback
         let pending_rewards = state.service.reward.get_reward_balance(&user.id).await?;
+        let locked_amount = user.locked_amount.unwrap_or(0);
         
+        // Assume 9 decimals for UI conversion when no wallet is connected
+        let decimals = 9u8;
+        let locked_amount_ui = locked_amount as f64 / 10_f64.powi(decimals as i32);
+        let pending_rewards_ui = pending_rewards; //.max(0) as f64 / 10_f64.powi(decimals as i32);
+
         Ok(Json(json!({
             "balance": 0,
-            "locked": user.locked_amount.unwrap_or(0),
+            "locked": locked_amount,
             "staked": 0,
-            "rewards": pending_rewards,
+            "rewards": pending_rewards.max(0),
+            "yield_rewards": 0,
+            "mining_rewards": pending_rewards.max(0),
             "mining_count": mining_status,
-            "lockEndDate": user.latest_claim_timestamp
+            "lockEndDate": user.latest_claim_timestamp,
+            "decimals": decimals,
+            
+            // Default staking info for no wallet
+            "staking": {
+                "user_role": "None",
+                "apy_rate": 0,
+                "lock_duration_months": 0,
+                "is_locked": false,
+                "can_claim_yield": false,
+            },
+            
+            // Include UI amounts for easy display
+            "balance_ui": 0.0,
+            "locked_ui": locked_amount_ui,
+            "staked_ui": 0.0,
+            "rewards_ui": pending_rewards_ui,
+            "yield_rewards_ui": 0.0
         })))
     }
 }
@@ -1419,19 +1555,17 @@ pub async fn lock_tokens_tx(
     let wallet = user.wallet()
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
     
-    // Remove the separate initialization call - we'll do it inline like claim_tweet_reward_tx
-    
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     
-    // ✅ Use wallet.as_ref() to match the working claim function
+    // ✅ Use consistent seed derivation across all functions
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_ref()], // Changed from as_array() to as_ref()
+        &[USER_CLAIM_SEED, wallet.as_ref()], // Keep using as_ref() consistently
         &state.program.id(),
     );
     
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
-    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let treasury_token_account = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
     
     let mut instructions = Vec::new();
     
@@ -1460,7 +1594,33 @@ pub async fn lock_tokens_tx(
         }
     }
     
-    // ✅ Build the lock tokens instruction
+    // ✅ Check if treasury account exists and add creation if needed
+    match state.program.rpc().get_account(&treasury_token_account) {
+        Ok(_) => {
+            log::info!("Treasury token account already exists");
+        }
+        Err(e) => {
+            log::warn!("Treasury token account not found, will create: {:?}", e);
+            let create_treasury_ix = spl_associated_token_account::instruction::create_associated_token_account(
+                &wallet,
+                &reward_pool,
+                &mint,
+                &spl_token::ID,
+            );
+            instructions.push(create_treasury_ix);
+        }
+    }
+    
+    // ✅ Validate input parameters
+    if payload.amount < 5000 {
+        return Err(ApiError::BadRequest("Minimum staking amount is 5000 tokens".to_string()));
+    }
+    
+    if payload.duration_months != 3 && payload.duration_months != 6 {
+        return Err(ApiError::BadRequest("Duration must be 3 or 6 months".to_string()));
+    }
+    
+    // ✅ Build the lock tokens instruction with correct account names
     let lock_ixs = state
         .program
         .request()
@@ -1469,11 +1629,11 @@ pub async fn lock_tokens_tx(
             user_claim,
             user_token_account: user_token_ata,
             reward_pool_pda: reward_pool,
-            treasury_token_account: treasury,
+            treasury_token_account, // Match smart contract account name
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::LockTokens {
-            amount: payload.amount,
+            amount: payload.amount * LAMPORTS_PER_SNK, // Convert to 9 decimals
             duration_months: payload.duration_months,
         })
         .instructions()
@@ -1508,7 +1668,6 @@ pub async fn lock_tokens_tx(
     Ok(Json(base64_transaction))
 }
 
-
 /// Unlock tokens after lock period
 pub async fn unlock_tokens_tx(
     Extension(user): Extension<User>,
@@ -1518,15 +1677,19 @@ pub async fn unlock_tokens_tx(
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
+    
+    // ✅ Use consistent seed derivation - changed from as_array() to as_ref()
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()], // Fixed: use as_ref() like lock_tokens_tx
         &state.program.id(),
     );
+    
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
-    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let treasury_token_account = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
 
-    let instructions = match state
+    // ✅ Build unlock instruction with correct account names
+    let instructions = state
         .program
         .request()
         .accounts(snake_contract::accounts::UnlockTokens {
@@ -1534,26 +1697,34 @@ pub async fn unlock_tokens_tx(
             user_claim,
             user_token_account: user_token_ata,
             reward_pool_pda: reward_pool,
-            treasury_token_account: treasury,
+            treasury_token_account, // Match smart contract account name
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::UnlockTokens {})
         .instructions()
-    {
-        Ok(ixs) => ixs,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
+        .map_err(|e| {
+            log::error!("UnlockTokens build error: {:?}", e);
+            ApiError::InternalServerError("Failed to build UnlockTokens instruction".into())
+        })?;
 
-    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-        Ok(latest_blockhash) => latest_blockhash,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
+    // ✅ Improved error handling
+    let latest_blockhash = state
+        .program
+        .rpc()
+        .get_latest_blockhash()
+        .map_err(|e| {
+            log::error!("Blockhash error: {:?}", e);
+            ApiError::InternalServerError("Could not fetch blockhash".into())
+        })?;
 
-    let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.message.recent_blockhash = _latest_blockhash;
+    let message = Message::new_with_blockhash(&instructions, Some(&wallet), &latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
-    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let serialized_transaction = bincode::serialize(&transaction).map_err(|e| {
+        log::error!("Serialization error: {:?}", e);
+        ApiError::InternalServerError("Failed to serialize transaction".into())
+    })?;
+    
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
@@ -1569,14 +1740,18 @@ pub async fn claim_yield_tx(
 
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
-    // let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    
+    // ✅ Use consistent seed derivation - changed from as_array() to as_ref()
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()], // Fixed: use as_ref() like lock_tokens_tx
         &state.program.id(),
     );
+    
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
 
-    let instructions = match state
+    // ✅ Build claim yield instruction with correct account names
+    let instructions = state
         .program
         .request()
         .accounts(snake_contract::accounts::ClaimYield {
@@ -1585,25 +1760,34 @@ pub async fn claim_yield_tx(
             user_token_account: user_token_ata,
             mint,
             reward_pool_pda: reward_pool,
+            treasury, // This account name is correct for ClaimYield
             token_program: spl_token::ID,
         })
         .args(snake_contract::instruction::ClaimYield {})
         .instructions()
-    {
-        Ok(ixs) => ixs,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
+        .map_err(|e| {
+            log::error!("ClaimYield build error: {:?}", e);
+            ApiError::InternalServerError("Failed to build ClaimYield instruction".into())
+        })?;
 
-    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-        Ok(latest_blockhash) => latest_blockhash,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
+    // ✅ Improved error handling
+    let latest_blockhash = state
+        .program
+        .rpc()
+        .get_latest_blockhash()
+        .map_err(|e| {
+            log::error!("Blockhash error: {:?}", e);
+            ApiError::InternalServerError("Could not fetch blockhash".into())
+        })?;
 
-    let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.message.recent_blockhash = _latest_blockhash;
+    let message = Message::new_with_blockhash(&instructions, Some(&wallet), &latest_blockhash);
+    let transaction = Transaction::new_unsigned(message);
     
-    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let serialized_transaction = bincode::serialize(&transaction).map_err(|e| {
+        log::error!("Serialization error: {:?}", e);
+        ApiError::InternalServerError("Failed to serialize transaction".into())
+    })?;
+    
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
@@ -1730,7 +1914,6 @@ pub async fn withdraw_vesting_tx(
     Ok(Json(base64_transaction))
 }
 
-/// Initiate OTC swap
 /// Initiate OTC swap
 pub async fn initiate_otc_swap_tx(
     Extension(user): Extension<User>,

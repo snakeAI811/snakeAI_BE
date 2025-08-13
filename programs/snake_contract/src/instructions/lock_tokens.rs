@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::{
-    state::{UserClaim, UserRole, PatronStatus, RewardPool},
+    state::{UserClaim, UserRole, PatronStatus, RewardPool, UserStakingHistory, GlobalStakingStats, StakingHistoryEntry, StakingAction},
     events::TokensLocked,
     errors::SnakeError,
     constants::{
@@ -11,7 +11,12 @@ use crate::{
         PATRON_MIN_WALLET_AGE_DAYS,
         PATRON_MIN_STAKING_MONTHS,
         STAKER_MIN_STAKING_MONTHS,
-        USER_CLAIM_SEED
+        USER_CLAIM_SEED,
+        SECONDS_PER_MONTH,
+        REWARD_POOL_SEED,
+        USER_STAKING_HISTORY_SEED,
+        GLOBAL_STAKING_STATS_SEED,
+        LAMPORTS_PER_SNK
     },
 };  
 
@@ -36,7 +41,7 @@ pub struct LockTokens<'info> {
     
     /// Reward Pool PDA that will hold the locked tokens
     #[account(
-        seeds = [b"reward_pool"],
+        seeds = [REWARD_POOL_SEED],
         bump,
     )]
     pub reward_pool_pda: Account<'info, RewardPool>,
@@ -48,7 +53,28 @@ pub struct LockTokens<'info> {
     )]
     pub treasury_token_account: Account<'info, TokenAccount>,
     
+    /// User staking history PDA
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = 8 + UserStakingHistory::INIT_SPACE,
+        seeds = [USER_STAKING_HISTORY_SEED, user.key().as_ref()],
+        bump,
+    )]
+    pub user_staking_history: Account<'info, UserStakingHistory>,
+    
+    /// Global staking stats PDA
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = 8 + GlobalStakingStats::INIT_SPACE,
+        seeds = [GLOBAL_STAKING_STATS_SEED],
+        bump,
+    )]
+    pub global_staking_stats: Account<'info, GlobalStakingStats>,
+    
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 /// Helper function to check if user has sufficient staking history
@@ -96,41 +122,23 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     require!(amount > 0, SnakeError::CannotLockZeroTokens);
     require!(!user_claim.is_locked(), SnakeError::TokensLocked);
     
-    // Validate duration and eligibility based on user role
-    // let valid_duration = match user_claim.role {
-    //     UserRole::Staker => {
-    //         // Check if user has staking history (3+ months)
-    //         require!(
-    //             has_sufficient_staking_history(user_claim, STAKER_MIN_STAKING_MONTHS),
-    //             SnakeError::InsufficientStakingHistory
-    //         );
-    //         duration_months == STAKER_LOCK_DURATION_MONTHS
-    //     },
-    //     UserRole::Patron => {
-    //         // Validate patron eligibility criteria
-    //         require!(
-    //             validate_patron_eligibility(user_claim, amount),
-    //             SnakeError::PatronEligibilityNotMet
-    //         );
-            
-    //         // Only approved patrons can lock for 6 months
-    //         require!(
-    //             user_claim.patron_status == PatronStatus::Approved,
-    //             SnakeError::OnlyApprovedPatrons
-    //         );
-    //         duration_months == 
-    //     },
-    //     _ => false,
-    // };
+    // Both stakers and patrons need minimum 5000 tokens
+    require!(amount >= 5000, SnakeError::InsufficientFunds);
     
+    // Both can lock for 3 or 6 months
     require!(
         duration_months == STAKER_LOCK_DURATION_MONTHS || duration_months == PATRON_LOCK_DURATION_MONTHS,
         SnakeError::InvalidLockDuration
     );
     
+    // Validate user has valid role (either Staker or Patron)
+    require!(
+        user_claim.role == UserRole::Staker || user_claim.role == UserRole::Patron,
+        SnakeError::InvalidRole
+    );
+    
     // Calculate lock end time
-    let seconds_in_month = 30 * 24 * 60 * 60; // Approximate
-    let lock_duration_seconds = (duration_months as i64) * seconds_in_month;
+    let lock_duration_seconds = (duration_months as i64) * SECONDS_PER_MONTH;
     let lock_end_time = current_time + lock_duration_seconds;
     
     // Transfer tokens to treasury (locked)
@@ -147,12 +155,37 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     
     token::transfer(cpi_ctx, amount)?;
     
-    // Update user claim with lock information
+    // Update user claim with lock information (DON'T change role)
     user_claim.locked_amount = amount;
     user_claim.lock_start_timestamp = current_time;
     user_claim.lock_end_timestamp = lock_end_time;
     user_claim.lock_duration_months = duration_months;
     user_claim.last_yield_claim_timestamp = current_time;
+    
+    // Initialize history accounts if needed
+    let user_history = &mut ctx.accounts.user_staking_history;
+    if !user_history.initialized {
+        user_history.init(ctx.accounts.user.key());
+    }
+    
+    let global_stats = &mut ctx.accounts.global_staking_stats;
+    if !global_stats.initialized {
+        global_stats.init();
+    }
+    
+    // Add history entry for token lock
+    let history_entry = StakingHistoryEntry {
+        action: StakingAction::Lock,
+        amount,
+        timestamp: current_time,
+        role: user_claim.role.clone(),
+        lock_duration_months: duration_months,
+        yield_amount: 0,
+        additional_data: format!("Locked {} tokens for {} months", amount / LAMPORTS_PER_SNK, duration_months),
+    };
+    
+    user_history.add_entry(history_entry)?;
+    global_stats.update_locked_amount(amount as i64)?;
     
     emit!(TokensLocked {
         user: ctx.accounts.user.key(),

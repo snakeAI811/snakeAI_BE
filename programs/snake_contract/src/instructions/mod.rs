@@ -62,3 +62,7 @@ pub use dao_governance::*;
 pub mod update_user_stats;
 pub use update_user_stats::*;
 
+// ========== STAKING HISTORY TRACKING ==========
+pub mod get_staking_history;
+pub use get_staking_history::*;
+

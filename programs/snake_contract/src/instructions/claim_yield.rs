@@ -1,9 +1,17 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, MintTo, Mint};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
 use crate::{
-    state::{UserClaim, UserRole, RewardPool},
+    state::{UserClaim, UserRole, RewardPool, UserStakingHistory, GlobalStakingStats, StakingHistoryEntry, StakingAction},
     events::YieldClaimed,
     errors::SnakeError,
+    constants::{
+        USER_CLAIM_SEED,
+        REWARD_POOL_SEED,
+        LAMPORTS_PER_SNK,
+        YIELD_CLAIM_COOLDOWN_SECONDS,
+        USER_STAKING_HISTORY_SEED,
+        GLOBAL_STAKING_STATS_SEED
+    }
 };
 
 #[derive(Accounts)]
@@ -13,7 +21,7 @@ pub struct ClaimYield<'info> {
     
     #[account(
         mut,
-        seeds = [b"user_claim", user.key().as_ref()],
+        seeds = [USER_CLAIM_SEED, user.key().as_ref()],
         bump,
         constraint = user_claim.initialized @ SnakeError::Unauthorized,
     )]
@@ -28,22 +36,64 @@ pub struct ClaimYield<'info> {
     #[account(mut)]
     pub mint: Account<'info, Mint>,
     
-    /// Reward Pool PDA that has minting authority
+    /// Reward Pool PDA
     #[account(
-        seeds = [b"reward_pool"],
+        seeds = [REWARD_POOL_SEED],
         bump,
     )]
     pub reward_pool_pda: Account<'info, RewardPool>,
     
+    /// Treasury token account owned by reward pool PDA
+    #[account(
+        mut,
+        constraint = treasury.owner == reward_pool_pda.key(),
+        constraint = treasury.mint == mint.key(),
+    )]
+    pub treasury: Account<'info, TokenAccount>,
+    
+    /// User staking history PDA
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = 8 + UserStakingHistory::INIT_SPACE,
+        seeds = [USER_STAKING_HISTORY_SEED, user.key().as_ref()],
+        bump,
+    )]
+    pub user_staking_history: Account<'info, UserStakingHistory>,
+    
+    /// Global staking stats PDA
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = 8 + GlobalStakingStats::INIT_SPACE,
+        seeds = [GLOBAL_STAKING_STATS_SEED],
+        bump,
+    )]
+    pub global_staking_stats: Account<'info, GlobalStakingStats>,
+    
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     let current_time = Clock::get()?.unix_timestamp;
     
-    require!(user_claim.role == UserRole::Staker, SnakeError::Unauthorized);
+    // Allow both Stakers and Patrons to claim yield
+    require!(
+        user_claim.role == UserRole::Staker || user_claim.role == UserRole::Patron, 
+        SnakeError::Unauthorized
+    );
     require!(user_claim.locked_amount > 0, SnakeError::NoTokensLocked);
+    
+    // Check cooldown period - prevent multiple claims within 24 hours
+    if user_claim.last_yield_claim_timestamp > 0 {
+        let time_since_last_claim = current_time - user_claim.last_yield_claim_timestamp;
+        require!(
+            time_since_last_claim >= YIELD_CLAIM_COOLDOWN_SECONDS,
+            SnakeError::YieldClaimCooldownNotPassed
+        );
+    }
     
     // Calculate yield amount
     let yield_amount = user_claim.calculate_yield()?;
@@ -53,14 +103,14 @@ pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
     // Create signer seeds for reward pool PDA
     let reward_pool_bump = ctx.bumps.reward_pool_pda;
     let reward_pool_signer_seeds: &[&[u8]] = &[
-        b"reward_pool",
+        REWARD_POOL_SEED,
         &[reward_pool_bump],
     ];
     let reward_pool_signer = &[reward_pool_signer_seeds];
     
-    // Mint yield tokens to user
-    let cpi_accounts = MintTo {
-        mint: ctx.accounts.mint.to_account_info(),
+    // Transfer yield tokens from treasury to user
+    let cpi_accounts = Transfer {
+        from: ctx.accounts.treasury.to_account_info(),
         to: ctx.accounts.user_token_account.to_account_info(),
         authority: ctx.accounts.reward_pool_pda.to_account_info(),
     };
@@ -71,7 +121,7 @@ pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
         reward_pool_signer,
     );
     
-    token::mint_to(cpi_ctx, yield_amount)?;
+    token::transfer(cpi_ctx, yield_amount)?;
     
     // Update yield claim timestamp and total claimed
     user_claim.last_yield_claim_timestamp = current_time;
@@ -79,9 +129,34 @@ pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
         .checked_add(yield_amount)
         .ok_or(SnakeError::ArithmeticOverflow)?;
     
+    // Initialize history accounts if needed
+    let user_history = &mut ctx.accounts.user_staking_history;
+    if !user_history.initialized {
+        user_history.init(ctx.accounts.user.key());
+    }
+    
+    let global_stats = &mut ctx.accounts.global_staking_stats;
+    if !global_stats.initialized {
+        global_stats.init();
+    }
+    
+    // Add history entry for yield claim
+    let history_entry = StakingHistoryEntry {
+        action: StakingAction::YieldClaim,
+        amount: 0, // No amount change for yield claims
+        timestamp: current_time,
+        role: user_claim.role.clone(),
+        lock_duration_months: user_claim.lock_duration_months,
+        yield_amount,
+        additional_data: format!("Yield claim: {} tokens", yield_amount / LAMPORTS_PER_SNK),
+    };
+    
+    user_history.add_entry(history_entry)?;
+    global_stats.add_yield_distributed(yield_amount)?;
+    
     emit!(YieldClaimed {
         user: ctx.accounts.user.key(),
-        yield_amount,
+        yield_amount: yield_amount,
         timestamp: current_time,
     });
     

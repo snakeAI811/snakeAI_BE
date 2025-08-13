@@ -345,7 +345,7 @@ function TweetMiningPage() {
                                                 ) : isMining ? (
                                                     '⚡ Mining Active'
                                                 ) : (
-                                                    ' Start Mining'
+                                                    (miningStats?.rewarded_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'
                                                 )}
                                             </button>
 
@@ -367,13 +367,13 @@ function TweetMiningPage() {
                                     <div className="card">
                                         <div className="card-header d-flex justify-content-between align-items-center">
                                             <h5 className="mb-0">Your Tweets ({tweets.length})</h5>
-                                            <button
+                                            {/* <button
                                                 className="primary-btn py-1"
                                                 onClick={loadData}
                                                 disabled={isLoading}
                                             >
                                                 🔄 Refresh
-                                            </button>
+                                            </button> */}
                                         </div>
                                         <div className="card-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                                             {tweets.length > 0 ? (
@@ -437,7 +437,7 @@ function TweetMiningPage() {
                                                     <div className="fs-1 mb-3">🐦</div>
                                                     <h5 className="text-muted">No tweets found</h5>
                                                     <p className="text-muted">
-                                                        Click "Start Mining" to fetch your recent tweets and start earning rewards!
+                                                        Click "{(miningStats?.rewarded_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'}" to fetch your recent tweets and start earning rewards!
                                                     </p>
                                                 </div>
                                             )}

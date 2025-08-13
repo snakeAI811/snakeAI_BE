@@ -402,7 +402,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             <div className="mt-4">
                 <div className="card border border-3 border-dashed">
                     <div className="card-body">
-                        <h6 className="card-title">📋 Role Requirements & Information</h6>
+                        {/* <h6 className="card-title text-center">📋 Role Requirements & Information</h6> */}
                         <div className="row">
                             <div className="col-md-6">
                                 <h6>🏦 Staker Requirements:</h6>

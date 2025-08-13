@@ -1,13 +1,12 @@
 use anchor_lang::prelude::*;
-
 use crate::events::UserClaimInitialized;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Default, InitSpace)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Default, InitSpace)]
 pub enum UserRole {
     #[default]
     None,        // Normal user - can mine, claim, sell at TGE
-    Staker,      // Locks tokens for 3 months, earns 5% APY
-    Patron,      // Deep commitment - governance eligible
+    Staker,      // Locks tokens for 3 or 6 months, earns 5% APY
+    Patron,      // Deep commitment - governance eligible, earns 7% APY
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Default, InitSpace)]
@@ -44,7 +43,7 @@ pub struct UserClaim {
     pub locked_amount: u64,
     pub lock_start_timestamp: i64,
     pub lock_end_timestamp: i64,
-    pub lock_duration_months: u8, // 3 for stakers, 6 for patrons
+    pub lock_duration_months: u8, // 3 or 6 months for both stakers and patrons
     
     // Staking yield tracking
     pub last_yield_claim_timestamp: i64,
@@ -101,37 +100,82 @@ impl UserClaim {
     }
     
     pub fn can_unlock(&self) -> bool {
+        // If no tokens are locked, they can be sold freely
+        if self.locked_amount == 0 {
+            return true;
+        }
+        // If tokens are locked, check if lock period has expired
         let current_time = Clock::get().unwrap().unix_timestamp;
         current_time >= self.lock_end_timestamp
     }
     
-    pub fn calculate_yield(&self) -> Result<u64> {
-        if self.role != UserRole::Staker || self.locked_amount == 0 {
-            return Ok(0);
+
+    pub fn calculate_yield_backend(&self, current_timestamp: i64) -> u64 {
+        // Both Stakers and Patrons can earn yield
+        if (self.role != UserRole::Staker && self.role != UserRole::Patron) || self.locked_amount == 0 {
+            println!("Backend yield calc: Ineligible role {:?} or locked_amount=0", self.role);
+            return 0;
         }
-        
-        let current_time = Clock::get()?.unix_timestamp;
+
         let last_claim = if self.last_yield_claim_timestamp == 0 {
             self.lock_start_timestamp
         } else {
             self.last_yield_claim_timestamp
         };
+
+        // let time_diff = current_timestamp.saturating_sub(last_claim);
+        // println!("Backend yield calc: current_time={}, last_claim={}, time_diff={} seconds", 
+        //          current_timestamp, last_claim, time_diff);
+        let duration_months = self.lock_duration_months;
+        if duration_months <= 0 {
+            println!("Backend yield calc: duration_months={}, returning 0", duration_months);
+            return 0;
+        }
+
+        let seconds_in_year = 365i64 * 24 * 60 * 60; // 31,536,000 seconds
+
+        // APY based on role: Stakers get 5%, Patrons get 7%
+        let apy_rate = match self.role {
+            UserRole::Staker => 5u64,
+            UserRole::Patron => 7u64,
+            _ => return 0,
+        };
         
-        let time_diff = current_time.saturating_sub(last_claim);
-        let seconds_in_year = 365 * 24 * 60 * 60;
-        
-        // 5% APY calculation
-        let yield_amount = (self.locked_amount as u128)
-            .checked_mul(5) // 5% APY
-            .ok_or(crate::errors::SnakeError::ArithmeticOverflow)?
-            .checked_mul(time_diff as u128)
-            .ok_or(crate::errors::SnakeError::ArithmeticOverflow)?
-            .checked_div(100) // percentage
-            .ok_or(crate::errors::SnakeError::ArithmeticOverflow)?
-            .checked_div(seconds_in_year as u128)
-            .ok_or(crate::errors::SnakeError::ArithmeticOverflow)?;
-        
-        Ok(yield_amount as u64)
+        println!("Backend yield calc: role={:?}, apy_rate={}%", self.role, apy_rate);
+
+        // Calculate yield: (locked_amount * apy_rate * duration_months) / (100 * 12 months)
+        // Use u128 to prevent overflow during calculation
+        let calculation_result = (self.locked_amount as u128)
+            .saturating_mul(apy_rate as u128)
+            .saturating_mul(duration_months as u128)
+            .checked_div(100u128)
+            .unwrap_or(0)
+            .checked_div(12u128)
+            .unwrap_or(0);
+
+        let final_yield = if calculation_result > u64::MAX as u128 {
+            u64::MAX
+        } else {
+            calculation_result as u64
+        };
+
+        final_yield
+    }
+
+    // Keep original for on-chain use (this will still fail in backend)
+    pub fn calculate_yield(&self) -> Result<u64> {
+        let current_time = Clock::get()?.unix_timestamp;
+        Ok(self.calculate_yield_backend(current_time))
+    }
+
+    
+    /// Get readable APY information for display purposes
+    pub fn get_apy_info(&self) -> (u8, &'static str) {
+        match self.role {
+            UserRole::Staker => (5, "Staker"),
+            UserRole::Patron => (7, "Patron"), 
+            _ => (0, "No Yield"),
+        }
     }
     
     /// Calculate patron qualification score based on your requirements:
@@ -142,11 +186,11 @@ impl UserClaim {
         let mut score = 0u32;
         
         // Mining contribution (40 points max) - "On-chain record"
-        if self.total_mined_phase1 >= 1_000_000_000 { // 1000 tokens
+        if self.total_mined_phase1 >= 1_000_000_000_000 { // 1000 tokens
             score += 40;
-        } else if self.total_mined_phase1 >= 500_000_000 { // 500 tokens
+        } else if self.total_mined_phase1 >= 500_000_000_1000 { // 500 tokens
             score += 30;
-        } else if self.total_mined_phase1 >= 100_000_000 { // 100 tokens
+        } else if self.total_mined_phase1 >= 100_000_000_1000 { // 100 tokens
             score += 20;
         } else if self.total_mined_phase1 > 0 {
             score += 10;

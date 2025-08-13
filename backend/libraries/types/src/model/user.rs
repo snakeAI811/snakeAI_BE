@@ -113,6 +113,7 @@ pub struct Profile {
     pub wallet_address: String,
     pub latest_claim_timestamp: Option<DateTime<Utc>>,
     pub reward_balance: i64,
+    pub claimable_rewards: i64,
     pub tweets: i64,
     pub likes: i64,
     pub replies: i64,
