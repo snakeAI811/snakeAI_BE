@@ -9,7 +9,7 @@ import { otcApi, tokenApi } from '../patron/services/apiService';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 interface OTCOrder {
   orderId: string;
-  seller: string;
+  sellerWallet: string;
   amount: string;
   price: string;
   isActive: boolean;
@@ -114,7 +114,7 @@ const OTCTrading: React.FC = () => {
         
         const myActiveOrders = active_swaps.map((swap: any) => ({
           orderId: swap.id,
-          seller: publicKey?.toString() || '',
+          sellerWallet: publicKey?.toString() || '',
           amount: swap.token_amount.toString(),
           price: (swap.sol_rate / 1_000_000_000).toString(),
           isActive: true, // Always true since we're only processing active swaps
@@ -343,9 +343,9 @@ const OTCTrading: React.FC = () => {
 
     try {
       setLoading(true);
-      showInfo(`Accepting OTC swap from ${order.seller.slice(0, 8)}...${order.seller.slice(-8)}...`);
+      showInfo(`Accepting OTC swap from ${order.sellerWallet.slice(0, 8)}...${order.sellerWallet.slice(-8)}...`);
 
-      const result = await otcApi.acceptSwap(order.seller);
+      const result = await otcApi.acceptSwap(order.sellerWallet);
 
       if (result.success) {
         showSuccess('OTC swap executed successfully!');
@@ -593,7 +593,7 @@ const OTCTrading: React.FC = () => {
                                     </div>
                                     <div>
                                       <div className="fw-bold small">
-                                        {order.seller.slice(0, 8)}...{order.seller.slice(-8)}
+                                        {order.sellerWallet.slice(0, 8)}...{order.sellerWallet.slice(-8)}
                                       </div>
                                     </div>
                                   </div>
@@ -632,7 +632,7 @@ const OTCTrading: React.FC = () => {
                                         </>
                                       )}
                                     </button>
-                                  ) : order.seller === publicKey?.toString() ? (
+                                  ) : order.sellerWallet === publicKey?.toString() ? (
                                     <span className="badge bg-secondary">Your Order</span>
                                   ) : canBuyOrder(order) ? (
                                     <button

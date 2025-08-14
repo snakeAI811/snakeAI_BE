@@ -60,24 +60,12 @@ function DAO() {
                 } else {
                     console.error('Failed to fetch users:', response.error);
                     // Fallback to mock data if API fails
-                    setUsers([
-                        { id: '1', avatar: 'https://avatars.githubusercontent.com/u/1?v=4', username: 'alice_trader', address: '0x1234...5678', score: 950, roleDuration: 180, activity: 85 },
-                        { id: '2', avatar: null, username: 'crypto_master', address: '0xabcd...efgh', score: 820, roleDuration: 90, activity: 92 },
-                        { id: '3', avatar: 'https://avatars.githubusercontent.com/u/3?v=4', username: 'moon_walker', address: '0x9876...5432', score: 1200, roleDuration: 365, activity: 78 },
-                        { id: '4', avatar: null, username: 'dao_voter', address: '0xdef0...1234', score: 650, roleDuration: 60, activity: 95 },
-                        { id: '5', avatar: 'https://avatars.githubusercontent.com/u/5?v=4', username: 'yield_farmer', address: '0x5678...abcd', score: 1050, roleDuration: 240, activity: 88 },
-                    ]);
+                    setUsers([]);
                 }
             } catch (error) {
                 console.error('Error fetching users:', error);
                 // Fallback to mock data
-                setUsers([
-                    { id: '1', avatar: 'https://avatars.githubusercontent.com/u/1?v=4', username: 'alice_trader', address: '0x1234...5678', score: 950, roleDuration: 180, activity: 85 },
-                    { id: '2', avatar: null, username: 'crypto_master', address: '0xabcd...efgh', score: 820, roleDuration: 90, activity: 92 },
-                    { id: '3', avatar: 'https://avatars.githubusercontent.com/u/3?v=4', username: 'moon_walker', address: '0x9876...5432', score: 1200, roleDuration: 365, activity: 78 },
-                    { id: '4', avatar: null, username: 'dao_voter', address: '0xdef0...1234', score: 650, roleDuration: 60, activity: 95 },
-                    { id: '5', avatar: 'https://avatars.githubusercontent.com/u/5?v=4', username: 'yield_farmer', address: '0x5678...abcd', score: 1050, roleDuration: 240, activity: 88 },
-                ]);
+                setUsers([]);
             } finally {
                 setLoading(false);
             }

@@ -357,7 +357,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeSwaps.map((swap) => {
+                  {activeSwaps.map((swap : any) => {
                     const canAccept = canParticipate && (
                       swap.buyer_role_required === 'none' ||
                       (swap.buyer_role_required === 'staker' && ['staker', 'patron'].includes(userRole.role)) ||
@@ -393,7 +393,7 @@ function OTCTrading({ userRole }: OTCTradingProps) {
                           {canAccept ? (
                             <button
                               className="btn btn-success btn-sm"
-                              onClick={() => handleAcceptSwap(swap.id, swap.seller || '')}
+                              onClick={() => handleAcceptSwap(swap.id, swap.seller_wallet || '')}
                               disabled={loading}
                             >
                               {loading ? 'Processing...' : 'Accept'}

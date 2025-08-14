@@ -1236,6 +1236,15 @@ pub async fn claim_tweet_reward_tx(
             instructions.push(create_ata_ix); 
         } 
     } 
+
+    // Check if reward pool PDA exists
+    match state.program.rpc().get_account(&reward_pool) {
+        Ok(_) => {},
+        Err(e) => {
+            log::error!("Reward pool PDA not initialized: {:?}", e);
+            return Err(ApiError::BadRequest("Reward pool must be initialized before claiming tokens. Please initialize the reward pool first.".into()));
+        }
+    }
  
     // Build claim instruction 
     let claim_ixs = state 
@@ -1480,6 +1489,15 @@ pub async fn claim_tokens_with_role_tx(
         &[b"claim_receipt", wallet.as_ref(), tweet_id_for_receipt.as_bytes()],
         &state.program.id(),
     );
+
+    // Check if reward pool PDA exists
+    match state.program.rpc().get_account(&reward_pool) {
+        Ok(_) => {},
+        Err(e) => {
+            log::error!("Reward pool PDA not initialized: {:?}", e);
+            return Err(ApiError::BadRequest("Reward pool must be initialized before claiming tokens. Please initialize the reward pool first.".into()));
+        }
+    }
 
     let instructions = match state
         .program
@@ -1921,11 +1939,9 @@ pub async fn initiate_otc_swap_tx(
         &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
-    // Add a unique salt to the PDA derivation to prevent collisions
-    use uuid::Uuid;
-    let unique_salt = Uuid::new_v4().as_bytes().to_vec();
+    // Derive otc_swap PDA using only the expected seeds
     let (otc_swap, _) = Pubkey::find_program_address(
-        &[OTC_SWAP_SEED, wallet.as_ref(), &unique_salt],
+        &[OTC_SWAP_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     
@@ -1979,8 +1995,7 @@ pub async fn initiate_otc_swap_tx(
     
     // Create database record (will be updated with tx signature after user signs)
     let otc_swap_pda = otc_swap.to_string();
-    // Pass the unique salt to the database for reference if needed
-    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, Some(hex::encode(&unique_salt))).await {
+    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, None).await {
         Ok(_) => {
             // Successfully created database record
         },
