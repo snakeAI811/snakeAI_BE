@@ -848,7 +848,28 @@ pub async fn select_role_tx(
         &state.program.id(),
     );
 
-    let instructions = match state
+    let mut instructions = Vec::new();
+
+    // Check if user_claim account exists, if not, add initialization instruction
+    if state.program.rpc().get_account(&user_claim).is_err() {
+        println!("User claim account not found for wallet: {}, adding initialization instruction", wallet);
+        let init_ix = Instruction {
+            program_id: state.program.id(),
+            accounts: snake_contract::accounts::InitializeUserClaim {
+                user: wallet,
+                user_claim,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            data: snake_contract::instruction::InitializeUserClaim {}.data(),
+        };
+        instructions.push(init_ix);
+    } else {
+        println!("User claim account already exists for wallet: {}", wallet);
+    }
+
+    // Add select role instruction
+    let select_role_instructions = match state
         .program
         .request()
         .accounts(snake_contract::accounts::SelectRole {
@@ -863,6 +884,8 @@ pub async fn select_role_tx(
         Ok(ixs) => ixs,
         Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
     };
+    
+    instructions.extend(select_role_instructions);
 
     let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
         Ok(hash) => hash,

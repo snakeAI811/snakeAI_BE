@@ -31,7 +31,7 @@ interface UserTableData {
 function DAO() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [sortBy, setSortBy] = useState<'activity' | 'address' | 'roleDuration' | 'score'>('score');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -95,7 +95,7 @@ function DAO() {
         address: () => { setSortBy('address'); setShowDropdown(false); },
         roleDuration: () => { setSortBy('roleDuration'); setShowDropdown(false); }
     }), []);
-   
+
     return (
         <div className="w-100 p-3" style={{ height: '100vh', overflow: 'auto' }}>
             <div className="d-flex gap-3" style={{ height: "calc(100vh-60px)", paddingTop: '35px' }}>
@@ -104,14 +104,24 @@ function DAO() {
                 {/* Menu End */}
 
                 <div className="custom-content">
-                    <div className="w-100 d-flex justify-space-between align-items-end">
-                        <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                            DAO
-                        </div>
-                        <div className="fs-6 text-muted">
-                            Welcome back, {profileData?.twitter_username || user?.twitter_username || 'User'}!
+                    <div className="w-100">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="fs-1" style={{ lineHeight: 'normal' }}>DAO</div>
+                            <div className="text-end d-flex align-items-center gap-2">
+                                <div className="fs-6 text-muted">
+                                    Connected: @{user?.twitter_username || 'Not authenticated'}
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        await logout();
+                                    }}
+                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                                    LOGOUT
+                                </button>
+                            </div>
                         </div>
                     </div>
+
 
                     <div className="custom-border-y custom-content-height d-flex flex-column px-3">
                         {/* <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
@@ -136,7 +146,7 @@ function DAO() {
                                 {loading ? 'Loading...' : `Showing ${displayUsers.length} users`}
                             </span>
                             <div className="position-relative">
-                                <button 
+                                <button
                                     className="btn btn-outline-secondary d-flex align-items-center gap-2"
                                     onClick={() => setShowDropdown(!showDropdown)}
                                 >
@@ -144,25 +154,25 @@ function DAO() {
                                 </button>
                                 {showDropdown && (
                                     <div className="position-absolute top-100 end-0 mt-1 bg-white border rounded shadow" style={{ zIndex: 1000, minWidth: '150px' }}>
-                                        <div 
+                                        <div
                                             className="px-3 py-2 cursor-pointer hover-bg-light border-bottom"
                                             onClick={handleSortChange.score}
                                         >
                                             Score
                                         </div>
-                                        <div 
+                                        <div
                                             className="px-3 py-2 cursor-pointer hover-bg-light border-bottom"
                                             onClick={handleSortChange.activity}
                                         >
                                             Activity
                                         </div>
-                                        <div 
+                                        <div
                                             className="px-3 py-2 cursor-pointer hover-bg-light border-bottom"
                                             onClick={handleSortChange.address}
                                         >
                                             Address
                                         </div>
-                                        <div 
+                                        <div
                                             className="px-3 py-2 cursor-pointer hover-bg-light"
                                             onClick={handleSortChange.roleDuration}
                                         >
@@ -189,8 +199,8 @@ function DAO() {
                                         <tr key={user.id}>
                                             <td>
                                                 <div className="d-flex align-items-center gap-2">
-                                                    <img 
-                                                        src={user.avatar || '/avatars/logo-colored.svg'} 
+                                                    <img
+                                                        src={user.avatar || '/avatars/logo-colored.svg'}
                                                         alt={`${user.username} avatar`}
                                                         className="custom-s-avatar"
                                                         onError={handleImageError}
@@ -204,9 +214,9 @@ function DAO() {
                                                     <span className="font-monospace text-muted small">{user.address}</span>
                                                 </div>
                                             </td>
-                                            <td>Miner</td>
-                                            <td className="text-center">{user.score}</td>
-                                            <td className="text-center">{user.roleDuration} days</td>
+                                            <td className="align-middle ">Miner</td>
+                                            <td className="align-middle text-center">{user.score}</td>
+                                            <td className="align-middle text-center">{user.roleDuration} days</td>
                                         </tr>
                                     ))}
                                 </tbody>

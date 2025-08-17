@@ -156,8 +156,9 @@ const MiningProgressComponent: React.FC<MiningProgressProps> = ({
 
 const Home: React.FC = () => {
   // Custom hooks with proper typing
-  const { user }: { user: User | null } = useAuth();
+  const { user, logout }: { user: User | null, logout: any } = useAuth();
   const { connected }: { connected: boolean } = useWalletContext();
+
   const { 
     miningStatus, 
     userProfile, 
@@ -281,14 +282,12 @@ const Home: React.FC = () => {
                 <div className="fs-6 text-muted">
                   Connected: @{user?.twitter_username || 'Not authenticated'}
                 </div>
-                <button 
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={handleManualRefresh}
-                  disabled={loading}
-                  type="button"
-                  title="Refresh mining status"
-                >
-                  <i className="bi bi-arrow-clockwise" />
+                <button
+                  onClick={async () => {
+                      await logout();
+                  }}
+                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                  LOGOUT
                 </button>
               </div>
             </div>

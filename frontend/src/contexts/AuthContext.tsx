@@ -43,6 +43,7 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     setSessionId(null);
     setIsAuthenticated(false);
     setUser(null);
+    navigate('/get-started');
   }, []);
 
   const fetchUserData = useCallback(async () => {

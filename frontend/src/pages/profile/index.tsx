@@ -57,7 +57,7 @@ const calculateRanking = (rewardBalance: number): number => {
 function Profile() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const { connected } = useWalletContext();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
@@ -231,10 +231,17 @@ function Profile() {
                             <div className="fs-1" style={{ lineHeight: 'normal' }}>
                                 Profile
                             </div>
-                            <div className="text-end">
+                            <div className="text-end d-flex align-items-center gap-2">
                                 <div className="fs-6 text-muted">
                                     Connected: @{user?.twitter_username || 'Not authenticated'}
                                 </div>
+                                <button
+                                    onClick={async () => {
+                                        await logout();
+                                    }}
+                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                                    LOGOUT
+                                </button>
                             </div>
                         </div>
                     </div>

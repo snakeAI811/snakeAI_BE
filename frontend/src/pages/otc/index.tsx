@@ -7,6 +7,8 @@ import WalletGuard from "../../components/WalletGuard";
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { otcApi, tokenApi } from '../patron/services/apiService';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useAuth } from '../../contexts/AuthContext';
+
 interface OTCOrder {
   orderId: string;
   sellerWallet: string;
@@ -24,9 +26,10 @@ interface OTCOrder {
 const OTCTrading: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
   const { publicKey, connected } = useWalletContext();
-  const { handleError,handleWarning } = useErrorHandler();
-  
-  
+  const { handleError, handleWarning } = useErrorHandler();
+  const { user, logout } = useAuth();
+
+
   // Create connection with proper configuration
   const connection = new Connection(SOLANA_RPC_URL, {
     commitment: 'confirmed',
@@ -55,13 +58,13 @@ const OTCTrading: React.FC = () => {
       console.log('🔍 Fetching active orders...');
       const result = await otcApi.getActiveSwaps();
       console.log('🔍 Active orders result:', result);
-      
+
       if (result.success && result.data) {
         // Access the swaps array from the paginated response
         const { swaps = [], total_count, page, per_page } = result.data;
-        
+
         console.log(`📊 Found ${total_count} total swaps, showing page ${page} (${swaps.length} items)`);
-        
+
         const activeOrders = swaps.map((swap: any) => ({
           orderId: swap.id,
           seller: swap.seller_username || swap.seller || 'Unknown', // Use seller_username from API
@@ -81,13 +84,13 @@ const OTCTrading: React.FC = () => {
           buyerRebate: swap.buyer_rebate,
           sellerId: swap.seller_id,
         }));
-        
+
         console.log('🔍 Processed active orders:', activeOrders);
         setOrders(activeOrders);
-        
+
         // You might also want to store pagination info
         // setPaginationInfo({ page, per_page, total_count });
-        
+
       } else {
         console.log('❌ Failed to fetch active orders:', result.error);
         throw new Error(result.error || 'Failed to fetch orders');
@@ -105,13 +108,13 @@ const OTCTrading: React.FC = () => {
       console.log('🔍 Fetching my active orders...');
       const result = await otcApi.getMySwaps();
       console.log('🔍 My orders result:', result);
-      
+
       if (result.success && result.data) {
         // Only process active swaps
         const { active_swaps = [] } = result.data;
-        
+
         console.log('🔍 Active swaps:', active_swaps);
-        
+
         const myActiveOrders = active_swaps.map((swap: any) => ({
           orderId: swap.id,
           sellerWallet: publicKey?.toString() || '',
@@ -132,7 +135,7 @@ const OTCTrading: React.FC = () => {
           canAccept: swap.can_accept,
           isExpired: swap.is_expired,
         }));
-        
+
         console.log('🔍 Processed my active orders:', myActiveOrders);
         setMyOrders(myActiveOrders);
       } else {
@@ -179,54 +182,54 @@ const OTCTrading: React.FC = () => {
         buyer_rebate: 0,
         buyer_role_required: 'none', // Anyone can buy
       };
-      
+
       console.log('📤 Sending swap data:', swapData);
       let result = await otcApi.initiateSwap(swapData);
       console.log('📥 Swap creation result:', result);
 
       // Check if we need to initialize user claim account first
-      if (!result.success && result.error && 
-          (result.error.includes('AccountNotInitialized') || 
-           result.error.includes('0xbc4') || 
-           result.error.includes('seller_claim'))) {
+      if (!result.success && result.error &&
+        (result.error.includes('AccountNotInitialized') ||
+          result.error.includes('0xbc4') ||
+          result.error.includes('seller_claim'))) {
         console.log('🔧 User claim account not found, initializing...');
         showInfo('Setting up your account for the first time...');
-        
+
         try {
           const initResult = await tokenApi.initializeUserClaim();
-          
+
           if (initResult.success && initResult.data) {
             showInfo('Please approve the account setup transaction in your wallet...');
-            
+
             // Decode and sign the initialization transaction
             const initTxBytes = Uint8Array.from(atob(initResult.data), c => c.charCodeAt(0));
             const initTransaction = Transaction.from(initTxBytes);
-            
+
             // Update with fresh blockhash
             const { blockhash } = await connection.getLatestBlockhash('confirmed');
             initTransaction.recentBlockhash = blockhash;
             initTransaction.feePayer = new PublicKey(publicKey);
-            
+
             // Sign and send initialization transaction
             if (typeof window !== 'undefined' && (window as any).solana) {
               const signedInitTx = await (window as any).solana.signTransaction(initTransaction);
-              
+
               showInfo('Submitting account setup transaction...');
               const initSignature = await connection.sendRawTransaction(signedInitTx.serialize(), {
                 skipPreflight: false,
                 preflightCommitment: 'confirmed'
               });
-              
+
               showInfo('Waiting for account setup confirmation...');
               await connection.confirmTransaction({
                 signature: initSignature,
                 blockhash: initTransaction.recentBlockhash!,
                 lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
               }, 'confirmed');
-              
+
               console.log('✅ User claim account initialized successfully');
               showInfo('Account setup complete. Proceeding with OTC swap creation...');
-              
+
               // Retry the swap creation now that account is initialized
               result = await otcApi.initiateSwap(swapData);
               console.log('📥 Retry swap creation result:', result);
@@ -247,14 +250,14 @@ const OTCTrading: React.FC = () => {
         // Check if this requires wallet signature
         if ('requiresWalletSignature' in result && result.requiresWalletSignature) {
           showInfo('Please approve the OTC swap creation in your wallet...');
-          
+
           // Decode the base64 transaction
           const transactionBytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
           const transaction = Transaction.from(transactionBytes);
-          
+
           console.log('🔍 Transaction decoded successfully. Fee payer:', transaction.feePayer?.toString());
           console.log('🔍 Original blockhash:', transaction.recentBlockhash);
-          
+
           // Update with fresh blockhash
           showInfo('Getting fresh blockhash for transaction...');
           try {
@@ -267,29 +270,29 @@ const OTCTrading: React.FC = () => {
             handleError(rpcError, 'Failed to connect to Solana network. Please check your internet connection.');
             throw new Error(`Failed to connect to Solana network. Please check your internet connection and try again.`);
           }
-          
+
           // Sign and send transaction using Phantom wallet
           if (typeof window !== 'undefined' && (window as any).solana) {
             showInfo('Please approve the transaction in your Phantom wallet...');
-            
+
             try {
               const signedTransaction = await (window as any).solana.signTransaction(transaction);
               console.log('✅ Transaction signed by wallet');
-              
+
               showInfo('Submitting transaction to blockchain...');
               const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
                 skipPreflight: false,
                 preflightCommitment: 'confirmed'
               });
               console.log('📤 Transaction submitted with signature:', signature);
-              
+
               showInfo('Waiting for blockchain confirmation...');
               await connection.confirmTransaction({
                 signature,
                 blockhash: transaction.recentBlockhash!,
                 lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
               }, 'confirmed');
-              
+
               console.log('✅ Transaction confirmed on blockchain');
             } catch (txError) {
               console.error('❌ Transaction Error:', txError);
@@ -302,7 +305,7 @@ const OTCTrading: React.FC = () => {
           } else {
             throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
           }
-          
+
           showSuccess('OTC swap order created successfully!');
           setShowCreateForm(false);
           setCreateOrderForm({
@@ -405,6 +408,18 @@ const OTCTrading: React.FC = () => {
           <div className="w-100">
             <div className="d-flex justify-content-between align-items-center">
               <div className="fs-1" style={{ lineHeight: 'normal' }}>🔄 OTC Trading</div>
+              <div className="text-end d-flex align-items-center gap-2">
+                <div className="fs-6 text-muted">
+                  Connected: @{user?.twitter_username || 'Not authenticated'}
+                </div>
+                <button
+                  onClick={async () => {
+                    await logout();
+                  }}
+                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                  LOGOUT
+                </button>
+              </div>
             </div>
           </div>
           <div className="custom-border-y custom-content-height d-flex flex-column px-3">
@@ -611,7 +626,7 @@ const OTCTrading: React.FC = () => {
                                   <small className="text-muted">SOL</small>
                                 </td>
                                 <td>
-                                <span className="badge bg-success">✅ Open to All</span>
+                                  <span className="badge bg-success">✅ Open to All</span>
                                 </td>
                                 <td>
                                   <small className="text-muted">{order.createdAt}</small>

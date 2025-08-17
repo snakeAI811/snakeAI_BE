@@ -29,7 +29,7 @@ interface MiningStats {
 }
 
 function TweetMiningPage() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [tweets, setTweets] = useState<Tweet[]>([]);
     const [miningStats, setMiningStats] = useState<MiningStats | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -253,10 +253,17 @@ function TweetMiningPage() {
                             <div className="fs-1" style={{ lineHeight: 'normal' }}>
                                 MINE TWEETS
                             </div>
-                            <div className="text-end">
+                            <div className="text-end d-flex align-items-center gap-2">
                                 <div className="fs-6 text-muted">
                                     Connected: @{user?.twitter_username || 'Not authenticated'}
                                 </div>
+                                <button
+                                    onClick={async () => {
+                                        await logout();
+                                    }}
+                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                                    LOGOUT
+                                </button>
                             </div>
                         </div>
                     </div>
