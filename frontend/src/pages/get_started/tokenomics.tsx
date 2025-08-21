@@ -31,7 +31,9 @@ function TokennomicsPage() {
             </div>
             <div className="row justify-content-center">
                 <div className="col-md-9 d-flex justify-content-center">
-                    <button className="border border-0 fs-4 fw-bold py-2 px-4 px-lg-5 text-green-300 bg-black">Learn more about tokenomics→</button>
+                    <a href="https://docs.google.com/spreadsheets/d/1pKQnmvyAFgri1tY3GnenM6gsOkjexBAWJk6EIfdqQsU/edit?gid=965793914#gid=965793914" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                        <button className="border border-0 fs-4 fw-bold py-2 px-4 px-lg-5 text-green-300 bg-black">Learn more about tokenomics→</button>
+                    </a>
                 </div>
             </div>
         </div>

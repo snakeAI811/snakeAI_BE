@@ -133,7 +133,7 @@ impl TweetRepository {
 
     pub async fn get_all_phase2_mining_count(&self) -> Result<i64, sqlx::Error> {
         let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM tweets WHERE mining_phase = 2"
+            "SELECT COUNT(*) FROM rewards WHERE phase = 'phase2'"
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;
@@ -143,7 +143,7 @@ impl TweetRepository {
 
     pub async fn get_all_phase1_mining_count(&self) -> Result<i64, sqlx::Error> {
         let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM tweets WHERE mining_phase = 1"
+            "SELECT COUNT(*) FROM rewards WHERE phase = 'phase1'"
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;

@@ -1,4 +1,3 @@
-
 import { ReactComponent as IconTwitter } from '../../../svgs/twitter.svg';
 import { ReactComponent as IconDiscord } from '../../../svgs/discord.svg';
 import { ReactComponent as IconTelegram } from '../../../svgs/telegram.svg';
@@ -12,18 +11,27 @@ function GetInvolvedPage() {
             <div className="row px-3 pt-5 pb-0 px-lg-5 px-xl-5 pt-lg-4 pt-xl-4">
                 <div className='col-md-6 align-self-center mb-4'>
                     <div className="text-uppercase text-black fs-2 fs-lg-8 fs-xl-6 fw-bolder p-3 mb-3" style={{ lineHeight: 'normal' }}>GET INVOLVED</div>
-                    <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
-                        <IconTwitter style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
-                        <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>FOLLOW US on twitter (x)</span>
-                    </button>
-                    <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
-                        <IconTelegram style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
-                        <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on telegram</span>
-                    </button>
-                    <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5' style={{ height: '120px' }}>
-                        <IconSearch style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
-                        <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>read our litepaper</span>
-                    </button>
+                    
+                    <a href="https://x.com/playSnakeAI" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                        <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
+                            <IconTwitter style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                            <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>FOLLOW US on twitter (x)</span>
+                        </button>
+                    </a>
+                    
+                    <a href="https://t.me/+ZQnzYf7_sD4yNDlh" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                        <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
+                            <IconTelegram style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                            <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on telegram</span>
+                        </button>
+                    </a>
+                    
+                    <a href="https://docs.google.com/document/d/1J0U5r3AF5CgMQ67wPBUUOs_9kuF7NDH6796Q2zsrEfI/edit?tab=t.0#heading=h.cwxo20daalgp" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                        <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5' style={{ height: '120px' }}>
+                            <IconSearch style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                            <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>read our litepaper</span>
+                        </button>
+                    </a>
                 </div>
                 <div className='col-md-6 align-self-center'>
                     <div className='d-flex justify-content-center align-items-center mb-4'>

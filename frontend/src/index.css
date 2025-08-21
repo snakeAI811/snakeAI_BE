@@ -693,7 +693,7 @@ body {
 }
 
 .box-height-48vh {
-  height: 48vh;
+  height: 55vh;
 }
 
 @media (min-width: 768px) {

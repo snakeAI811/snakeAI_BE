@@ -93,10 +93,8 @@ function Profile() {
                 setLoading(true);
 
                 const [userResponse, roleResponse] = await Promise.all([
-                    // userApi.getProfile(),
                     userApi.getMe(),
                     roleApi.getUserRole(),
-                    // tokenApi.getTokenInfo()
                 ]);
 
                 if (userProfile ) {
@@ -131,10 +129,10 @@ function Profile() {
 
                 if (tokenInfo) {
                     setTokenBalance({
-                        balance: tokenInfo.balance || 0,
-                        locked: tokenInfo.locked || 0,
-                        staked: tokenInfo.staked || 0,
-                        rewards: tokenInfo.rewards || 0
+                        balance: tokenInfo.balance_ui || 0,
+                        locked: tokenInfo.locked_ui || 0,
+                        staked: tokenInfo.staked_ui || 0,
+                        rewards: tokenInfo.rewards_ui || 0
                     });
                 }
             } catch (error) {
@@ -283,7 +281,7 @@ function Profile() {
                                                     <span className="retro-text-small">ROLE:</span>
                                                     <div className="retro-text">
                                                         {userDetails?.role?.toUpperCase() || 'NONE'}
-                                                        {userDetails?.patron_status === 'approved' && '♥'}
+                                                        {userDetails?.patron_status === 'approved' && ' (APPROVED)'}
                                                     </div>
                                                 </div>
                                                 <div className="mb-3">
@@ -335,7 +333,7 @@ function Profile() {
                             </div>
                         ) : (
                             <div className="border border-3 border-dashed mt-4 p-3 text-center">
-                                <h5 className="text-muted mb-3">🔗 Role Management</h5>
+                                <h5 className="text-muted mb-3">ROLE MANAGEMENT</h5>
                                 <p className="text-muted">Connect your wallet to access role management features</p>
                                 <div className="alert alert-info">
                                     <small>Role management allows you to become a Staker or Patron for enhanced benefits</small>

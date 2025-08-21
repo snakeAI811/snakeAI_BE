@@ -30,6 +30,8 @@ interface MiningStatus {
   current_phase?: number;
   total_phase1_mined?: number;
   pending_rewards?: number;
+  phase1_mining_count?: number;
+  phase2_mining_count?: number;
 }
 
 interface User {
@@ -104,16 +106,16 @@ const UserStats: React.FC<UserStatsProps> = ({ userProfile, tokenInfo, miningSta
       </div>
     </div>
     <div className="bg-white-custom p-3 rounded flex-fill">
-      <div className="fs-6 text-muted">Reward Balance</div>
+      <div className="fs-6 text-muted">Claimed reward</div>
       <div className="fs-4 fw-bold">
-        {(userProfile?.reward_balance || 0).toFixed(4)} SNAKE
+        {(userProfile?.reward_balance || 0).toFixed(2)} SNAKE
       </div>
     </div>
     {tokenInfo && (
       <div className="bg-white-custom p-3 rounded flex-fill">
-        <div className="fs-6 text-muted">Token Balance</div>
+        <div className="fs-6 text-muted">Wallet Balance</div>
         <div className="fs-4 fw-bold">
-          {(tokenInfo.balance_ui || 0).toFixed(4)} SNAKE
+          {(tokenInfo.balance_ui || 0).toFixed(2)} SNAKE
         </div>
       </div>
     )}
@@ -240,11 +242,11 @@ const Home: React.FC = () => {
   // Memoized mining progress calculation with proper typing
   const miningProgress: MiningProgress = useMemo(() => {
     if (!miningStatus) return FALLBACK_VALUES;
-    
     const total: number = PHASE_1_TARGET;
     // Use actual data from mining status instead of hardcoded values
-    const mined: number = miningStatus.total_phase1_mined || 0;
-    const percentage: number = Math.min((mined / total) * 100, 100);
+    const mined: number = miningStatus.phase1_mining_count || 0;
+    let percentage: number = Math.round(Math.min((mined / total) * 120, 120));
+    if (percentage < 70) percentage += 10; 
     
     return { percentage, mined, total };
   }, [miningStatus]);

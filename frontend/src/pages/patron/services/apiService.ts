@@ -441,6 +441,39 @@ export const otcApi = {
             method: 'GET',
         });
     },
+
+    updateSwapSignature: async (txSignature: string) => {
+        return apiCall<string>('/user/update_otc_swap_signature', {
+            method: 'POST',
+            body: JSON.stringify({ tx_signature: txSignature }),
+        });
+    },
+
+    forceCancelSwap: async () => {
+        return apiCall<string>('/user/force_cancel_swap', {
+            method: 'POST',
+        });
+    },
+
+    debugSwaps: async () => {
+        return apiCall<{
+            wallet: string;
+            total_swaps: number;
+            swaps: Array<{
+                id: string;
+                status: string;
+                expires_at: string;
+                expired: boolean;
+                has_initiate_tx_sig: boolean;
+                initiate_tx_signature: string | null;
+                token_amount: number;
+                sol_rate: number;
+                created_at: string;
+            }>;
+        }>('/user/debug_swaps', {
+            method: 'GET',
+        });
+    },
 };
 
 // Vesting API calls

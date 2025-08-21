@@ -125,9 +125,12 @@ impl OtcSwapService {
             .as_ref()
             .ok_or_else(|| DbError::ValidationError("User wallet not set".to_string()))?;
 
-        // Get the active swap
-        let swap = self.repository.get_active_by_seller(wallet).await?
-            .ok_or_else(|| DbError::NotFound("Active OTC swap not found".to_string()))?;
+        // Get the active swap (more lenient query for cancellation)
+        let swap = self.repository.get_active_by_seller_for_cancel(wallet).await?
+            .ok_or_else(|| {
+                eprintln!("Debug: No active swap found for cancellation: {}", wallet);
+                DbError::NotFound("Active OTC swap not found".to_string())
+            })?;
 
         // Update the swap
         let update_swap = UpdateOtcSwap {
@@ -230,6 +233,82 @@ impl OtcSwapService {
     /// Helper function to convert swap to response
     fn swap_to_response(&self, swap: types::model::OtcSwapWithUsers, user_role: &str) -> OtcSwapResponse {
         self.swap_with_users_to_response(swap, user_role)
+    }
+
+    /// Update swap with transaction signature
+    pub async fn update_swap_tx_signature(
+        &self,
+        user: &User,
+        tx_signature: String,
+    ) -> Result<OtcSwapResponse, DbError> {
+        let wallet = user.wallet_address
+            .as_ref()
+            .ok_or_else(|| DbError::ValidationError("User wallet not set".to_string()))?;
+
+        // Find the user's active swap that doesn't have a transaction signature yet
+        let swap = self.repository.get_active_by_seller(wallet).await?
+            .ok_or_else(|| DbError::NotFound("No active OTC swap found".to_string()))?;
+
+        // Check if the swap already has a transaction signature
+        if swap.initiate_tx_signature.is_some() {
+            return Err(DbError::ValidationError("OTC swap already has a transaction signature".to_string()));
+        }
+
+        // Update the initiate_tx_signature field
+        let update_swap = UpdateOtcSwap {
+            buyer_id: None,
+            buyer_wallet: None,
+            status: None,
+            accept_tx_signature: None,
+            cancel_tx_signature: None,
+            completed_at: None,
+            cancelled_at: None,
+        };
+
+        // Update the initiate transaction signature
+        let success = self.repository.update_initiate_tx_signature(swap.id, wallet, tx_signature).await?;
+
+        if !success {
+            return Err(DbError::ValidationError("Could not update swap - it may already have a signature or not exist".to_string()));
+        }
+
+        // Return the updated swap
+        let updated_swap = self.repository.get_by_id(swap.id).await?
+            .ok_or_else(|| DbError::NotFound("Swap not found after update".to_string()))?;
+
+        Ok(self.swap_to_response(updated_swap.into_swap_with_users(), user.role.as_deref().unwrap_or("none")))
+    }
+
+    /// Debug method to get all swaps for a wallet (for troubleshooting)
+    pub async fn get_all_swaps_for_wallet(&self, wallet: &str) -> Result<Vec<types::model::OtcSwapWithUsers>, DbError> {
+        let swaps = self.repository.get_user_swaps_by_wallet(wallet).await?;
+        Ok(swaps)
+    }
+
+    /// Force cancel a swap by marking it as cancelled in database (for cleanup)
+    pub async fn force_cancel_swap_by_wallet(&self, wallet: &str) -> Result<Option<OtcSwapResponse>, DbError> {
+        // Find any active swap for this wallet
+        let swap = self.repository.get_active_by_seller_for_cancel(wallet).await?;
+        
+        if let Some(swap) = swap {
+            // Force update to cancelled status
+            let update_swap = UpdateOtcSwap {
+                buyer_id: None,
+                buyer_wallet: None,
+                status: Some("cancelled".to_string()),
+                accept_tx_signature: None,
+                cancel_tx_signature: Some("force_cancelled_by_admin".to_string()),
+                completed_at: None,
+                cancelled_at: Some(Utc::now()),
+            };
+
+            let updated_swap = self.repository.update(swap.id, update_swap).await?
+                .ok_or_else(|| DbError::NotFound("Swap not found after update".to_string()))?;
+
+            Ok(Some(self.swap_to_response(updated_swap.into_swap_with_users(), "none")))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Helper function to convert swap with users to response

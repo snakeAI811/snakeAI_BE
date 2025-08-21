@@ -274,7 +274,6 @@ const OTCTrading: React.FC = () => {
           // Sign and send transaction using Phantom wallet
           if (typeof window !== 'undefined' && (window as any).solana) {
             showInfo('Please approve the transaction in your Phantom wallet...');
-
             try {
               const signedTransaction = await (window as any).solana.signTransaction(transaction);
               console.log('✅ Transaction signed by wallet');
@@ -285,6 +284,7 @@ const OTCTrading: React.FC = () => {
                 preflightCommitment: 'confirmed'
               });
               console.log('📤 Transaction submitted with signature:', signature);
+              
 
               showInfo('Waiting for blockchain confirmation...');
               await connection.confirmTransaction({
@@ -294,6 +294,16 @@ const OTCTrading: React.FC = () => {
               }, 'confirmed');
 
               console.log('✅ Transaction confirmed on blockchain');
+              
+              // Update the database with the transaction signature
+              try {
+                showInfo('Updating swap record...');
+                await otcApi.updateSwapSignature(signature);
+                console.log('✅ Database updated with transaction signature');
+              } catch (updateError) {
+                console.error('❌ Failed to update database with signature:', updateError);
+                // Don't throw here - the transaction succeeded, this is just a database update issue
+              }
             } catch (txError) {
               console.error('❌ Transaction Error:', txError);
               handleError(txError, 'Transaction failed or was rejected');
@@ -392,6 +402,53 @@ const OTCTrading: React.FC = () => {
     }
   };
 
+  const forceCancelSwap = async () => {
+    if (!connected || !publicKey) {
+      showError('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      showInfo('Force canceling any active swaps...');
+
+      const result = await otcApi.forceCancelSwap();
+
+      if (result.success) {
+        showSuccess(result.data || 'Force cancel completed');
+        fetchOrders();
+        fetchMyOrders();
+      } else {
+        throw new Error(result.error || 'Failed to force cancel');
+      }
+    } catch (error) {
+      console.error('Error force canceling:', error);
+      handleError(error, 'Failed to force cancel swap');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const debugSwaps = async () => {
+    if (!connected || !publicKey) {
+      showError('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      const result = await otcApi.debugSwaps();
+      if (result.success && result.data) {
+        console.log('Debug swaps result:', result.data);
+        showInfo(`Found ${result.data.total_swaps} swaps. Check console for details.`);
+      } else {
+        throw new Error(result.error || 'Failed to get debug info');
+      }
+    } catch (error) {
+      console.error('Error getting debug info:', error);
+      handleError(error, 'Failed to get swap debug info');
+    }
+  };
+
   const canBuyOrder = (order: OTCOrder) => {
     // Add logic to check if user meets buying restrictions
     // This would need to fetch user's role and patron score
@@ -441,20 +498,46 @@ const OTCTrading: React.FC = () => {
                 <div className="card">
                   <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
-                      <button
-                        onClick={() => setShowCreateForm(true)}
-                        className="primary-btn"
-                        disabled={loading || !connected}
-                      >
-                        {loading ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-2" />
-                            Creating...
-                          </>
-                        ) : (
-                          'Create Order'
-                        )}
-                      </button>
+                      <div className="d-flex gap-2">
+                        <button
+                          onClick={() => setShowCreateForm(true)}
+                          className="primary-btn"
+                          disabled={loading || !connected}
+                        >
+                          {loading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" />
+                              Creating...
+                            </>
+                          ) : (
+                            'Create Order'
+                          )}
+                        </button>
+                        <button
+                          onClick={forceCancelSwap}
+                          className="btn btn-outline-warning"
+                          disabled={loading || !connected}
+                          title="Force cancel any active swaps (fixes blockchain/database mismatch)"
+                        >
+                          {loading ? (
+                            <span className="spinner-border spinner-border-sm" />
+                          ) : (
+                            <>
+                              <i className="bi bi-exclamation-triangle me-1"></i>
+                              Force Cancel
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={debugSwaps}
+                          className="btn btn-outline-info"
+                          disabled={loading || !connected}
+                          title="Debug: Show all swaps for your wallet in console"
+                        >
+                          <i className="bi bi-bug me-1"></i>
+                          Debug
+                        </button>
+                      </div>
                     </div>
                     <p className="text-muted mt-2 mb-0">
                       Fixed-price token trading between Sellers and Patrons/Treasury

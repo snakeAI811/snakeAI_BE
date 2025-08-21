@@ -14,7 +14,7 @@ use crate::{
             // Smart contract interaction endpoints
             save_role_selection, select_role_tx, apply_patron_tx, approve_patron_tx, claim_tokens_with_role_tx,
             lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
-            initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx, check_patron_eligibility,
+            initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx, update_otc_swap_tx_signature, debug_user_swaps, force_cancel_user_swap, check_patron_eligibility,
         },
         otc_swap::{get_swap_stats, get_swap_by_pda},
     },
@@ -66,6 +66,9 @@ pub fn routes() -> Router<AppState> {
         .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
         .route("/accept_otc_swap", post(accept_otc_swap_tx))
         .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
+        .route("/update_otc_swap_signature", post(update_otc_swap_tx_signature))
+        .route("/debug_swaps", get(debug_user_swaps))
+        .route("/force_cancel_swap", post(force_cancel_user_swap))
         .route("/swap_stats", get(get_swap_stats))
         .route("/swap/{pda}", get(get_swap_by_pda))
         // User ID specific routes (must be at the end to avoid conflicts)

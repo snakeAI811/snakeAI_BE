@@ -7,7 +7,7 @@ function RoadmapPage() {
                 ROADMAP
             </div>
 
-            <div className="d-flex justify-content-center align-items-center pt-lg-5">
+            <div className="d-flex justify-content-center align-items-center pt-lg-2">
                 <div className="overflow-auto">
                     <RoadMapIcon style={{width: '80vw', minWidth: '1000px', height: '100%'}} />
                 </div>

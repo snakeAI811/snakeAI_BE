@@ -154,6 +154,27 @@ impl OtcSwapRepository {
 
     /// Get active OTC swap by seller wallet
     pub async fn get_active_by_seller(&self, seller_wallet: &str) -> Result<Option<OtcSwap>, DbError> {
+        // First, let's debug what swaps exist for this wallet
+        let debug_swaps = query!(
+            "SELECT id, status, expires_at, initiate_tx_signature FROM otc_swaps WHERE seller_wallet = $1 ORDER BY created_at DESC LIMIT 3",
+            seller_wallet
+        )
+        .fetch_all(self.pool.get_pool())
+        .await?;
+        
+        eprintln!("Debug: get_active_by_seller for wallet {}", seller_wallet);
+        eprintln!("  Found {} total swaps:", debug_swaps.len());
+        for swap in &debug_swaps {
+            let now = Utc::now();
+            eprintln!("    Swap {}: status={}, expires_at={}, expired={}, has_tx_sig={}", 
+                swap.id, 
+                swap.status, 
+                swap.expires_at,
+                swap.expires_at <= now,
+                swap.initiate_tx_signature.is_some()
+            );
+        }
+
         let row = query!(
             r#"
             SELECT 
@@ -505,5 +526,134 @@ impl OtcSwapRepository {
         .execute(self.pool.get_pool())
         .await?;
         Ok(result.rows_affected() as i64)
+    }
+
+    /// Update initiate transaction signature for a swap
+    pub async fn update_initiate_tx_signature(&self, swap_id: Uuid, seller_wallet: &str, tx_signature: String) -> Result<bool, DbError> {
+        let result = query!(
+            "UPDATE otc_swaps SET initiate_tx_signature = $1, updated_at = NOW() WHERE id = $2 AND seller_wallet = $3 AND initiate_tx_signature IS NULL",
+            tx_signature,
+            swap_id,
+            seller_wallet
+        )
+        .execute(self.pool.get_pool())
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Get all swaps for a wallet (for debugging)
+    pub async fn get_user_swaps_by_wallet(&self, wallet: &str) -> Result<Vec<OtcSwapWithUsers>, DbError> {
+        let swaps = query!(
+            r#"
+            SELECT 
+                s.id, s.seller_id, s.buyer_id, s.seller_wallet, s.buyer_wallet,
+                s.otc_swap_pda, s.token_amount, s.sol_rate, s.buyer_rebate,
+                s.swap_type, s.buyer_role_required, s.status,
+                s.initiate_tx_signature, s.accept_tx_signature, s.cancel_tx_signature,
+                s.created_at, s.updated_at, s.completed_at, s.cancelled_at, s.expires_at,
+                seller.twitter_username as seller_username,
+                buyer.twitter_username as buyer_username
+            FROM otc_swaps s
+            LEFT JOIN users seller ON s.seller_id = seller.id
+            LEFT JOIN users buyer ON s.buyer_id = buyer.id
+            WHERE s.seller_wallet = $1 OR s.buyer_wallet = $1
+            ORDER BY s.created_at DESC
+            "#,
+            wallet
+        )
+        .fetch_all(self.pool.get_pool())
+        .await?;
+
+        let swap_results: Vec<OtcSwapWithUsers> = swaps
+            .into_iter()
+            .map(|row| OtcSwapWithUsers {
+                swap: OtcSwap {
+                    id: row.id,
+                    seller_id: row.seller_id,
+                    buyer_id: row.buyer_id,
+                    seller_wallet: row.seller_wallet,
+                    buyer_wallet: row.buyer_wallet,
+                    otc_swap_pda: row.otc_swap_pda,
+                    token_amount: row.token_amount,
+                    sol_rate: row.sol_rate,
+                    buyer_rebate: row.buyer_rebate.unwrap_or(0),
+                    swap_type: row.swap_type,
+                    buyer_role_required: row.buyer_role_required.unwrap_or_else(|| "none".to_string()),
+                    status: row.status,
+                    initiate_tx_signature: row.initiate_tx_signature,
+                    accept_tx_signature: row.accept_tx_signature,
+                    cancel_tx_signature: row.cancel_tx_signature,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
+                    completed_at: row.completed_at,
+                    cancelled_at: row.cancelled_at,
+                    expires_at: row.expires_at,
+                },
+                seller_username: row.seller_username,
+                buyer_username: row.buyer_username,
+            })
+            .collect();
+
+        Ok(swap_results)
+    }
+
+    /// Get active OTC swap by seller wallet for cancellation (more lenient - doesn't require tx signature)
+    pub async fn get_active_by_seller_for_cancel(&self, seller_wallet: &str) -> Result<Option<OtcSwap>, DbError> {
+        eprintln!("Debug: get_active_by_seller_for_cancel for wallet {}", seller_wallet);
+        
+        let row = query!(
+            r#"
+            SELECT 
+                id, seller_id, buyer_id, seller_wallet, buyer_wallet,
+                otc_swap_pda, token_amount, sol_rate, buyer_rebate,
+                swap_type, buyer_role_required, status,
+                initiate_tx_signature, accept_tx_signature, cancel_tx_signature,
+                created_at, updated_at, completed_at, cancelled_at, expires_at
+            FROM otc_swaps 
+            WHERE seller_wallet = $1 AND status = 'active'
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            seller_wallet
+        )
+        .fetch_optional(self.pool.get_pool())
+        .await?;
+
+        if let Some(ref row) = row {
+            let now = Utc::now();
+            eprintln!("  Found swap {}: status={}, expires_at={}, expired={}, has_tx_sig={}", 
+                row.id, 
+                row.status, 
+                row.expires_at,
+                row.expires_at <= now,
+                row.initiate_tx_signature.is_some()
+            );
+        } else {
+            eprintln!("  No active swap found for cancellation");
+        }
+
+        Ok(row.map(|row| OtcSwap {
+            id: row.id,
+            seller_id: row.seller_id,
+            buyer_id: row.buyer_id,
+            seller_wallet: row.seller_wallet,
+            buyer_wallet: row.buyer_wallet,
+            otc_swap_pda: row.otc_swap_pda,
+            token_amount: row.token_amount,
+            sol_rate: row.sol_rate,
+            buyer_rebate: row.buyer_rebate.unwrap_or(0),
+            swap_type: row.swap_type,
+            buyer_role_required: row.buyer_role_required.unwrap_or_else(|| "none".to_string()),
+            status: row.status,
+            initiate_tx_signature: row.initiate_tx_signature,
+            accept_tx_signature: row.accept_tx_signature,
+            cancel_tx_signature: row.cancel_tx_signature,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            completed_at: row.completed_at,
+            cancelled_at: row.cancelled_at,
+            expires_at: row.expires_at,
+        }))
     }
 }

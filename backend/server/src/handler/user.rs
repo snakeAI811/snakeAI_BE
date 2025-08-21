@@ -2014,8 +2014,26 @@ pub async fn initiate_otc_swap_tx(
     
     let message = Message::new(&instructions, Some(&wallet));
     let mut transaction = Transaction::new_unsigned(message);
-    transaction.message.recent_blockhash = latest_blockhash;
+    transaction.message.recent_blockhash = latest_blockhash;    
     
+    // Check if user already has an active swap and cancel it first
+    let wallet_str = user.wallet_address
+        .as_ref()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+    
+    // Force cancel any existing active swaps in database first
+    match state.service.otc_swap.force_cancel_swap_by_wallet(wallet_str).await {
+        Ok(Some(_)) => {
+            eprintln!("Auto-cancelled existing swap for wallet: {}", wallet_str);
+        },
+        Ok(None) => {
+            // No existing swap to cancel
+        },
+        Err(err) => {
+            eprintln!("Warning: Failed to auto-cancel existing swap: {}", err);
+        }
+    }
+
     // Create database record (will be updated with tx signature after user signs)
     let otc_swap_pda = otc_swap.to_string();
     match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, None).await {
@@ -2170,4 +2188,69 @@ pub async fn cancel_otc_swap_tx(
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
+}
+
+
+
+/// Update OTC swap with transaction signature after user signs the transaction
+pub async fn update_otc_swap_tx_signature(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+    Json(payload): Json<types::dto::UpdateOtcSwapTxRequest>,
+) -> Result<Json<String>, ApiError> {
+    match state.service.otc_swap.update_swap_tx_signature(&user, payload.tx_signature).await {
+        Ok(_) => Ok(Json("Transaction signature updated successfully".to_string())),
+        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
+    }
+}
+
+/// Debug endpoint to check what swaps exist for the current user
+pub async fn debug_user_swaps(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    let wallet = user.wallet_address
+        .as_ref()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    match state.service.otc_swap.get_all_swaps_for_wallet(wallet).await {
+        Ok(swaps) => {
+            let debug_info = json!({
+                "wallet": wallet,
+                "total_swaps": swaps.len(),
+                "swaps": swaps.iter().map(|swap_with_users| {
+                    let swap = &swap_with_users.swap;
+                    json!({
+                        "id": swap.id,
+                        "status": swap.status,
+                        "expires_at": swap.expires_at,
+                        "expired": swap.is_expired(),
+                        "has_initiate_tx_sig": swap.initiate_tx_signature.is_some(),
+                        "initiate_tx_signature": swap.initiate_tx_signature,
+                        "token_amount": swap.token_amount,
+                        "sol_rate": swap.sol_rate,
+                        "created_at": swap.created_at
+                    })
+                }).collect::<Vec<_>>()
+            });
+            Ok(Json(debug_info))
+        },
+        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
+    }
+}
+
+/// Force cancel a swap in database (for cleaning up mismatched state)
+pub async fn force_cancel_user_swap(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let wallet = user.wallet_address
+        .as_ref()
+        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
+
+    match state.service.otc_swap.force_cancel_swap_by_wallet(wallet).await {
+        Ok(Some(_)) => Ok(Json("Swap force cancelled successfully".to_string())),
+        Ok(None) => Ok(Json("No active swap found to cancel".to_string())),
+        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
+    }
 }

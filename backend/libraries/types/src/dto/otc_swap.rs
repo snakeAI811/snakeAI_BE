@@ -22,6 +22,11 @@ pub struct CancelOtcSwapRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateOtcSwapTxRequest {
+    pub tx_signature: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OtcSwapResponse {
     pub id: Uuid,
     pub seller_id: Uuid,

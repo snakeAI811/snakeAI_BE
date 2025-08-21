@@ -5,11 +5,11 @@ import { ReactComponent as PatronIcon } from "../../svgs/role-patron.svg";
 function UserRolePage() {
     return (
         <div className="w-100 border border-5 border-black w-100 p-3" style={{ minHeight: "84vh" }}>
-            <div className=" flex-wrap fs-3 fs-lg-4 fs-xl-5 fs-xxl-6 py-2 py-lg-4">
+            <div className=" flex-wrap fs-3 fs-lg-5 fs-xl-6 fs-xxl-7 py-2 py-lg-4">
                 <div className="text-center" style={{ lineHeight: 'normal' }}>THREE ROLES DEFINE YOUR</div>
                 <div className="text-center" style={{ lineHeight: 'normal' }}>JOURNEY AT TCE</div>
             </div>
-            <div className="d-flex justify-content-center px-1 pt-5 pt-lg-5 px-lg-5 px-xl-5">
+            <div className="d-flex justify-content-center px-1 px-lg-5 px-xl-5">
                 <div className="role-bundle" >
                     <div className="role-card border border-0 box-margin-bottom px-3"  >
                         <div className="border border-5 border-black">
