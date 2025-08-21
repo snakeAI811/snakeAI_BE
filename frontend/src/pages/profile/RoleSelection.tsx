@@ -4,20 +4,26 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAppContext } from '../../contexts/AppContext';
 import { useWalletContext } from '../../contexts/WalletContext';
 import {
-  Connection,
-  PublicKey,
-  Transaction,
-  clusterApiUrl
+    Connection,
+    PublicKey,
+    Transaction,
+    clusterApiUrl
 } from '@solana/web3.js';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { SOLANA_RPC_URL, TOKEN_MINT } from '../../config/program';
-
+import { ReactComponent as IconRedDot } from '../../svgs/role/red_dot.svg';
+import { ReactComponent as IconDanger } from '../../svgs/role/danger.svg';
+import { ReactComponent as IconExiter } from '../../svgs/role/exiter.svg';
+import { ReactComponent as IconPatron } from '../../svgs/role/patron.svg';
+import { ReactComponent as IconStaker } from '../../svgs/role/staker.svg';
+import { ReactComponent as IconWarning } from '../../svgs/role/warning.svg';
+import { ReactComponent as IconChecker } from '../../svgs/role/checker.svg';
 
 export interface UserRole {
-  role: 'none' | 'staker' | 'patron';
-  status?: string;
-  locked_until?: number;
-  stake_amount?: number;
+    role: 'none' | 'staker' | 'patron';
+    status?: string;
+    locked_until?: number;
+    stake_amount?: number;
 }
 
 interface RoleSelectionProps {
@@ -48,7 +54,6 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     const { handleError, isUserRejection } = useErrorHandler();
     const [selectedRole, setSelectedRole] = useState<'none' | 'staker' | 'patron'>(userRole.role);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'none' | 'staker' | 'patron'>(userRole.role);
 
     // Connection to Solana network
     const connection = new Connection(SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
@@ -81,7 +86,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
 
     // Check if user can become staker
     const canBecomeStaker = () => {
-        const totalTokens = tokenBalance.balance + tokenBalance.locked;
+        const totalTokens = tokenBalance.balance + tokenBalance.locked + tokenBalance.staked;
         return totalTokens >= MINIMUM_STAKER_TOKENS;
     };
 
@@ -96,13 +101,21 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     const getRoleRequirements = (role: 'none' | 'staker' | 'patron') => {
         switch (role) {
             case 'staker':
-                const totalTokens = tokenBalance.balance + tokenBalance.locked;
+                const totalTokens = tokenBalance.balance + tokenBalance.locked + tokenBalance.staked;
                 const stakerValid = canBecomeStaker();
                 return {
                     valid: stakerValid,
                     message: stakerValid
-                        ? `You have ${totalTokens.toLocaleString()} SNAKE tokens (minimum: ${MINIMUM_STAKER_TOKENS})`
-                        : `Need ${MINIMUM_STAKER_TOKENS} SNAKE tokens (you have: ${totalTokens.toLocaleString()})`
+                        ? (
+                            <span>
+                                <IconChecker /> You have {totalTokens.toLocaleString()} SNAKE tokens (minimum: {MINIMUM_STAKER_TOKENS})
+                            </span>
+                        )
+                        : (
+                            <span>
+                                <IconDanger /> Need ${MINIMUM_STAKER_TOKENS} SNAKE tokens (you have: ${totalTokens.toLocaleString()})
+                            </span>
+                        )
                 };
 
             case 'patron':
@@ -111,32 +124,50 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                 return {
                     valid: patronValid,
                     message: patronValid
-                        ? `Qualification score: ${patronScore} (minimum: ${MINIMUM_PATRON_QUALIFICATION_SCORE})`
-                        : `Qualification score: ${patronScore} (need: ${MINIMUM_PATRON_QUALIFICATION_SCORE}). Improve mining history and community engagement.`
+                        ? (
+                            <span>
+                                <IconChecker /> Qualification score: {patronScore} (minimum: {MINIMUM_PATRON_QUALIFICATION_SCORE})
+                            </span>
+                        )
+                        : (
+                            <span>
+                                <IconDanger /> Qualification score: {patronScore} (need: {MINIMUM_PATRON_QUALIFICATION_SCORE}). Improve mining history and community engagement.
+                            </span>
+                        )
                 };
 
             default:
-                return { valid: true, message: 'No requirements' };
+                return {
+                    valid: true,
+                    message: (
+                        <span>
+                            <IconChecker /> No requirements
+                        </span>
+                    )
+                };
         }
     };
 
     const roleDescriptions = {
         none: {
-            title: 'NO ROLE',
+            title: 'No Role',
             description: 'Basic access to mining and standard features',
             benefits: ['Basic tweet mining', 'Standard rewards', 'Community access'],
+            icon: <IconExiter />,
             color: 'secondary'
         },
         staker: {
-            title: 'STAKER',
+            title: 'staker',
             description: 'Lock tokens for enhanced rewards and yield generation',
             benefits: ['5% APY staking rewards', 'Enhanced mining multiplier', 'Priority support', '3-month lock period'],
+            icon: <IconStaker />,
             color: 'primary'
         },
         patron: {
-            title: 'PATRON',
+            title: 'patron',
             description: 'Premium tier with exclusive features and governance rights',
             benefits: ['All Staker benefits', 'DAO governance rights', 'OTC trading rebates', 'Exclusive features', '6-month lock period'],
+            icon: <IconPatron />,
             color: 'warning'
         }
     };
@@ -255,156 +286,88 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
 
     return (
         <div className="w-100">
-            <h3 className="mb-4">Choose Your Role</h3>
+            <div className='sn-bold-border'>
+                <div className="my-4 text-center fs-3 fs-lg-4 fs-xl-6 fs-xxl-6" > Choose Your Role</div>
 
-            
-            {/* Role Details Tabs */}
-            <div className="card border border-3 border-dashed mb-4">
-                <div className="card-header">
-                    <ul className="nav nav-tabs card-header-tabs">
-                        {Object.entries(roleDescriptions).map(([role, info]) => (
-                            <li className="nav-item" key={role}>
-                                <button 
-                                    className={`nav-link ${activeTab === role ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(role as 'none' | 'staker' | 'patron')}
+                <div className="row g-4">
+                    {Object.entries(roleDescriptions).map(([role, info]) => {
+                        const requirements = getRoleRequirements(role as 'none' | 'staker' | 'patron');
+                        const roleKey = role as 'none' | 'staker' | 'patron';
+
+                        return (
+                            <div key={role} className="col-lg-4">
+                                <div
+                                    className={`card h-100 border-3 ${selectedRole === role ? 'border-dark bg-light' :
+                                        !requirements.valid ? 'border-danger' : 'border-secondary'
+                                        }`}
+                                    style={{
+                                        cursor: requirements.valid ? 'pointer' : 'not-allowed',
+                                        opacity: requirements.valid ? 1 : 0.9
+                                    }}
+                                    onClick={() => requirements.valid && setSelectedRole(roleKey)}
                                 >
-                                    {info.title}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                <div className="card-body">
-                    {activeTab === 'none' && (
-                        <div>
-                            <h5 className="card-title">NO ROLE</h5>
-                            <h6 className="mt-4">Requirements:</h6>
-                            <ul>
-                                <li>No special requirements</li>
-                            </ul>
-                            <h6 className="mt-3">Benefits:</h6>
-                            <ul>
-                                {roleDescriptions.none.benefits.map((benefit, index) => (
-                                    <li key={index}>{benefit}</li>
-                                ))}
-                            </ul>
-                            <div className="alert alert-info mt-3">
-                                <small>This is the default role for all users.</small>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'staker' && (
-                        <div>
-                            <h5 className="card-title">STAKER</h5>
-                            <p className="card-text">{roleDescriptions.staker.description}</p>
-                            
-                            <h6 className="mt-4">Requirements:</h6>
-                            <ul>
-                                <li>Minimum {MINIMUM_STAKER_TOKENS} SNAKE tokens</li>
-                                <li>3-month lock commitment</li>
-                            </ul>
-                            
-                            <h6 className="mt-3">Benefits:</h6>
-                            <ul>
-                                {roleDescriptions.staker.benefits.map((benefit, index) => (
-                                    <li key={index}>{benefit}</li>
-                                ))}
-                            </ul>
-                            
-                            <div className="alert alert-warning mt-3">
-                                <strong>Note:</strong> Staker tokens are locked for 3 months.
-                            </div>
-                            
-                            <div className="mt-3">
-                                <div className={`alert ${canBecomeStaker() ? 'alert-success' : 'alert-danger'}`}>
-                                    {getRoleRequirements('staker').message}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'patron' && (
-                        <div>
-                            <h5 className="card-title">PATRON</h5>
-                            <p className="card-text">{roleDescriptions.patron.description}</p>
-                            
-                            <h6 className="mt-4">Requirements:</h6>
-                            <ul>
-                                <li>Qualification score ≥ {MINIMUM_PATRON_QUALIFICATION_SCORE}</li>
-                                <li>Minimum {MINIMUM_PATRON_MINED_TOKENS} tokens mined in Phase 1</li>
-                                <li>6-month commitment period</li>
-                                <li>Community engagement history</li>
-                            </ul>
-                            
-                            <h6 className="mt-3">Benefits:</h6>
-                            <ul>
-                                {roleDescriptions.patron.benefits.map((benefit, index) => (
-                                    <li key={index}>{benefit}</li>
-                                ))}
-                            </ul>
-                            
-                            <div className="alert alert-danger mt-3">
-                                <strong>Important:</strong> Patron role has a 20% burn penalty for early exit.
-                            </div>
-                            
-                            <div className="mt-3">
-                                <div className={`alert ${canBecomePatron() ? 'alert-success' : 'alert-danger'}`}>
-                                    {getRoleRequirements('patron').message}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-            
-            {/* Role Selection Buttons */}
-            <div className="row g-4 mb-4">
-                {Object.entries(roleDescriptions).map(([role, info]) => {
-                    const requirements = getRoleRequirements(role as 'none' | 'staker' | 'patron');
-                    const roleKey = role as 'none' | 'staker' | 'patron';
+                                    <div className="card-body text-center">
+                                        <div className="fs-1 mb-3">{info.icon}</div>
+                                        <h3 className="card-title">{info.title}</h3>
+                                        <p className="card-text text-muted">{info.description}</p>
 
-                    return (
-                        <div key={role} className="col-lg-4">
-                            <button
-                                className={`btn w-100 py-3 ${selectedRole === role ? 'btn-dark' : 
-                                    requirements.valid ? `btn-outline-${info.color}` : 'btn-outline-secondary'}`}
-                                style={{
-                                    cursor: requirements.valid ? 'pointer' : 'not-allowed',
-                                    opacity: requirements.valid ? 1 : 0.5,
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                                onClick={() => {
-                                    if (requirements.valid) {
-                                        setSelectedRole(roleKey);
-                                    }
-                                    setActiveTab(roleKey);
-                                }}
-                                disabled={!requirements.valid}
-                            >
-                                <h3 className="mb-0">{info.title}</h3>
-                                
-                                {selectedRole === role && (
-                                    <div className="position-absolute top-0 end-0 p-2">
-                                        <span className="badge bg-success">Selected</span>
+                                        <div className="mt-3 mx-auto" style={{ width: '80%' }}>
+                                            <h5 className='sn-y-border py-2 text-center'>Benefits:</h5>
+                                            <ul className="list-unstyled">
+                                                {info.benefits.map((benefit, index) => (
+                                                    <li key={index} className="mb-1 text-start">
+                                                        <small>✓ {benefit}</small>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        {/* Requirements Status */}
+                                        <div className="my-2">
+                                            <div className={`${requirements.valid ? 'sn-success' : 'sn-warning'} py-1 px-2 rounded d-flex align-items-center justify-content-center`}>
+                                                <small>{requirements.message}</small>
+                                            </div>
+                                        </div>
+
+                                        {selectedRole === role && (
+                                            <div className="sn-bg-success">
+                                                <span className="">Selected</span>
+                                            </div>
+                                        )}
+
+                                        {/* Additional Info for Roles */}
+                                        {/* {roleKey === 'staker' && (
+                                        <div className="mt-2">
+                                            <small className="text-muted">
+                                                Requires token lock for 3 months
+                                            </small>
+                                        </div>
+                                    )}
+
+                                    {roleKey === 'patron' && (
+                                        <div className="mt-2">
+                                            <small className="text-muted">
+                                                Score: {calculatePatronScore()}/100 | 6-month commitment
+                                            </small>
+                                        </div>
+                                    )} */}
+
+                                        {userRole.role === role && (
+                                            <div className="mt-2">
+                                                <span className="">[Current Role]</span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                                
-                                {userRole.role === role && (
-                                    <div className="position-absolute top-0 start-0 p-2">
-                                        <span className="badge bg-info">Current</span>
-                                    </div>
-                                )}
-                            </button>
-                        </div>
-                    );
-                })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Role Selection Actions */}
-            <div className="mt-4 text-center">
-                {selectedRole !== userRole.role && (
+            <div className="mt-4 text-center sn-select-role-actions">
+                {/* {selectedRole !== userRole.role && (
                     <div className="alert alert-warning">
                         <strong>Warning:</strong> Changing roles may require token locking and have associated costs.
                         {selectedRole !== 'none' && (
@@ -413,10 +376,10 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                             </div>
                         )}
                     </div>
-                )}
+                )} */}
 
                 <button
-                    className={`primary-btn btn-lg`}
+                    className={`primary-btn btn-lg fs-5`}
                     onClick={handleRoleSelect}
                     disabled={loading || selectedRole === userRole.role}
                 >
@@ -431,6 +394,38 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                         `Select ${selectedRole} Role`
                     )}
                 </button>
+            </div>
+
+            {/* Important Information */}
+            <div className="mt-4">
+                <div className="sn-bold-border">
+                    {/* <h6 className="card-title text-center">📋 Role Requirements & Information</h6> */}
+                    <div className="gap-2 d-flex sn-require-section">
+                        <div className="sn-border sn-rq-staker p-3">
+                            <h5 className='text-black'><IconStaker width={25} /> Staker Requirements:</h5>
+                            <ul className='list-unstyled'>
+                                <li><IconRedDot /> Minimum {MINIMUM_STAKER_TOKENS} SNAKE tokens</li>
+                                <li><IconRedDot /> 3-month lock commitment</li>
+                                <li><IconRedDot /> Earn 5% APY on locked tokens</li>
+                                <li><IconRedDot /> Enhanced mining rewards</li>
+                            </ul>
+                        </div>
+                        <div className="sn-border sn-rq-patron p-3">
+                            <h5 className='text-black'><IconPatron width={25} /> Patron Requirements:</h5>
+                            <ul className='list-unstyled'>
+                                <li><IconRedDot /> Qualification score ≥ {MINIMUM_PATRON_QUALIFICATION_SCORE}</li>
+                                <li><IconRedDot /> Minimum {MINIMUM_PATRON_MINED_TOKENS} tokens mined in Phase 1</li>
+                                <li><IconRedDot /> 6-month commitment period</li>
+                                <li><IconRedDot /> Community engagement history</li>
+                                <li><IconRedDot /> Higher roles unlock additional features and better rewards</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="sn-danger p-1 d-flex justify-content-center rounded mt-3">
+                        <p className='mb-0'><strong><IconWarning height={28} /> Important:</strong> Patron role has a 20% burn penalty for early exit. Staker tokens are locked for 3 months.</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

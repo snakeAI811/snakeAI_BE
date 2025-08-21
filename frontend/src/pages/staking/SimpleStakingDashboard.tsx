@@ -253,9 +253,21 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           const transactionBytes = Uint8Array.from(atob(response.data), c => c.charCodeAt(0));
           const transaction = Transaction.from(transactionBytes);
 
-          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          const clientPubkey = new PublicKey(publicKey);
+
+          // Ensure the connected wallet matches the transaction's expected fee payer/signer
+          if (transaction.feePayer && !transaction.feePayer.equals(clientPubkey)) {
+            throw new Error(
+              `Connected wallet ${clientPubkey.toBase58()} does not match required wallet ${transaction.feePayer.toBase58()}. Please connect the correct wallet.`
+            );
+          }
+
+          // Use existing feePayer from server if set; otherwise default to connected wallet
+          transaction.feePayer = transaction.feePayer ?? clientPubkey;
+
+          // Refresh blockhash to avoid expiry
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
           transaction.recentBlockhash = blockhash;
-          transaction.feePayer = new PublicKey(publicKey);
 
           if (typeof window !== 'undefined' && (window as any).solana) {
             const signedTransaction = await (window as any).solana.signTransaction(transaction);
@@ -267,7 +279,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
             await connection.confirmTransaction({
               signature,
               blockhash: transaction.recentBlockhash!,
-              lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+              lastValidBlockHeight
             }, 'confirmed');
 
             showSuccess(`Tokens unlocked successfully! Transaction: ${signature}`);

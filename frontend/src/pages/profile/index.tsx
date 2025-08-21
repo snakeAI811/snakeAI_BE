@@ -250,9 +250,9 @@ function Profile() {
                             <SimpleWalletConnection />
                         </div>
                         <div className="custom-border-bottom fs-2 mt-4" >USER PROFILE</div>
-                        <div className="row ">
+                        <div className="row mx-0">
                             {/* Left Column - Profile Info */}
-                            <div className="col-12 col-lg-7 custom-border mt-4">
+                            <div className="col-md-12 col-lg-7 custom-border mt-4">
                                 <div className=" p-3">
                                     <div className="profile-section gap-4">
                                         <div className="col-auto">
@@ -296,7 +296,7 @@ function Profile() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="col-md-5 col-sm-12 px-3 py-5 gap-4">
+                            <div className="col-md-12 col-lg-5 px-3 py-5 gap-4">
                                 <div className="d-flex flex-column gap-3 pt-3">
                                     <div className="custom-border-bottom ">REWARD BALANCE:</div>
                                     <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
@@ -335,7 +335,7 @@ function Profile() {
                             <div className="border border-3 border-dashed mt-4 p-3 text-center">
                                 <h5 className="text-muted mb-3">ROLE MANAGEMENT</h5>
                                 <p className="text-muted">Connect your wallet to access role management features</p>
-                                <div className="alert alert-info">
+                                <div className="sn-success p-2">
                                     <small>Role management allows you to become a Staker or Patron for enhanced benefits</small>
                                 </div>
                             </div>
