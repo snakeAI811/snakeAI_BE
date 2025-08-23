@@ -10,7 +10,8 @@ use crate::{
         USER_STAKING_HISTORY_SEED,
         GLOBAL_STAKING_STATS_SEED,
         LAMPORTS_PER_SNK
-    }
+    },
+    utils::{ValidationUtils, CalculationUtils}
 };
 
 #[derive(Accounts)]
@@ -74,6 +75,7 @@ pub fn unlock_tokens(ctx: Context<UnlockTokens>) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     let current_time = Clock::get()?.unix_timestamp;
     
+    // Validate unlock conditions using utility functions
     require!(user_claim.locked_amount > 0, SnakeError::NoTokensLocked);
     require!(user_claim.can_unlock(), SnakeError::LockPeriodNotCompleted);
     

@@ -11,7 +11,8 @@ use crate::{
         YIELD_CLAIM_COOLDOWN_SECONDS,
         USER_STAKING_HISTORY_SEED,
         GLOBAL_STAKING_STATS_SEED
-    }
+    },
+    utils::{ValidationUtils, CalculationUtils}
 };
 
 #[derive(Accounts)]
@@ -79,24 +80,18 @@ pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     let current_time = Clock::get()?.unix_timestamp;
     
-    // Allow both Stakers and Patrons to claim yield
-    require!(
-        user_claim.role == UserRole::Staker || user_claim.role == UserRole::Patron, 
-        SnakeError::Unauthorized
-    );
+    // Validate user role and locked amount
+    ValidationUtils::validate_user_role(user_claim, &[UserRole::Staker, UserRole::Patron])?;
     require!(user_claim.locked_amount > 0, SnakeError::NoTokensLocked);
     
-    // Check cooldown period - prevent multiple claims within 24 hours
-    if user_claim.last_yield_claim_timestamp > 0 {
-        let time_since_last_claim = current_time - user_claim.last_yield_claim_timestamp;
-        require!(
-            time_since_last_claim >= YIELD_CLAIM_COOLDOWN_SECONDS,
-            SnakeError::YieldClaimCooldownNotPassed
-        );
-    }
+    // Validate cooldown period
+    ValidationUtils::validate_cooldown(
+        user_claim.last_yield_claim_timestamp,
+        YIELD_CLAIM_COOLDOWN_SECONDS,
+    )?;
     
-    // Calculate yield amount
-    let yield_amount = user_claim.calculate_yield()?;
+    // Calculate yield amount using utility function
+    let yield_amount = CalculationUtils::calculate_yield(user_claim, current_time);
     
     require!(yield_amount > 0, SnakeError::InsufficientFunds);
     
@@ -125,9 +120,10 @@ pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
     
     // Update yield claim timestamp and total claimed
     user_claim.last_yield_claim_timestamp = current_time;
-    user_claim.total_yield_claimed = user_claim.total_yield_claimed
-        .checked_add(yield_amount)
-        .ok_or(SnakeError::ArithmeticOverflow)?;
+    user_claim.total_yield_claimed = CalculationUtils::safe_add(
+        user_claim.total_yield_claimed,
+        yield_amount
+    )?;
     
     // Initialize history accounts if needed
     let user_history = &mut ctx.accounts.user_staking_history;

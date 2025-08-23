@@ -18,6 +18,7 @@ use crate::{
         GLOBAL_STAKING_STATS_SEED,
         LAMPORTS_PER_SNK
     },
+    utils::{ValidationUtils, CalculationUtils}
 };  
 
 #[derive(Accounts)]
@@ -90,56 +91,48 @@ fn has_sufficient_staking_history(user_claim: &UserClaim, required_months: u8) -
     staking_duration_seconds >= required_seconds
 }
 
-/// Helper function to validate patron eligibility
-fn validate_patron_eligibility(user_claim: &UserClaim, token_amount: u64) -> bool {
+/// Helper function to validate patron eligibility using utility functions
+fn validate_patron_eligibility(user_claim: &UserClaim, token_amount: u64) -> Result<()> {
     // Check token amount (>=250k)
-    if token_amount < PATRON_MIN_TOKEN_AMOUNT {
-        return false;
-    }
+    ValidationUtils::validate_amount_range(token_amount, PATRON_MIN_TOKEN_AMOUNT, u64::MAX)?;
     
     // Check minimum mining threshold (> 0)
-    if user_claim.total_mined_phase1 == 0 {
-        return false;
-    }
+    require!(user_claim.total_mined_phase1 > 0, SnakeError::InsufficientMiningHistory);
     
-    // Check wallet age (>= 30 days)
-    if user_claim.wallet_age_days < PATRON_MIN_WALLET_AGE_DAYS {
-        return false;
-    }
+    // Validate patron qualification criteria
+    ValidationUtils::validate_patron_qualification(user_claim)?;
     
     // Check staking history (6 months)
-    if !has_sufficient_staking_history(user_claim, PATRON_MIN_STAKING_MONTHS) {
-        return false;
-    }
+    require!(
+        has_sufficient_staking_history(user_claim, PATRON_MIN_STAKING_MONTHS),
+        SnakeError::LockDurationRequirementNotMet
+    );
     
-    true
+    Ok(())
 }
 
 pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -> Result<()> {
     let user_claim = &mut ctx.accounts.user_claim;
     let current_time = Clock::get()?.unix_timestamp;
     
-    require!(amount > 0, SnakeError::CannotLockZeroTokens);
-    require!(!user_claim.is_locked(), SnakeError::TokensLocked);
+    // Validate input parameters using utility functions
+    ValidationUtils::validate_amount_range(amount, 1, u64::MAX)?;
+    ValidationUtils::validate_lock_status(user_claim, false)?; // Should not be locked
     
-    // Both stakers and patrons need minimum 5000 tokens
-    require!(amount >= 5000, SnakeError::InsufficientFunds);
+    // Validate minimum token amount
+    ValidationUtils::validate_amount_range(amount, 5000 * LAMPORTS_PER_SNK, u64::MAX)?;
     
-    // Both can lock for 3 or 6 months
+    // Validate lock duration
     require!(
         duration_months == STAKER_LOCK_DURATION_MONTHS || duration_months == PATRON_LOCK_DURATION_MONTHS,
         SnakeError::InvalidLockDuration
     );
     
-    // Validate user has valid role (either Staker or Patron)
-    require!(
-        user_claim.role == UserRole::Staker || user_claim.role == UserRole::Patron,
-        SnakeError::InvalidRole
-    );
+    // Validate user role using utility function
+    ValidationUtils::validate_user_role(user_claim, &[UserRole::Staker, UserRole::Patron])?;
     
-    // Calculate lock end time
-    let lock_duration_seconds = (duration_months as i64) * SECONDS_PER_MONTH;
-    let lock_end_time = current_time + lock_duration_seconds;
+    // Calculate lock end time using utility function
+    let lock_end_time = CalculationUtils::calculate_lock_end_timestamp(current_time, duration_months);
     
     // Transfer tokens to treasury (locked)
     let cpi_accounts = Transfer {
@@ -155,7 +148,7 @@ pub fn lock_tokens(ctx: Context<LockTokens>, amount: u64, duration_months: u8) -
     
     token::transfer(cpi_ctx, amount)?;
     
-    // Update user claim with lock information (DON'T change role)
+    // Update user claim with lock information using safe operations
     user_claim.locked_amount = amount;
     user_claim.lock_start_timestamp = current_time;
     user_claim.lock_end_timestamp = lock_end_time;

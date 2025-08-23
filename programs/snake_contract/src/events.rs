@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::state::UserRole;
-use crate::instructions::otc_swap_enhanced::SwapType;
+use crate::state::SwapType;
 use crate::state::VestingRoleType;
 
 #[event(discriminator = b"poolinit")]

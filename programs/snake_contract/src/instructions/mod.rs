@@ -13,20 +13,13 @@ pub use select_role::*;
 pub mod claim_tokens_with_role;
 pub use claim_tokens_with_role::*;
 
-// pub mod otc_swap;
-// pub use otc_swap::*;
-
-// Enhanced OTC swap for Milestone 2
-pub mod otc_swap_enhanced;
-pub use otc_swap_enhanced::*;
+// OTC swap module (optimized)
+pub mod otc_swap;
+pub use otc_swap::*;
 
 // Vesting program
 pub mod vesting;
 pub use vesting::*;
-
-// Stub OTC swap/burn logic
-pub mod otc_swap_burn_stub;
-pub use otc_swap_burn_stub::*;
 
 pub mod sellback_to_project;
 pub use sellback_to_project::*;
@@ -47,10 +40,6 @@ pub use unlock_tokens::*;
 
 pub mod claim_yield;
 pub use claim_yield::*;
-
-// New Patron Framework instructions
-pub mod otc_trading;
-pub use otc_trading::*;
 
 pub mod patron_exit;
 pub use patron_exit::*;

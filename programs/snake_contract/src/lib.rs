@@ -1,3 +1,5 @@
+// Explicitly import the global core to prevent shadowing
+use ::core;
 use anchor_lang::prelude::*;
 
 pub mod constants;
@@ -5,12 +7,13 @@ mod errors;
 mod events;
 pub mod instructions;
 pub mod state;
+pub mod utils;
 
 use instructions::*;
 use state::UserRole;
-use instructions::otc_swap_enhanced::SwapType;
-use instructions::otc_trading;
+use state::SwapType; // Use the state module's SwapType
 use instructions::update_user_stats::UpdateUserStatsParams;
+
 
 declare_id!("A75BhFuMiJoe3bwNXAJbsPykKSQfvVhC5oYH9k9X6RQy");
 
@@ -48,13 +51,14 @@ pub mod snake_contract {
         instructions::initialize_user_claim(ctx)
     }
 
-    pub fn accept_otc_swap(ctx: Context<AcceptOtcSwap>) -> Result<()> {
-        instructions::accept_otc_swap(ctx)
-    }
+    // Legacy OTC swap functions - deprecated, use new otc_swap module instead
+    // pub fn accept_otc_swap(ctx: Context<AcceptOtcSwap>) -> Result<()> {
+    //     instructions::accept_otc_swap(ctx)
+    // }
 
-    pub fn cancel_otc_swap(ctx: Context<CancelOtcSwap>) -> Result<()> {
-        instructions::cancel_otc_swap(ctx)
-    }
+    // pub fn cancel_otc_swap(ctx: Context<CancelOtcSwap>) -> Result<()> {
+    //     instructions::cancel_otc_swap(ctx)
+    // }
 
 
     // pub fn sellback_to_project(ctx: Context<SellbackToProject>, amount: u64) -> Result<()> {
@@ -111,22 +115,28 @@ pub mod snake_contract {
 
     // ========== NEW PATRON FRAMEWORK FUNCTIONS ==========
 
-    pub fn create_otc_order(
-        ctx: Context<CreateOTCOrder>,
-        order_id: u64,
-        amount: u64,
-        price: u64,
-        buyer_restrictions: otc_trading::BuyerRestrictions,
+    // OTC Swap functions using the new optimized module
+    pub fn initiate_otc_swap(
+        ctx: Context<InitiateOtcSwap>, 
+        token_amount: u64, 
+        sol_rate: u64,
+        buyer_rebate: u64,
+        swap_type: SwapType
     ) -> Result<()> {
-        instructions::create_otc_order(ctx, order_id, amount, price, buyer_restrictions)
+        instructions::otc_swap::initiate_swap(ctx, token_amount, sol_rate, buyer_rebate, swap_type)
     }
 
-    pub fn execute_otc_order(ctx: Context<ExecuteOTCOrder>) -> Result<()> {
-        instructions::execute_otc_order(ctx)
+    pub fn accept_otc_swap(
+        ctx: Context<AcceptOtcSwap>,
+        buyer_rebate: u64,
+    ) -> Result<()> {
+        instructions::otc_swap::accept_swap(ctx, buyer_rebate)
     }
 
-    pub fn cancel_otc_order(ctx: Context<CancelOTCOrder>) -> Result<()> {
-        instructions::cancel_otc_order(ctx)
+    pub fn cancel_otc_swap(
+        ctx: Context<CancelOtcSwap>,
+    ) -> Result<()> {
+        instructions::otc_swap::cancel_swap(ctx)
     }
 
     pub fn patron_exit(ctx: Context<PatronExit>, exit_amount: u64) -> Result<()> {
@@ -172,58 +182,51 @@ pub mod snake_contract {
         instructions::initialize_dao_registry(ctx, max_seats, min_dao_stake, month6_timestamp)
     }
     
-    pub fn initiate_otc_swap_enhanced(
-        ctx: Context<InitiateOtcSwapEnhanced>, 
-        token_amount: u64, 
-        sol_rate: u64,
-        buyer_rebate: u64,
-        swap_type: SwapType
-    ) -> Result<()> {
-        instructions::initiate_otc_swap_enhanced(ctx, token_amount, sol_rate, buyer_rebate, swap_type)
-    }
+    // Legacy function - replaced by initiate_otc_swap
+    // pub fn initiate_otc_swap_enhanced(
+    //     ctx: Context<InitiateOtcSwapEnhanced>, 
+    //     token_amount: u64, 
+    //     sol_rate: u64,
+    //     buyer_rebate: u64,
+    //     swap_type: SwapType
+    // ) -> Result<()> {
+    //     instructions::initiate_otc_swap_enhanced(ctx, token_amount, sol_rate, buyer_rebate, swap_type)
+    // }
 
-    pub fn accept_otc_swap_patron_to_patron(ctx: Context<AcceptOtcSwapPatronToPatron>) -> Result<()> {
-        instructions::accept_otc_swap_patron_to_patron(ctx)
-    }
+    // Legacy functions - replaced by new otc_swap module
+    // pub fn accept_otc_swap_patron_to_patron(ctx: Context<AcceptOtcSwapPatronToPatron>) -> Result<()> {
+    //     instructions::accept_otc_swap_patron_to_patron(ctx)
+    // }
 
-    pub fn accept_treasury_buyback(ctx: Context<AcceptTreasuryBuyback>) -> Result<()> {
-        instructions::accept_treasury_buyback(ctx)
-    }
+    // pub fn accept_treasury_buyback(ctx: Context<AcceptTreasuryBuyback>) -> Result<()> {
+    //     instructions::accept_treasury_buyback(ctx)
+    // }
 
-    // ========== STUB OTC SWAP/BURN LOGIC ==========
+    // ========== OTC SWAP TRACKING & DEFLATIONARY MECHANICS ==========
     
-    pub fn simulate_otc_swap(
-        ctx: Context<SimulateOtcSwap>,
+    pub fn track_otc_swap(
+        ctx: Context<TrackOtcSwap>,
         amount: u64,
         is_sale: bool,
     ) -> Result<()> {
-        instructions::simulate_otc_swap(ctx, amount, is_sale)
+        instructions::otc_swap::track_swap_operation(ctx, amount, is_sale)
     }
 
-    pub fn simulate_burn_on_exit(
-        ctx: Context<SimulateBurnOnExit>,
-        exit_amount: u64,
+    pub fn apply_burn_penalty(
+        ctx: Context<ApplyBurnPenalty>,
+        burn_amount: u64,
     ) -> Result<()> {
-        instructions::simulate_burn_on_exit(ctx, exit_amount)
+        instructions::otc_swap::apply_burn_penalty(ctx, burn_amount)
     }
 
-    pub fn real_burn_on_exit(
-        ctx: Context<RealBurnOnExit>,
-        exit_amount: u64,
+    pub fn revoke_dao_eligibility(
+        ctx: Context<RevokeDAOEligibility>,
     ) -> Result<()> {
-        instructions::real_burn_on_exit(ctx, exit_amount)
+        instructions::otc_swap::revoke_dao_eligibility(ctx)
     }
 
-    pub fn get_swap_stats(ctx: Context<GetSwapStats>) -> Result<(u64, u64, i64, bool, bool, bool)> {
-        instructions::get_swap_stats(ctx)
-    }
-
-    pub fn mock_ui_event(
-        ctx: Context<MockUIEvent>,
-        event_type: String,
-        amount: u64,
-    ) -> Result<()> {
-        instructions::mock_ui_event(ctx, event_type, amount)
+    pub fn get_swap_tracker_stats(ctx: Context<GetSwapTrackerStats>) -> Result<(u64, u64, i64, bool, bool, bool)> {
+        instructions::otc_swap::get_swap_tracker_stats(ctx)
     }
 
    
@@ -236,4 +239,3 @@ pub mod snake_contract {
     }
    
 }
-

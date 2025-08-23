@@ -98,6 +98,16 @@ pub enum SnakeError {
     PatronAlreadyExited,
     #[msg("[SNAKE:6042] Listing is not active yet (cooldown period)")]
     ListingNotActive,
+    
+    // ========== OPTIMIZATION: NEW ERROR TYPES ==========
+    #[msg("[SNAKE:6043] Insufficient mining history for patron qualification")]
+    InsufficientMiningHistory,
+    #[msg("[SNAKE:6044] Insufficient wallet age for patron qualification")]
+    InsufficientWalletAge,
+    #[msg("[SNAKE:6045] Insufficient community score for patron qualification")]
+    InsufficientCommunityScore,
+    #[msg("[SNAKE:6046] Tokens not locked for staking operation")]
+    TokensNotLocked,
     #[msg("[SNAKE:6043] Maximum OTC limit exceeded")]
     MaxOTCLimitExceeded,
     #[msg("[SNAKE:6044] Only treasury can buy in this swap")]
@@ -152,48 +162,52 @@ pub enum SnakeError {
     OnlyPatrons,
     #[msg("[SNAKE:6064] No exit to track")]
     NoExitToTrack,
+    #[msg("[SNAKE:6065] Only patrons can sell in this swap type")]
+    OnlyPatronsCanSell,
 
     // ========== NEW PATRON FRAMEWORK ERRORS ==========
-    #[msg("[SNAKE:6065] Not eligible for OTC trading")]
+    #[msg("[SNAKE:6066] Not eligible for OTC trading")]
     NotEligibleForOTC,
-    #[msg("[SNAKE:6066] Order is for patrons only")]
+    #[msg("[SNAKE:6067] Order is for patrons only")]
     PatronOnlyOrder,
-    #[msg("[SNAKE:6067] Order is for treasury only")]
+    #[msg("[SNAKE:6068] Order is for treasury only")]
     TreasuryOnlyOrder,
-    #[msg("[SNAKE:6068] Insufficient patron score")]
+    #[msg("[SNAKE:6069] Insufficient patron score")]
     InsufficientPatronScore,
-    #[msg("[SNAKE:6069] Order is not active")]
+    #[msg("[SNAKE:6070] Order is not active")]
     OrderNotActive,
-    #[msg("[SNAKE:6070] Invalid role for this action")]
+    #[msg("[SNAKE:6071] Invalid role for this action")]
     InvalidRole,
-    #[msg("[SNAKE:6071] Not approved patron")]
+    #[msg("[SNAKE:6072] Not approved patron")]
     NotApprovedPatron,
-    #[msg("[SNAKE:6072] Patron sold early")]
+    #[msg("[SNAKE:6073] Patron sold early")]
     PatronSoldEarly,
-    #[msg("[SNAKE:6073] Vesting is not active")]
+    #[msg("[SNAKE:6074] Vesting is not active")]
     VestingNotActive,
-    #[msg("[SNAKE:6074] Nothing to claim")]
+    #[msg("[SNAKE:6075] Nothing to claim")]
     NothingToClaim,
-    #[msg("[SNAKE:6075] Month 6 milestone not reached")]
+    #[msg("[SNAKE:6076] Month 6 milestone not reached")]
     Month6NotReached,
-    #[msg("[SNAKE:6076] Maximum DAO seats reached")]
+    #[msg("[SNAKE:6077] Maximum DAO seats reached")]
     MaxSeatsReached,
-    #[msg("[SNAKE:6077] DAO seat is not active")]
+    #[msg("[SNAKE:6078] DAO seat is not active")]
     SeatNotActive,
-    #[msg("[SNAKE:6078] Failed to fetch DAO seats")]
+    #[msg("[SNAKE:6079] Failed to fetch DAO seats")]
     FailedToFetchSeats,
     
     // Patron eligibility errors
-    #[msg("[SNAKE:6079] Insufficient staking history")]
+    #[msg("[SNAKE:6080] Insufficient staking history")]
     InsufficientStakingHistory,
-    #[msg("[SNAKE:6080] Patron eligibility criteria not met")]
+    #[msg("[SNAKE:6081] Patron eligibility criteria not met")]
     PatronEligibilityNotMet,
 
     // ========== NEW STAKING ERRORS ==========
-    #[msg("[SNAKE:6081] Insufficient token amount for staking")]
+    #[msg("[SNAKE:6082] Insufficient token amount for staking")]
     InsufficientTokenAmount,
-    #[msg("[SNAKE:6082] Invalid user role for this action")]
+    #[msg("[SNAKE:6083] Invalid user role for this action")]
     InvalidUserRole,
-    #[msg("[SNAKE:6083] Invalid APY rate - must be between 0-100%")]
+    #[msg("[SNAKE:6084] Invalid APY rate - must be between 0-100%")]
     InvalidAPYRate,
+    #[msg("[SNAKE:6085] Swap is already active for this user")]
+    SwapAlreadyActive,
 }

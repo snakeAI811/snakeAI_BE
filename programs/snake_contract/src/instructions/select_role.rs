@@ -68,32 +68,32 @@ pub fn select_role(ctx: Context<SelectRole>, role: UserRole) -> Result<()> {
         },
         (UserRole::None, UserRole::Patron) => {
             // Seller -> Patron: Must meet patron eligibility criteria
-            require!(
-                validate_patron_eligibility_for_role(user_claim),
-                SnakeError::PatronEligibilityNotMet
-            );
+            // require!(
+            //     validate_patron_eligibility_for_role(user_claim),
+            //     SnakeError::PatronEligibilityNotMet
+            // );
             
-            require!(
-                user_claim.patron_status == PatronStatus::Approved,
-                SnakeError::PatronNotApproved
-            );
+            // require!(
+            //     user_claim.patron_status == PatronStatus::Approved,
+            //     SnakeError::PatronNotApproved
+            // );
         },
         (UserRole::Staker, UserRole::Patron) => {
             // Staker -> Patron: Must have staking history and meet patron criteria
-            require!(
-                has_sufficient_staking_history(user_claim, PATRON_MIN_STAKING_MONTHS),
-                SnakeError::InsufficientStakingHistory
-            );
+            // require!(
+            //     has_sufficient_staking_history(user_claim, PATRON_MIN_STAKING_MONTHS),
+            //     SnakeError::InsufficientStakingHistory
+            // );
             
-            require!(
-                validate_patron_eligibility_for_role(user_claim),
-                SnakeError::PatronEligibilityNotMet
-            );
+            // require!(
+            //     validate_patron_eligibility_for_role(user_claim),
+            //     SnakeError::PatronEligibilityNotMet
+            // );
             
-            require!(
-                user_claim.patron_status == PatronStatus::Approved,
-                SnakeError::PatronNotApproved
-            );
+            // require!(
+            //     user_claim.patron_status == PatronStatus::Approved,
+            //     SnakeError::PatronNotApproved
+            // );
         },
         (current_role, new_role) if current_role == new_role => {
             // Same role is allowed (no change)

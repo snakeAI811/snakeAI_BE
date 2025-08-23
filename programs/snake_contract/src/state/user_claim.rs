@@ -168,6 +168,12 @@ impl UserClaim {
         Ok(self.calculate_yield_backend(current_time))
     }
 
+    /// Optimized yield calculation using utility function
+    pub fn calculate_yield_optimized(&self) -> Result<u64> {
+        let current_time = Clock::get()?.unix_timestamp;
+        Ok(crate::utils::CalculationUtils::calculate_yield(self, current_time))
+    }
+
     
     /// Get readable APY information for display purposes
     pub fn get_apy_info(&self) -> (u8, &'static str) {
