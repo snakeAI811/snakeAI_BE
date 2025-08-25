@@ -193,6 +193,49 @@ impl OtcSwapService {
         Ok(self.swap_to_response(updated_swap.into_swap_with_users(), user.role.as_deref().unwrap_or("none")))
     }
 
+    /// Cancel an OTC swap by PDA (fallback when wallet lookup fails)
+    pub async fn cancel_swap_by_pda(
+        &self,
+        otc_swap_pda: &str,
+        tx_signature: Option<String>,
+    ) -> Result<OtcSwapResponse, DbError> {
+        // Find swap by PDA
+        let swap = self
+            .repository
+            .get_by_pda(otc_swap_pda)
+            .await?
+            .ok_or_else(|| DbError::NotFound("OTC swap not found by PDA".to_string()))?;
+
+        // Do not cancel completed swaps
+        if swap.status == "completed" {
+            return Err(DbError::ValidationError(
+                "Cannot cancel a completed swap".to_string(),
+            ));
+        }
+
+        // Update status to cancelled
+        let update_swap = UpdateOtcSwap {
+            buyer_id: None,
+            buyer_wallet: None,
+            status: Some("cancelled".to_string()),
+            accept_tx_signature: None,
+            cancel_tx_signature: tx_signature,
+            completed_at: None,
+            cancelled_at: Some(Utc::now()),
+        };
+
+        let updated_swap = self
+            .repository
+            .update(swap.id, update_swap)
+            .await?
+            .ok_or_else(|| DbError::NotFound("Swap not found after PDA cancel update".to_string()))?;
+
+        Ok(self.swap_to_response(
+            updated_swap.into_swap_with_users(),
+            "none",
+        ))
+    }
+
     /// Get active swaps with pagination
     pub async fn get_active_swaps(
         &self,

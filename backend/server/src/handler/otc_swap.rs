@@ -667,6 +667,11 @@ pub async fn process_cancel_otc_swap_tx(
     let signature = {
         let mut attempts = 0;
         let max_attempts = 3;
+        // Precompute signature from the signed transaction itself (first signature)
+        let precomputed_sig = signed_transaction
+            .signatures
+            .get(0)
+            .cloned();
 
         loop {
             attempts += 1;
@@ -682,16 +687,33 @@ pub async fn process_cancel_otc_swap_tx(
                     break sig;
                 }
                 Err(err) => {
-                    log::error!("❌ Transaction attempt {} failed: {:?}", attempts, err);
+                    let err_s = err.to_string();
+                    let err_lc = err_s.to_lowercase();
+                    log::error!("❌ Transaction attempt {} failed: {}", attempts, err_s);
+
+                    // Treat any "already processed" variant as success using the precomputed signature
+                    if err_lc.contains("already been processed")
+                        || err_lc.contains("transaction already processed")
+                        || err_lc.contains("already processed")
+                        || err_lc.contains("custom program error: 0x0") // sometimes success-but-reported-as-error
+                    {
+                        if let Some(sig) = precomputed_sig.clone() {
+                            log::warn!("⚠️ Transaction already processed. Using existing signature: {}", sig);
+                            break sig;
+                        }
+                    }
 
                     if attempts >= max_attempts {
-                        let error_msg = if err.to_string().contains("already processed") {
+                        let error_msg = if err_lc.contains("already been processed")
+                            || err_lc.contains("transaction already processed")
+                            || err_lc.contains("already processed")
+                        {
                             "Transaction already processed"
-                        } else if err.to_string().contains("insufficient funds") {
+                        } else if err_lc.contains("insufficient funds") {
                             "Insufficient SOL for transaction fees"
-                        } else if err.to_string().contains("signature verification failed") {
+                        } else if err_lc.contains("signature verification failed") {
                             "Invalid transaction signature"
-                        } else if err.to_string().contains("blockhash not found") {
+                        } else if err_lc.contains("blockhash not found") {
                             "Transaction expired (blockhash too old)"
                         } else {
                             "Transaction failed on blockchain"
@@ -700,7 +722,7 @@ pub async fn process_cancel_otc_swap_tx(
                         log::error!("❌ All transaction attempts failed: {}", error_msg);
                         return Err(ApiError::InternalServerError(format!(
                             "{}: {}",
-                            error_msg, err
+                            error_msg, err_s
                         )));
                     }
 
@@ -716,8 +738,61 @@ pub async fn process_cancel_otc_swap_tx(
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     log::info!("✅ Transaction confirmed with signature: {}", signature);
 
-    // Step 9: Update database
+    // Step 9: Update database (prefer PDA-based update for reliability)
     log::info!("🔧 Step 9: Updating database...");
+
+    // Try to extract the otc_swap PDA from the transaction instruction
+    let swap_pda_opt: Option<String> = signed_transaction
+        .message
+        .instructions
+        .iter()
+        .find_map(|ix| {
+            // Check the program id matches our program
+            let prog = signed_transaction
+                .message
+                .account_keys
+                .get(ix.program_id_index as usize)?;
+            if *prog != state.program.id() {
+                return None;
+            }
+            // Expect accounts: [seller, otc_swap, system_program]
+            ix.accounts.get(1).and_then(|acct_idx| {
+                signed_transaction
+                    .message
+                    .account_keys
+                    .get(*acct_idx as usize)
+                    .map(|k| k.to_string())
+            })
+        });
+
+    if let Some(pda) = swap_pda_opt {
+        log::info!("🔗 Extracted swap PDA from tx: {}", pda);
+        match state
+            .service
+            .otc_swap
+            .cancel_swap_by_pda(&pda, Some(signature.to_string()))
+            .await
+        {
+            Ok(response) => {
+                log::info!(
+                    "✅ Successfully cancelled OTC swap by PDA {} with tx signature {}",
+                    pda,
+                    signature
+                );
+                return Ok(Json(response));
+            }
+            Err(err) => {
+                log::warn!(
+                    "⚠️ PDA-based cancel update failed ({}). Falling back to wallet-based cancel.",
+                    err
+                );
+            }
+        }
+    } else {
+        log::warn!("⚠️ Could not extract swap PDA from transaction. Falling back to wallet-based cancel.");
+    }
+
+    // Fallback: cancel by wallet
     match state
         .service
         .otc_swap
