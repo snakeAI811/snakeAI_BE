@@ -5,8 +5,9 @@ use crate::state::UserClaim;
 pub struct InitializeUserClaim<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    
     #[account(
-        init,
+        init_if_needed,
         payer = user,
         space = 8 + UserClaim::INIT_SPACE,
         seeds = [b"user_claim", user.key().as_ref()],

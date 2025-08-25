@@ -28,6 +28,7 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
         
         let dev_routes = Router::new()
             .route("/dev/login", get(dev::dev_login))
+            .route("/dev/login2", get(dev::dev_login2))
             .route("/dev/session", get(dev::dev_session_info))
             .route("/dev/init-reward-pool", get(dev::init_reward_pool))
             .route("/dev/sync-phase1-user", axum::routing::post(dev::sync_user_phase1_data))

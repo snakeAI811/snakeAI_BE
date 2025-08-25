@@ -1,14 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer, Approve, Burn, Mint};
 use crate::{
-    state::{UserClaim, OtcSwap, RewardPool, UserRole},
+    state::{UserClaim, OtcSwap, UserRole},
     errors::SnakeError,
-    utils::{ValidationUtils, CalculationUtils},
+    utils::{CalculationUtils},
     constants::*,
 };
 use super::{
-    validation::OtcSwapValidation,
-    events::OtcSwapEvents,
     deflationary::{DeflationaryMechanics, DailyVolumeTracker},
 };
 use crate::state::SwapType;

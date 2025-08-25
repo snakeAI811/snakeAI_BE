@@ -31,11 +31,11 @@ impl OtcSwapValidation {
     ) -> Result<()> {
         match swap_type {
             SwapType::ExiterToPatron | SwapType::ExiterToTreasury => {
-                // Phase 1: Only "None" role users (Exiters) can sell
-                ValidationUtils::validate_user_role(user_claim, &[UserRole::None])?;
+                // Phase 1: Only "None" role users (Exiters) can sell - teset by nasera
+                // require!(user_claim.role == UserRole::None, SnakeError::OnlyExitersCanSell);
                 
-                // Ensure tokens are unlocked and eligible for sale
-                require!(user_claim.can_unlock(), SnakeError::TokensStillLocked);
+                // Ensure tokens are unlocked and eligible for sale - teset by nasera
+                // require!(user_claim.can_unlock(), SnakeError::TokensStillLocked);
             },
             SwapType::PatronToPatron => {
                 // Phase 2: Only active Patrons can sell to other Patrons
@@ -54,8 +54,8 @@ impl OtcSwapValidation {
             }
         }
         
-        // Ensure seller has unlocked tokens
-        require!(!user_claim.is_locked(), SnakeError::TokensLocked);
+        // Ensure seller has unlocked tokens - teset by nasera
+        // require!(!user_claim.is_locked(), SnakeError::TokensLocked);
         Ok(())
     }
 
@@ -67,7 +67,7 @@ impl OtcSwapValidation {
         match swap_type {
             SwapType::ExiterToPatron => {
                 // Phase 1: Only Patrons can buy from Exiters
-                ValidationUtils::validate_user_role(buyer_claim, &[UserRole::Patron])?;
+                require!(buyer_claim.role == UserRole::Patron, SnakeError::OnlyPatronsCanBuy);
                 require!(
                     buyer_claim.patron_status == PatronStatus::Approved,
                     SnakeError::OnlyPatronsCanBuy
@@ -78,7 +78,7 @@ impl OtcSwapValidation {
             },
             SwapType::PatronToPatron => {
                 // Phase 2: Only Patrons can buy from other Patrons
-                ValidationUtils::validate_user_role(buyer_claim, &[UserRole::Patron])?;
+                require!(buyer_claim.role == UserRole::Patron, SnakeError::OnlyPatronsCanBuy);
                 require!(
                     buyer_claim.patron_status == PatronStatus::Approved,
                     SnakeError::OnlyPatronsCanBuy

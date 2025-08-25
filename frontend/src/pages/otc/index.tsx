@@ -1,26 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useToast } from '../../contexts/ToastContext';
 import { useWalletContext } from '../../contexts/WalletContext';
 import { SOLANA_RPC_URL } from '../../config/program';
 import WalletGuard from "../../components/WalletGuard";
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import { otcApi, tokenApi } from '../patron/services/apiService';
+import { otcApi, tokenApi, roleApi, OtcSwapResponse } from '../patron/services/apiService';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface OTCOrder {
   orderId: string;
+  seller?: string;
   sellerWallet: string;
   amount: string;
   price: string;
   isActive: boolean;
+  status: string;
   createdAt: string;
+  expiresAt?: string;
   buyerRestrictions: {
     patronsOnly: boolean;
     treasuryOnly: boolean;
     minPatronScore: number;
   };
+  buyerRebate?: number;
+  sellerId?: string;
+  totalSolPayment?: number;
+  netSolPayment?: number;
+  canAccept?: boolean;
+  isExpired?: boolean;
 }
 
 const OTCTrading: React.FC = () => {
@@ -28,13 +38,14 @@ const OTCTrading: React.FC = () => {
   const { publicKey, connected } = useWalletContext();
   const { handleError, handleWarning } = useErrorHandler();
   const { user, logout } = useAuth();
-
+  const { signTransaction } = useWallet();
 
   // Create connection with proper configuration
   const connection = new Connection(SOLANA_RPC_URL, {
     commitment: 'confirmed',
     confirmTransactionInitialTimeout: 60000,
   });
+
   const [orders, setOrders] = useState<OTCOrder[]>([]);
   const [myOrders, setMyOrders] = useState<OTCOrder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,34 +53,55 @@ const OTCTrading: React.FC = () => {
   const [createOrderForm, setCreateOrderForm] = useState({
     amount: '',
     price: '',
+    swapType: 'ExiterToPatron' as 'ExiterToPatron' | 'ExiterToTreasury' | 'PatronToPatron',
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [userRole, setUserRole] = useState<string>('none');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (publicKey) {
+    if (connected && publicKey) {
+      fetchUserRole();
+    }
+  }, [connected, publicKey]);
+
+  const fetchUserRole = async () => {
+    try {
+      const result = await roleApi.getUserRole();
+      if (result.success && result.data) {
+        setUserRole(result.data.role || 'none');
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole('none');
+    }
+  };
+
+  useEffect(() => {
+    if (publicKey && connected) {
       fetchOrders();
       fetchMyOrders();
     }
-  }, [publicKey]);
+  }, [publicKey, connected]);
 
   const fetchOrders = async () => {
+    if (!connected) return;
+
     try {
-      setLoading(true);
+      setRefreshing(true);
       console.log('🔍 Fetching active orders...');
       const result = await otcApi.getActiveSwaps();
       console.log('🔍 Active orders result:', result);
 
       if (result.success && result.data) {
-        // Access the swaps array from the paginated response
         const { swaps = [], total_count, page, per_page } = result.data;
-
         console.log(`📊 Found ${total_count} total swaps, showing page ${page} (${swaps.length} items)`);
 
-        const activeOrders = swaps.map((swap: any) => ({
+        const activeOrders: OTCOrder[] = swaps.map((swap: any) => ({
           orderId: swap.id,
-          seller: swap.seller_username || swap.seller || 'Unknown', // Use seller_username from API
+          seller: swap.seller_username || swap.seller || 'Unknown',
           sellerWallet: swap.seller_wallet,
-          amount: swap.token_amount.toString(),
+          amount: (swap.token_amount).toString(), // Convert from lamports to tokens
           price: (swap.sol_rate / 1_000_000_000).toString(), // Convert lamports to SOL
           isActive: swap.status === 'active',
           status: swap.status,
@@ -80,47 +112,46 @@ const OTCTrading: React.FC = () => {
             treasuryOnly: swap.buyer_role_required === 'treasury',
             minPatronScore: 0,
           },
-          // Additional fields from the API
           buyerRebate: swap.buyer_rebate,
           sellerId: swap.seller_id,
+          canAccept: swap.can_accept,
+          isExpired: swap.is_expired,
         }));
 
         console.log('🔍 Processed active orders:', activeOrders);
         setOrders(activeOrders);
-
-        // You might also want to store pagination info
-        // setPaginationInfo({ page, per_page, total_count });
-
       } else {
         console.log('❌ Failed to fetch active orders:', result.error);
-        throw new Error(result.error || 'Failed to fetch orders');
+        if (result.error && !result.error.includes('Network error')) {
+          showError(`Failed to fetch orders: ${result.error}`);
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
       handleError(error, 'Failed to fetch OTC orders');
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const fetchMyOrders = async () => {
+    if (!connected) return;
+
     try {
-      console.log('🔍 Fetching my active orders...');
+      console.log('🔍 Fetching my orders...');
       const result = await otcApi.getMySwaps();
       console.log('🔍 My orders result:', result);
 
       if (result.success && result.data) {
-        // Only process active swaps
         const { active_swaps = [] } = result.data;
-
         console.log('🔍 Active swaps:', active_swaps);
 
-        const myActiveOrders = active_swaps.map((swap: any) => ({
+        const myActiveOrders: OTCOrder[] = active_swaps.map((swap: any) => ({
           orderId: swap.id,
           sellerWallet: publicKey?.toString() || '',
-          amount: swap.token_amount.toString(),
-          price: (swap.sol_rate / 1_000_000_000).toString(),
-          isActive: true, // Always true since we're only processing active swaps
+          amount: (swap.token_amount).toString(), // Convert from lamports
+          price: (swap.sol_rate / 1_000_000_000).toString(), // Convert lamports to SOL
+          isActive: true,
           status: 'active',
           createdAt: new Date(swap.created_at).toLocaleString(),
           expiresAt: new Date(swap.expires_at).toLocaleString(),
@@ -136,15 +167,17 @@ const OTCTrading: React.FC = () => {
           isExpired: swap.is_expired,
         }));
 
-        console.log('🔍 Processed my active orders:', myActiveOrders);
+        console.log('🔍 Processed my orders:', myActiveOrders);
         setMyOrders(myActiveOrders);
       } else {
         console.log('❌ Failed to fetch my orders:', result.error);
-        throw new Error(result.error || 'Failed to fetch my orders');
+        if (result.error && !result.error.includes('Network error')) {
+          console.log('My orders fetch error (non-critical):', result.error);
+        }
       }
     } catch (error) {
       console.error('Error fetching my orders:', error);
-      handleError(error, 'Failed to fetch your OTC orders');
+      // Don't show error for my orders as it's less critical
     }
   };
 
@@ -177,176 +210,45 @@ const OTCTrading: React.FC = () => {
       showInfo('Creating OTC swap order...');
 
       const swapData = {
-        token_amount: amount,
-        sol_rate: Math.floor(price * 1_000_000_000), // Convert SOL to lamports
-        buyer_rebate: 0,
-        buyer_role_required: 'none', // Anyone can buy
+        token_amount: amount, // Send as regular number, backend converts to lamports
+        sol_rate: price * 1_000_000_000, // Convert SOL to lamports
+        buyer_rebate: 200, // 2% rebate for patrons
+        swap_type: createOrderForm.swapType,
+        txSignature: ''
       };
 
-      console.log('📤 Sending swap data:', swapData);
-      let result = await otcApi.initiateSwap(swapData);
-      console.log('📥 Swap creation result:', result);
-
-      // Check if we need to initialize user claim account first
-      if (!result.success && result.error &&
-        (result.error.includes('AccountNotInitialized') ||
-          result.error.includes('0xbc4') ||
-          result.error.includes('seller_claim'))) {
-        console.log('🔧 User claim account not found, initializing...');
-        showInfo('Setting up your account for the first time...');
-
-        try {
-          const initResult = await tokenApi.initializeUserClaim();
-
-          if (initResult.success && initResult.data) {
-            showInfo('Please approve the account setup transaction in your wallet...');
-
-            // Decode and sign the initialization transaction
-            const initTxBytes = Uint8Array.from(atob(initResult.data), c => c.charCodeAt(0));
-            const initTransaction = Transaction.from(initTxBytes);
-
-            // Update with fresh blockhash
-            const { blockhash } = await connection.getLatestBlockhash('confirmed');
-            initTransaction.recentBlockhash = blockhash;
-            initTransaction.feePayer = new PublicKey(publicKey);
-
-            // Sign and send initialization transaction
-            if (typeof window !== 'undefined' && (window as any).solana) {
-              const signedInitTx = await (window as any).solana.signTransaction(initTransaction);
-
-              showInfo('Submitting account setup transaction...');
-              const initSignature = await connection.sendRawTransaction(signedInitTx.serialize(), {
-                skipPreflight: false,
-                preflightCommitment: 'confirmed'
-              });
-
-              showInfo('Waiting for account setup confirmation...');
-              await connection.confirmTransaction({
-                signature: initSignature,
-                blockhash: initTransaction.recentBlockhash!,
-                lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-              }, 'confirmed');
-
-              console.log('✅ User claim account initialized successfully');
-              showInfo('Account setup complete. Proceeding with OTC swap creation...');
-
-              // Retry the swap creation now that account is initialized
-              result = await otcApi.initiateSwap(swapData);
-              console.log('📥 Retry swap creation result:', result);
-            } else {
-              throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
-            }
-          } else {
-            throw new Error(`Failed to initialize user claim account: ${initResult.error}`);
-          }
-        } catch (initError) {
-          console.error('❌ Failed to initialize user claim account:', initError);
-          handleError(initError, 'Failed to set up your account for OTC trading');
-          throw new Error(`Failed to set up your account: ${initError instanceof Error ? initError.message : 'Unknown error'}`);
-        }
-      }
+      console.log('📤 Sending enhanced swap data:', swapData);
+      const result = await otcApi.initiateSwapEnhanced(swapData);
 
       if (result.success && result.data) {
-        // Check if this requires wallet signature
-        if ('requiresWalletSignature' in result && result.requiresWalletSignature) {
-          showInfo('Please approve the OTC swap creation in your wallet...');
-
-          // Decode the base64 transaction
-          const transactionBytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
-          const transaction = Transaction.from(transactionBytes);
-
-          console.log('🔍 Transaction decoded successfully. Fee payer:', transaction.feePayer?.toString());
-          console.log('🔍 Original blockhash:', transaction.recentBlockhash);
-
-          // Update with fresh blockhash
-          showInfo('Getting fresh blockhash for transaction...');
-          try {
-            const { blockhash } = await connection.getLatestBlockhash('confirmed');
-            transaction.recentBlockhash = blockhash;
-            transaction.feePayer = new PublicKey(publicKey);
-            console.log('🔍 Updated with fresh blockhash:', blockhash);
-          } catch (rpcError) {
-            console.error('❌ RPC Connection Error:', rpcError);
-            handleError(rpcError, 'Failed to connect to Solana network. Please check your internet connection.');
-            throw new Error(`Failed to connect to Solana network. Please check your internet connection and try again.`);
-          }
-
-          // Sign and send transaction using Phantom wallet
-          if (typeof window !== 'undefined' && (window as any).solana) {
-            showInfo('Please approve the transaction in your Phantom wallet...');
-            try {
-              const signedTransaction = await (window as any).solana.signTransaction(transaction);
-              console.log('✅ Transaction signed by wallet');
-
-              showInfo('Submitting transaction to blockchain...');
-              const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-                skipPreflight: false,
-                preflightCommitment: 'confirmed'
-              });
-              console.log('📤 Transaction submitted with signature:', signature);
-              
-
-              showInfo('Waiting for blockchain confirmation...');
-              await connection.confirmTransaction({
-                signature,
-                blockhash: transaction.recentBlockhash!,
-                lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-              }, 'confirmed');
-
-              console.log('✅ Transaction confirmed on blockchain');
-              
-              // Update the database with the transaction signature
-              try {
-                showInfo('Updating swap record...');
-                await otcApi.updateSwapSignature(signature);
-                console.log('✅ Database updated with transaction signature');
-              } catch (updateError) {
-                console.error('❌ Failed to update database with signature:', updateError);
-                // Don't throw here - the transaction succeeded, this is just a database update issue
-              }
-            } catch (txError) {
-              console.error('❌ Transaction Error:', txError);
-              handleError(txError, 'Transaction failed or was rejected');
-              if (txError instanceof Error && txError.message.includes('User rejected')) {
-                throw new Error('Transaction cancelled by user');
-              }
-              throw new Error(`Transaction failed: ${txError instanceof Error ? txError.message : 'Unknown error'}`);
-            }
-          } else {
-            throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
-          }
-
+        if (result.requiresWalletSignature) {
+          const { signature } = await handleWalletTransaction(
+            result.data,
+            'Please approve the OTC swap creation...',
+            'Submitting OTC swap...',
+            'Waiting for confirmation...',
+            'OTC swap created successfully!'
+          );
+          swapData.txSignature = signature;
+          // ✅ Submit txSignature to backend to mark swap active
+          await otcApi.updateSwapSignature(swapData);
           showSuccess('OTC swap order created successfully!');
-          setShowCreateForm(false);
-          setCreateOrderForm({
-            amount: '',
-            price: '',
-          });
-          console.log('🔄 Refreshing orders after successful creation...');
-          fetchOrders();
-          fetchMyOrders();
         } else {
-          // Old behavior for non-transaction responses
           showSuccess('OTC swap order created successfully!');
-          setShowCreateForm(false);
-          setCreateOrderForm({
-            amount: '',
-            price: '',
-          });
-          console.log('🔄 Refreshing orders after successful creation...');
-          fetchOrders();
-          fetchMyOrders();
         }
-      } else {
-        throw new Error('error' in result ? result.error : 'Failed to create order');
+
+        setShowCreateForm(false);
+        setCreateOrderForm({ amount: '', price: '', swapType: 'ExiterToPatron' });
+        await Promise.all([fetchOrders(), fetchMyOrders()]);
       }
     } catch (error) {
       console.error('Error creating order:', error);
-      // handleError(error, 'Failed to create OTC order');
+      handleError(error, 'Failed to create OTC order');
     } finally {
       setLoading(false);
     }
   };
+
 
   const executeOrder = async (order: OTCOrder) => {
     if (!connected || !publicKey) {
@@ -360,10 +262,21 @@ const OTCTrading: React.FC = () => {
 
       const result = await otcApi.acceptSwap(order.sellerWallet);
 
-      if (result.success) {
+      if (result.success && result.data) {
+        // Handle transaction if needed
+        if (typeof result.data === 'string') {
+          const { signature } = await handleWalletTransaction(
+            result.data,
+            'Please approve the swap acceptance...',
+            'Processing swap...',
+            'Confirming swap...',
+            'Swap executed successfully!'
+          );
+          // You can optionally send signature to backend if needed
+        }
+
         showSuccess('OTC swap executed successfully!');
-        fetchOrders();
-        fetchMyOrders();
+        await Promise.all([fetchOrders(), fetchMyOrders()]);
       } else {
         throw new Error(result.error || 'Failed to execute order');
       }
@@ -375,6 +288,8 @@ const OTCTrading: React.FC = () => {
     }
   };
 
+
+  // Improved cancelOrder function with better error handling
   const cancelOrder = async (orderId: string) => {
     if (!connected || !publicKey) {
       showError('Please connect your wallet first');
@@ -383,77 +298,286 @@ const OTCTrading: React.FC = () => {
 
     try {
       setLoading(true);
-      showInfo('Canceling OTC swap order...');
+      showInfo('Preparing to cancel OTC swap order...');
 
-      const result = await otcApi.cancelSwap();
+      // Step 1: Get unsigned transaction with better error handling
+      console.log('🔍 Requesting unsigned cancel transaction...');
+      const unsignedTxResponse = await otcApi.cancelSwap();
+      console.log('🔍 Cancel swap response:', unsignedTxResponse);
 
-      if (result.success) {
-        showSuccess('OTC swap order canceled successfully!');
-        fetchOrders();
-        fetchMyOrders();
+      // More robust response parsing
+      let unsignedTxBase64: string;
+
+      if (typeof unsignedTxResponse === 'string') {
+        unsignedTxBase64 = unsignedTxResponse;
+      } else if (unsignedTxResponse && typeof unsignedTxResponse === 'object') {
+        const responseObj = unsignedTxResponse as any;
+
+        // Try different possible response structures
+        if (typeof responseObj.data === 'string') {
+          unsignedTxBase64 = responseObj.data;
+        } else if (responseObj.success && typeof responseObj.data === 'string') {
+          unsignedTxBase64 = responseObj.data;
+        } else if (typeof responseObj === 'string') {
+          unsignedTxBase64 = responseObj;
+        } else {
+          throw new Error(`Unexpected response format: ${JSON.stringify(responseObj)}`);
+        }
       } else {
-        throw new Error(result.error || 'Failed to cancel order');
+        throw new Error(`Invalid response type: ${typeof unsignedTxResponse}`);
       }
-    } catch (error) {
-      console.error('Error canceling order:', error);
-      handleError(error, 'Failed to cancel OTC order');
+
+      // Validate the base64 string
+      if (!unsignedTxBase64 || typeof unsignedTxBase64 !== 'string') {
+        throw new Error(`Invalid transaction data received: ${typeof unsignedTxBase64}`);
+      }
+
+      // Basic base64 validation
+      try {
+        atob(unsignedTxBase64); // This will throw if invalid base64
+      } catch (e) {
+        throw new Error('Invalid base64 transaction received from server');
+      }
+
+      console.log('✅ Unsigned transaction received, length:', unsignedTxBase64.length);
+
+      // Step 2: Sign and send transaction with better error handling
+      showInfo('Please approve the cancellation in your wallet...');
+
+      let signature: string;
+      let signedTxBase64: string;
+      try {
+        const res = await handleWalletTransaction(
+          unsignedTxBase64,
+          'Please approve the cancellation...',
+          'Submitting cancellation...',
+          'Confirming cancellation...'
+        );
+        signature = res.signature;
+        signedTxBase64 = res.signedTxBase64;
+        console.log('✅ Transaction signed and confirmed:', signature);
+      } catch (walletError: any) {
+        console.error('❌ Wallet transaction failed:', walletError);
+
+        // Better wallet error handling
+        if (walletError.message?.includes('User rejected') ||
+          walletError.message?.includes('cancelled by user') ||
+          walletError.code === 4001) {
+          throw new Error('Transaction was cancelled by user');
+        } else if (walletError.message?.includes('Insufficient funds')) {
+          throw new Error('Insufficient SOL for transaction fees');
+        } else if (walletError.message?.includes('timeout')) {
+          throw new Error('Transaction timeout - please try again');
+        } else {
+          throw new Error(`Wallet error: ${walletError.message || 'Unknown error'}`);
+        }
+      }
+
+      // Step 3: Update database with the signed transaction
+      showInfo('Updating swap record...');
+
+      try {
+        console.log('📤 Sending signed transaction to backend, length:', signedTxBase64.length);
+
+        const cancelResponse = await otcApi.processCancelSwap(signedTxBase64);
+        console.log('✅ Backend processing successful:', cancelResponse);
+
+        const cancelledSwap = (cancelResponse as any).data || cancelResponse;
+
+        if (cancelledSwap && cancelledSwap.status) {
+          showSuccess(`OTC swap canceled successfully! Status: ${cancelledSwap.status}`);
+        } else {
+          showSuccess('OTC swap canceled successfully!');
+        }
+
+      } catch (updateError: any) {
+        console.error('❌ Database update failed:', updateError);
+
+        // Parse backend error messages
+        let errorMessage = 'Failed to update database';
+
+        if (updateError.message?.includes('No active swap')) {
+          errorMessage = 'No active swap found to cancel';
+        } else if (updateError.message?.includes('Transaction not signed')) {
+          errorMessage = 'Transaction signature invalid';
+        } else if (updateError.message?.includes('already processed')) {
+          errorMessage = 'Transaction already processed';
+        } else if (updateError.message?.includes('insufficient funds')) {
+          errorMessage = 'Insufficient SOL for transaction fees';
+        } else if (updateError.message?.includes('timeout')) {
+          errorMessage = 'Request timeout - please try again';
+        } else if (updateError.response?.status === 500) {
+          errorMessage = 'Server error - please try again';
+        }
+
+        // If transaction was confirmed on blockchain but DB update failed
+        if (signature && updateError.message?.includes('database update failed')) {
+          showError(`Transaction confirmed (${signature.slice(0, 8)}...) but database update failed. Please refresh.`);
+        } else {
+          throw new Error(errorMessage);
+        }
+      }
+
+      // Refresh the data
+      await Promise.all([fetchOrders(), fetchMyOrders()]);
+
+    } catch (error: any) {
+      console.error('❌ Cancel order error:', error);
+
+      // Comprehensive error handling
+      if (error.message?.includes('User rejected') || error.message?.includes('cancelled by user')) {
+        showError('Transaction was cancelled');
+      } else if (error.message?.includes('No active swap')) {
+        showError('No active swap found to cancel');
+      } else if (error.message?.includes('connect to Solana network')) {
+        showError('Network connection error. Please check your connection.');
+      } else if (error.message?.includes('insufficient')) {
+        showError('Insufficient SOL for transaction fees');
+      } else if (error.message?.includes('timeout')) {
+        showError('Request timeout. Please try again.');
+      } else if (error.message?.includes('Invalid transaction')) {
+        showError('Transaction format error. Please try again.');
+      } else {
+        showError(error.message || 'Failed to cancel OTC order');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const forceCancelSwap = async () => {
-    if (!connected || !publicKey) {
-      showError('Please connect your wallet first');
-      return;
-    }
-
+  // Improved function to get signed transaction bytes
+  async function getSignedTransactionBytesImproved(unsignedTxBase64: string): Promise<Uint8Array> {
     try {
-      setLoading(true);
-      showInfo('Force canceling any active swaps...');
+      // Decode the unsigned transaction
+      const unsignedTxBytes = new Uint8Array(
+        atob(unsignedTxBase64)
+          .split('')
+          .map(char => char.charCodeAt(0))
+      );
 
-      const result = await otcApi.forceCancelSwap();
+      console.log('🔍 Unsigned transaction bytes length:', unsignedTxBytes.length);
 
-      if (result.success) {
-        showSuccess(result.data || 'Force cancel completed');
-        fetchOrders();
-        fetchMyOrders();
-      } else {
-        throw new Error(result.error || 'Failed to force cancel');
+      // Deserialize to get the transaction structure
+      const transaction = Transaction.from(unsignedTxBytes);
+      console.log('🔍 Transaction deserialized:', {
+        signatures: transaction.signatures.length,
+        instructions: transaction.instructions.length
+      });
+
+      // Re-sign the transaction (this should have been done by handleWalletTransaction)
+      if (!connected || !publicKey) {
+        throw new Error('Wallet not connected');
       }
+
+      // The transaction should already be signed, just serialize it
+      const signedBytes = transaction.serialize();
+      console.log('🔍 Signed transaction bytes length:', signedBytes.length);
+
+      return signedBytes;
+
     } catch (error) {
-      console.error('Error force canceling:', error);
-      handleError(error, 'Failed to force cancel swap');
-    } finally {
-      setLoading(false);
+      console.error('❌ Error processing transaction bytes:', error);
+      throw new Error('Failed to process transaction for signing');
+    }
+  }
+
+  // Helper function to handle wallet transactions
+  const handleWalletTransaction = async (
+    base64Transaction: string,
+    approveMessage: string,
+    submitMessage: string,
+    confirmMessage: string,
+    successMessage?: string
+  ): Promise<{ signature: string; signedTxBase64: string }> => {
+    showInfo(approveMessage);
+
+    // Decode transaction
+    const transactionBytes = Uint8Array.from(atob(base64Transaction), c => c.charCodeAt(0));
+    const transaction = Transaction.from(transactionBytes);
+
+    // Update with fresh blockhash
+    showInfo('Getting fresh blockhash...');
+    // Step 1: Get latest blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+    // Step 2: Set new blockhash + fee payer
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = new PublicKey(publicKey!);
+
+    // Sign transaction
+    if (typeof window !== 'undefined' && (window as any).solana) {
+      // Step 3: Re-sign transaction with Phantom
+      const signedTransaction = await (window as any).solana.signTransaction(transaction);
+
+      // Step 4: Send transaction
+      showInfo(submitMessage);
+      const serialized = signedTransaction.serialize() as Uint8Array;
+      const signature = await connection.sendRawTransaction(serialized, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+
+      // Step 5: Confirm
+      showInfo(confirmMessage);
+      await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        'confirmed'
+      );
+
+      if (successMessage) {
+        showInfo(successMessage);
+      }
+
+      const signedTxBase64 = btoa(String.fromCharCode(...Array.from(serialized)));
+      return { signature, signedTxBase64 };
+    } else {
+      throw new Error('Phantom wallet not found');
     }
   };
 
-  const debugSwaps = async () => {
-    if (!connected || !publicKey) {
-      showError('Please connect your wallet first');
-      return;
+  // Helper to get signed transaction bytes for database update
+  const getSignedTransactionBytes = async (base64Transaction: string): Promise<Uint8Array> => {
+    const transactionBytes = Uint8Array.from(atob(base64Transaction), c => c.charCodeAt(0));
+    const transaction = Transaction.from(transactionBytes);
+
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = new PublicKey(publicKey!);
+
+    if (typeof window !== 'undefined' && (window as any).solana) {
+      const signedTransaction = await (window as any).solana.signTransaction(transaction);
+      return signedTransaction.serialize();
     }
 
-    try {
-      const result = await otcApi.debugSwaps();
-      if (result.success && result.data) {
-        console.log('Debug swaps result:', result.data);
-        showInfo(`Found ${result.data.total_swaps} swaps. Check console for details.`);
-      } else {
-        throw new Error(result.error || 'Failed to get debug info');
-      }
-    } catch (error) {
-      console.error('Error getting debug info:', error);
-      handleError(error, 'Failed to get swap debug info');
-    }
+    throw new Error('Phantom wallet not found');
   };
 
   const canBuyOrder = (order: OTCOrder) => {
-    // Add logic to check if user meets buying restrictions
-    // This would need to fetch user's role and patron score
-    return true; // Simplified for now
+    // Check if user can buy this order based on restrictions
+    if (order.buyerRestrictions.patronsOnly && userRole !== 'patron') {
+      return false;
+    }
+    if (order.buyerRestrictions.treasuryOnly && userRole !== 'treasury') {
+      return false;
+    }
+    return !order.isExpired && order.canAccept !== false;
   };
+
+  const getBuyerRestrictionBadge = (order: OTCOrder) => {
+    if (order.buyerRestrictions.treasuryOnly) {
+      return <span className="badge bg-primary">🏛️ Treasury Only</span>;
+    }
+    if (order.buyerRestrictions.patronsOnly) {
+      return <span className="badge bg-warning">👑 Patrons Only</span>;
+    }
+    return <span className="badge bg-success">✅ Open to All</span>;
+  };
+
+  // Add this to your otcApi object (where you have cancelSwap and processCancelSwap)
 
   return (
     <div className="w-100 p-3" style={{ height: "100vh" }}>
@@ -461,7 +585,7 @@ const OTCTrading: React.FC = () => {
         {/* Menu Begin */}
         <ResponsiveMenu />
         {/* Menu End */}
-        <div className="custom-content" >
+        <div className="custom-content">
           <div className="w-100">
             <div className="d-flex justify-content-between align-items-center">
               <div className="fs-1" style={{ lineHeight: 'normal' }}>🔄 OTC Trading</div>
@@ -470,10 +594,9 @@ const OTCTrading: React.FC = () => {
                   Connected: @{user?.twitter_username || 'Not authenticated'}
                 </div>
                 <button
-                  onClick={async () => {
-                    await logout();
-                  }}
-                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
+                  onClick={async () => await logout()}
+                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center"
+                >
                   LOGOUT
                 </button>
               </div>
@@ -495,6 +618,7 @@ const OTCTrading: React.FC = () => {
                     </div>
                   </div>
                 )}
+
                 <div className="card">
                   <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
@@ -514,28 +638,21 @@ const OTCTrading: React.FC = () => {
                           )}
                         </button>
                         <button
-                          onClick={forceCancelSwap}
-                          className="btn btn-outline-warning"
-                          disabled={loading || !connected}
-                          title="Force cancel any active swaps (fixes blockchain/database mismatch)"
+                          onClick={() => Promise.all([fetchOrders(), fetchMyOrders()])}
+                          className="btn btn-outline-secondary"
+                          disabled={refreshing || !connected}
                         >
-                          {loading ? (
-                            <span className="spinner-border spinner-border-sm" />
+                          {refreshing ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" />
+                              Refreshing...
+                            </>
                           ) : (
                             <>
-                              <i className="bi bi-exclamation-triangle me-1"></i>
-                              Force Cancel
+                              <i className="bi bi-arrow-clockwise me-1"></i>
+                              Refresh
                             </>
                           )}
-                        </button>
-                        <button
-                          onClick={debugSwaps}
-                          className="btn btn-outline-info"
-                          disabled={loading || !connected}
-                          title="Debug: Show all swaps for your wallet in console"
-                        >
-                          <i className="bi bi-bug me-1"></i>
-                          Debug
                         </button>
                       </div>
                     </div>
@@ -551,7 +668,7 @@ const OTCTrading: React.FC = () => {
                             onClick={() => setActiveTab('all')}
                             className={`nav-link ${activeTab === 'all' ? 'active' : ''}`}
                           >
-                            All Orders
+                            All Orders ({orders.length})
                           </button>
                         </li>
                         <li className="nav-item">
@@ -559,7 +676,7 @@ const OTCTrading: React.FC = () => {
                             onClick={() => setActiveTab('my')}
                             className={`nav-link ${activeTab === 'my' ? 'active' : ''}`}
                           >
-                            My Orders
+                            My Orders ({myOrders.length})
                           </button>
                         </li>
                       </ul>
@@ -570,10 +687,8 @@ const OTCTrading: React.FC = () => {
                     <div className="card-body border-bottom">
                       <h5 className="card-title">📝 Create Sell Order</h5>
                       <div className="row g-3">
-                        <div className="col-md-6">
-                          <label className="form-label">
-                            Amount (SNAKE)
-                          </label>
+                        <div className="col-md-4">
+                          <label className="form-label">Amount (SNAKE)</label>
                           <input
                             type="number"
                             min="1"
@@ -584,10 +699,8 @@ const OTCTrading: React.FC = () => {
                           />
                           <div className="form-text">Number of SNAKE tokens to sell</div>
                         </div>
-                        <div className="col-md-6">
-                          <label className="form-label">
-                            Price per Token (SOL)
-                          </label>
+                        <div className="col-md-4">
+                          <label className="form-label">Price per Token (SOL)</label>
                           <input
                             type="number"
                             step="0.0001"
@@ -598,9 +711,40 @@ const OTCTrading: React.FC = () => {
                             className="form-control"
                             placeholder="e.g., 0.001"
                           />
-                          <div className="form-text">Price in SOL per SNAKE token (e.g., 0.001 = 0.001 SOL per token)</div>
+                          <div className="form-text">Price in SOL per token</div>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label">Swap Type</label>
+                          <select
+                            value={createOrderForm.swapType}
+                            onChange={(e) => setCreateOrderForm({
+                              ...createOrderForm,
+                              swapType: e.target.value as 'ExiterToPatron' | 'ExiterToTreasury' | 'PatronToPatron'
+                            })}
+                            className="form-select"
+                          >
+                            <option value="ExiterToPatron">Exiter → Patron</option>
+                            <option value="ExiterToTreasury">Exiter → Treasury</option>
+                            <option value="PatronToPatron">Patron → Patron</option>
+                          </select>
+                          <div className="form-text">Who can buy your tokens</div>
                         </div>
                       </div>
+
+                      {createOrderForm.amount && createOrderForm.price && (
+                        <div className="mt-3 p-3 bg-light rounded">
+                          <h6>Order Summary:</h6>
+                          <p className="mb-1">
+                            <strong>Selling:</strong> {parseFloat(createOrderForm.amount).toLocaleString()} SNAKE
+                          </p>
+                          <p className="mb-1">
+                            <strong>Total Value:</strong> {(parseFloat(createOrderForm.amount) * parseFloat(createOrderForm.price)).toFixed(4)} SOL
+                          </p>
+                          <p className="mb-0">
+                            <strong>Type:</strong> {createOrderForm.swapType}
+                          </p>
+                        </div>
+                      )}
 
                       <div className="mt-4 d-flex gap-2">
                         <button
@@ -628,10 +772,18 @@ const OTCTrading: React.FC = () => {
                   )}
 
                   <div className="card-body">
-                    <h5 className="card-title mb-4">
-                      {activeTab === 'all' ? '📊 All Active Orders' : '📋 My Orders'}
-                    </h5>
-                    {loading ? (
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <h5 className="card-title mb-0">
+                        {activeTab === 'all' ? '📊 All Active Orders' : '📋 My Orders'}
+                      </h5>
+                      {(activeTab === 'all' ? orders : myOrders).length > 0 && (
+                        <small className="text-muted">
+                          {(activeTab === 'all' ? orders : myOrders).length} order(s) found
+                        </small>
+                      )}
+                    </div>
+
+                    {loading && !refreshing ? (
                       <div className="text-center py-5">
                         <div className="spinner-border text-primary" role="status">
                           <span className="visually-hidden">Loading...</span>
@@ -661,38 +813,35 @@ const OTCTrading: React.FC = () => {
                         <table className="table table-hover">
                           <thead className="table-light">
                             <tr>
-                              <th scope="col">
-                                Seller
-                              </th>
-                              <th scope="col">
-                                Amount
-                              </th>
-                              <th scope="col">
-                                Price
-                              </th>
-                              <th scope="col">
-                                Restrictions
-                              </th>
-                              <th scope="col">
-                                Created
-                              </th>
-                              <th scope="col">
-                                Actions
-                              </th>
+                              <th scope="col">Seller</th>
+                              <th scope="col">Amount</th>
+                              <th scope="col">Price</th>
+                              <th scope="col">Total Value</th>
+                              <th scope="col">Restrictions</th>
+                              <th scope="col">Created</th>
+                              <th scope="col">Status</th>
+                              <th scope="col">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(activeTab === 'all' ? orders : myOrders).map((order) => (
-                              <tr key={order.orderId}>
+                              <tr key={order.orderId} className={order.isExpired ? 'table-warning' : ''}>
                                 <td>
                                   <div className="d-flex align-items-center">
-                                    <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>
-                                      <i className="bi bi-person-fill text-white small"></i>
+                                    <div className="d-flex align-items-center gap-2 me-2">
+                                      <img
+                                        alt="seller avatar"
+                                        className="custom-s-avatar"
+                                        src="/avatars/logo-colored.svg"
+                                      />
                                     </div>
                                     <div>
                                       <div className="fw-bold small">
-                                        {order.sellerWallet.slice(0, 8)}...{order.sellerWallet.slice(-8)}
+                                        {order.seller || `${order.sellerWallet.slice(0, 8)}...${order.sellerWallet.slice(-8)}`}
                                       </div>
+                                      <small className="text-muted">SNAKE
+                                        {order.sellerWallet.slice(0, 8)}...{order.sellerWallet.slice(-8)}
+                                      </small>
                                     </div>
                                   </div>
                                 </td>
@@ -700,26 +849,47 @@ const OTCTrading: React.FC = () => {
                                   <div className="fw-bold text-success">
                                     {parseFloat(order.amount).toLocaleString()}
                                   </div>
-                                  <small className="text-muted">SNAKE</small>
+                                  <small className="text-muted"></small>
                                 </td>
                                 <td>
                                   <div className="fw-bold text-warning">
-                                    {parseFloat(order.price).toFixed(4)}
+                                    {parseFloat(order.price).toFixed(6)}
                                   </div>
-                                  <small className="text-muted">SOL</small>
+                                  <small className="text-muted">SOL per token</small>
                                 </td>
                                 <td>
-                                  <span className="badge bg-success">✅ Open to All</span>
+                                  <div className="fw-bold text-info">
+                                    {(parseFloat(order.amount) * parseFloat(order.price)).toFixed(4)}
+                                  </div>
+                                  <small className="text-muted">SOL total</small>
                                 </td>
                                 <td>
-                                  <small className="text-muted">{order.createdAt}</small>
+                                  {getBuyerRestrictionBadge(order)}
+                                </td>
+                                <td>
+                                  <div className="small">
+                                    {order.createdAt}
+                                  </div>
+                                  {order.expiresAt && (
+                                    <small className="text-muted">
+                                      Expires: {order.expiresAt}
+                                    </small>
+                                  )}
+                                </td>
+                                <td>
+                                  {order.isExpired ? (
+                                    <span className="badge bg-danger">⏰ Expired</span>
+                                  ) : (
+                                    <span className="badge bg-success">✅ Active</span>
+                                  )}
                                 </td>
                                 <td>
                                   {activeTab === 'my' ? (
                                     <button
                                       onClick={() => cancelOrder(order.orderId)}
-                                      disabled={loading}
+                                      disabled={loading || order.isExpired}
                                       className="btn btn-outline-danger btn-sm"
+                                      title={order.isExpired ? "Cannot cancel expired order" : "Cancel this order"}
                                     >
                                       {loading ? (
                                         <span className="spinner-border spinner-border-sm" />
@@ -732,11 +902,14 @@ const OTCTrading: React.FC = () => {
                                     </button>
                                   ) : order.sellerWallet === publicKey?.toString() ? (
                                     <span className="badge bg-secondary">Your Order</span>
+                                  ) : order.isExpired ? (
+                                    <span className="badge bg-warning">Expired</span>
                                   ) : canBuyOrder(order) ? (
                                     <button
                                       onClick={() => executeOrder(order)}
                                       disabled={loading}
                                       className="btn btn-outline-primary btn-sm"
+                                      title="Buy this order"
                                     >
                                       {loading ? (
                                         <span className="spinner-border spinner-border-sm" />
@@ -748,7 +921,18 @@ const OTCTrading: React.FC = () => {
                                       )}
                                     </button>
                                   ) : (
-                                    <span className="badgetext-dark">Not Eligible</span>
+                                    <span
+                                      className="badge bg-dark"
+                                      title={
+                                        order.buyerRestrictions.patronsOnly
+                                          ? `Patrons only (you are: ${userRole})`
+                                          : order.buyerRestrictions.treasuryOnly
+                                            ? `Treasury only (you are: ${userRole})`
+                                            : "Not eligible"
+                                      }
+                                    >
+                                      Not Eligible
+                                    </span>
                                   )}
                                 </td>
                               </tr>
@@ -759,13 +943,50 @@ const OTCTrading: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Help Section */}
+                <div className="card mt-4">
+                  <div className="card-body">
+                    <h6 className="card-title">
+                      <i className="bi bi-info-circle me-2"></i>
+                      How OTC Trading Works
+                    </h6>
+                    <div className="row">
+                      <div className="col-md-6">
+                        <h6 className="text-primary">For Sellers:</h6>
+                        <ul className="list-unstyled">
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Create sell orders with your desired price</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Choose who can buy (Patrons, Treasury, or Open)</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Orders expire automatically after 24 hours</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Cancel anytime before expiration</li>
+                        </ul>
+                      </div>
+                      <div className="col-md-6">
+                        <h6 className="text-primary">For Buyers:</h6>
+                        <ul className="list-unstyled">
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Browse active orders from all sellers</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Check eligibility requirements</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Execute orders with one click</li>
+                          <li><i className="bi bi-check-circle text-success me-2"></i>Patrons receive rebates on purchases</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="alert alert-info mt-3">
+                      <small>
+                        <i className="bi bi-lightbulb me-2"></i>
+                        <strong>Tip:</strong> All transactions require wallet approval and network fees.
+                        Prices are in SOL per SNAKE token. Orders show total SOL value for convenience.
+                      </small>
+                    </div>
+                  </div>
+                </div>
               </div>
             </WalletGuard>
           </div>
         </div>
       </div>
     </div>
-
   );
 };
 

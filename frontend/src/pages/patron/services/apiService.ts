@@ -14,6 +14,32 @@ export interface WalletTransactionResponse {
     error?: string;
 }
 
+export interface OtcSwapResponse {
+  id: string;
+  seller_id: string;
+  buyer_id?: string;
+  seller_wallet: string;
+  buyer_wallet?: string;
+  seller_username?: string;
+  buyer_username?: string;
+  otc_swap_pda: string;
+  token_amount: number;
+  sol_rate: number;
+  buyer_rebate: number;
+  swap_type: string;
+  buyer_role_required: string;
+  status: string;
+  total_sol_payment?: number;
+  net_sol_payment?: number;
+  created_at: string;
+  updated_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  expires_at: string;
+  is_expired: boolean;
+  can_accept: boolean;
+}
+
 export interface ActiveSwapsResponse {
   page: number;
   per_page: number;
@@ -417,9 +443,19 @@ export const otcApi = {
         });
     },
 
-    cancelSwap: async () => {
+    cancelSwap: async (): Promise<ApiResponse<string>> => {
         return apiCall<string>('/user/cancel_otc_swap', {
             method: 'POST',
+        });
+    },
+
+    processCancelSwap: async (signedTransaction: string): Promise<ApiResponse<OtcSwapResponse>> => {
+        return apiCall<OtcSwapResponse>('/user/process_cancel_otc_swap', {
+            method: 'POST',
+            body: JSON.stringify({ signed_transaction: signedTransaction }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
         });
     },
 
@@ -442,38 +478,13 @@ export const otcApi = {
         });
     },
 
-    updateSwapSignature: async (txSignature: string) => {
+    updateSwapSignature: async (data: any) => {
         return apiCall<string>('/user/update_otc_swap_signature', {
             method: 'POST',
-            body: JSON.stringify({ tx_signature: txSignature }),
+            body: JSON.stringify(data),
         });
     },
 
-    forceCancelSwap: async () => {
-        return apiCall<string>('/user/force_cancel_swap', {
-            method: 'POST',
-        });
-    },
-
-    debugSwaps: async () => {
-        return apiCall<{
-            wallet: string;
-            total_swaps: number;
-            swaps: Array<{
-                id: string;
-                status: string;
-                expires_at: string;
-                expired: boolean;
-                has_initiate_tx_sig: boolean;
-                initiate_tx_signature: string | null;
-                token_amount: number;
-                sol_rate: number;
-                created_at: string;
-            }>;
-        }>('/user/debug_swaps', {
-            method: 'GET',
-        });
-    },
 };
 
 // Vesting API calls

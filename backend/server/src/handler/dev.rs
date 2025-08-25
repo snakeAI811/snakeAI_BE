@@ -57,6 +57,60 @@ pub async fn dev_login(
     ))
 }
 
+
+/// Development-only endpoint to create a mock **patron** user session
+/// This bypasses Twitter OAuth for local testing
+pub async fn dev_login2(
+    State(state): State<AppState>,
+    TypedHeader(user_agent): TypedHeader<UserAgent>,
+    jar: CookieJar,
+) -> Result<impl axum::response::IntoResponse, ApiError> {
+    // Only allow in development mode
+    if state.env.production {
+        return Err(ApiError::NotFound("Endpoint not available in production".to_string()));
+    }
+
+    // Create or get a test patron user
+    let test_user = state
+        .service
+        .user
+        .insert_user("test_twitter_id_patron", "test_patron_user")
+        .await?;
+
+    // Create a session for the test user
+    let session = state
+        .service
+        .session
+        .create_session(
+            &test_user.id,
+            user_agent.as_str(),
+            "127.0.0.1",
+            state.env.session_ttl_in_minutes,
+        )
+        .await?;
+
+    // Create a cookie for the session ID
+    let cookie = Cookie::build(("SID", session.session_id.to_string()))
+        .path("/")
+        .http_only(false) // Allow JS access for development
+        .secure(false)    // Allow HTTP for localhost
+        .same_site(axum_extra::extract::cookie::SameSite::Lax);
+
+    // Return session info as JSON for frontend
+    Ok((
+        jar.add(cookie),
+        Json(json!({
+            "success": true,
+            "session_id": session.session_id.to_string(),
+            "user": {
+                "id": test_user.id,
+                "twitter_username": test_user.twitter_username,
+                "wallet_address": test_user.wallet_address
+            }
+        }))
+    ))
+}
+
 /// Development endpoint to check current session
 pub async fn dev_session_info(
     State(state): State<AppState>,

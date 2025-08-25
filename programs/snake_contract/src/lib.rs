@@ -51,20 +51,6 @@ pub mod snake_contract {
         instructions::initialize_user_claim(ctx)
     }
 
-    // Legacy OTC swap functions - deprecated, use new otc_swap module instead
-    // pub fn accept_otc_swap(ctx: Context<AcceptOtcSwap>) -> Result<()> {
-    //     instructions::accept_otc_swap(ctx)
-    // }
-
-    // pub fn cancel_otc_swap(ctx: Context<CancelOtcSwap>) -> Result<()> {
-    //     instructions::cancel_otc_swap(ctx)
-    // }
-
-
-    // pub fn sellback_to_project(ctx: Context<SellbackToProject>, amount: u64) -> Result<()> {
-    //     instructions::sellback_to_project(ctx, amount)
-    // }
-
     // Patron-related functions
     pub fn apply_for_patron(ctx: Context<ApplyForPatron>, wallet_age_days: u32, community_score: u32) -> Result<()> {
         instructions::apply_for_patron(ctx, wallet_age_days, community_score)
@@ -182,26 +168,6 @@ pub mod snake_contract {
         instructions::initialize_dao_registry(ctx, max_seats, min_dao_stake, month6_timestamp)
     }
     
-    // Legacy function - replaced by initiate_otc_swap
-    // pub fn initiate_otc_swap_enhanced(
-    //     ctx: Context<InitiateOtcSwapEnhanced>, 
-    //     token_amount: u64, 
-    //     sol_rate: u64,
-    //     buyer_rebate: u64,
-    //     swap_type: SwapType
-    // ) -> Result<()> {
-    //     instructions::initiate_otc_swap_enhanced(ctx, token_amount, sol_rate, buyer_rebate, swap_type)
-    // }
-
-    // Legacy functions - replaced by new otc_swap module
-    // pub fn accept_otc_swap_patron_to_patron(ctx: Context<AcceptOtcSwapPatronToPatron>) -> Result<()> {
-    //     instructions::accept_otc_swap_patron_to_patron(ctx)
-    // }
-
-    // pub fn accept_treasury_buyback(ctx: Context<AcceptTreasuryBuyback>) -> Result<()> {
-    //     instructions::accept_treasury_buyback(ctx)
-    // }
-
     // ========== OTC SWAP TRACKING & DEFLATIONARY MECHANICS ==========
     
     pub fn track_otc_swap(

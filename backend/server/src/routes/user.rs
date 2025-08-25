@@ -1,28 +1,64 @@
 use crate::{
     handler::{
+        otc_swap::{
+            accept_otc_swap_tx, 
+            cancel_otc_swap_tx, 
+            get_active_swaps, 
+            get_my_swaps,
+            get_swap_by_pda, 
+            get_swap_stats, 
+            initiate_otc_swap_enhanced_tx, 
+            initiate_otc_swap_tx,
+            process_cancel_otc_swap_tx, 
+            update_otc_swap_tx_signature,
+        },
         patron_minimal::get_initialize_user_claim_tx,
         user::{
-            get_claim_tx, get_me, get_mining_status, get_profile, get_rewards, get_tweets, set_wallet_address,
-            token_validation, get_user_mining_status, get_user_profile, set_user_wallet_address,
-            update_patron_status, update_user_role, update_lock_details, get_user_phase2_tweets,
-            // Tweet mining endpoints
-            get_tweet_mining_status, claim_tweet_reward_tx, set_reward_flag,
-            // Data endpoints
-            get_token_info, get_patron_application_status, get_active_swaps, get_my_swaps, get_vesting_info,
+            apply_patron_tx,
+            approve_patron_tx,
+            check_patron_eligibility,
+            claim_tokens_with_role_tx,
+            claim_tweet_reward_tx,
+            claim_yield_tx,
+            create_vesting_tx,
+            get_claim_tx,
+            get_dao_user_count,
             // DAO endpoints
-            get_dao_users, get_dao_user_count,
+            get_dao_users,
+            get_me,
+            get_mining_status,
+            get_patron_application_status,
+            get_profile,
+            get_rewards,
+            // Data endpoints
+            get_token_info,
+            // Tweet mining endpoints
+            get_tweet_mining_status,
+            get_tweets,
+            get_user_mining_status,
+            get_user_phase2_tweets,
+            get_user_profile,
+            get_vesting_info,
+            lock_tokens_tx,
             // Smart contract interaction endpoints
-            save_role_selection, select_role_tx, apply_patron_tx, approve_patron_tx, claim_tokens_with_role_tx,
-            lock_tokens_tx, unlock_tokens_tx, claim_yield_tx, create_vesting_tx, withdraw_vesting_tx,
-            initiate_otc_swap_tx, accept_otc_swap_tx, cancel_otc_swap_tx, update_otc_swap_tx_signature, debug_user_swaps, force_cancel_user_swap, check_patron_eligibility,
+            save_role_selection,
+            select_role_tx,
+            set_reward_flag,
+            set_user_wallet_address,
+            set_wallet_address,
+            token_validation,
+            unlock_tokens_tx,
+            update_lock_details,
+            update_patron_status,
+            update_user_role,
+            withdraw_vesting_tx
         },
-        otc_swap::{get_swap_stats, get_swap_by_pda},
     },
     state::AppState,
 };
 use axum::{
-    Router,
     routing::{get, post},
+    Router,
 };
 
 pub fn routes() -> Router<AppState> {
@@ -64,11 +100,17 @@ pub fn routes() -> Router<AppState> {
         .route("/withdraw_vesting", post(withdraw_vesting_tx))
         // OTC swap endpoints
         .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
+        .route(
+            "/initiate_otc_swap_enhanced",
+            post(initiate_otc_swap_enhanced_tx),
+        )
         .route("/accept_otc_swap", post(accept_otc_swap_tx))
         .route("/cancel_otc_swap", post(cancel_otc_swap_tx))
-        .route("/update_otc_swap_signature", post(update_otc_swap_tx_signature))
-        .route("/debug_swaps", get(debug_user_swaps))
-        .route("/force_cancel_swap", post(force_cancel_user_swap))
+        .route("/process_cancel_otc_swap", post(process_cancel_otc_swap_tx))
+        .route(
+            "/update_otc_swap_signature",
+            post(update_otc_swap_tx_signature),
+        )
         .route("/swap_stats", get(get_swap_stats))
         .route("/swap/{pda}", get(get_swap_by_pda))
         // User ID specific routes (must be at the end to avoid conflicts)
@@ -79,4 +121,4 @@ pub fn routes() -> Router<AppState> {
         .route("/{user_id}/role", post(update_user_role))
         .route("/{user_id}/lock_details", post(update_lock_details))
         .route("/{user_id}/phase2_tweets", get(get_user_phase2_tweets))
-}
+    }

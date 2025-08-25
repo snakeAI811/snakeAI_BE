@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/snake_contract.json`.
  */
 export type SnakeContract = {
-  "address": "4Mq7g1z2NpziLA5p4aVZVyatHz7c2aMX5pQW3CjaoB1c",
+  "address": "A75BhFuMiJoe3bwNXAJbsPykKSQfvVhC5oYH9k9X6RQy",
   "metadata": {
     "name": "snakeContract",
     "version": "0.1.0",
@@ -63,6 +63,33 @@ export type SnakeContract = {
           "writable": true
         },
         {
+          "name": "sellerClaim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
           "name": "otcSwap",
           "writable": true,
           "pda": {
@@ -115,6 +142,10 @@ export type SnakeContract = {
               }
             ]
           }
+        },
+        {
+          "name": "tokenMint",
+          "writable": true
         },
         {
           "name": "tokenProgram",
@@ -1001,14 +1032,101 @@ export type SnakeContract = {
           }
         },
         {
-          "name": "userTokenAta",
+          "name": "claimReceipt",
           "writable": true
         },
         {
+          "name": "userTokenAta",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
           "name": "rewardPoolPda",
-          "docs": [
-            "Reward Pool PDA that has authority over the treasury token account"
-          ],
           "pda": {
             "seeds": [
               {
@@ -1032,9 +1150,6 @@ export type SnakeContract = {
         },
         {
           "name": "treasuryTokenAccount",
-          "docs": [
-            "Treasury token account owned by the reward pool PDA"
-          ],
           "writable": true
         },
         {
@@ -1044,6 +1159,14 @@ export type SnakeContract = {
         {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -1058,6 +1181,10 @@ export type SnakeContract = {
               "name": "userRole"
             }
           }
+        },
+        {
+          "name": "tweetId",
+          "type": "string"
         }
       ]
     },
@@ -1201,7 +1328,7 @@ export type SnakeContract = {
         {
           "name": "rewardPoolPda",
           "docs": [
-            "Reward Pool PDA that has minting authority"
+            "Reward Pool PDA"
           ],
           "pda": {
             "seeds": [
@@ -1225,8 +1352,95 @@ export type SnakeContract = {
           }
         },
         {
+          "name": "treasury",
+          "docs": [
+            "Treasury token account owned by reward pool PDA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "userStakingHistory",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "globalStakingStats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -1527,6 +1741,57 @@ export type SnakeContract = {
       "args": []
     },
     {
+      "name": "getGlobalStakingStats",
+      "discriminator": [
+        252,
+        88,
+        46,
+        250,
+        9,
+        67,
+        196,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "globalStakingStats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "getSwapStats",
       "discriminator": [
         186,
@@ -1560,6 +1825,65 @@ export type SnakeContract = {
                   107,
                   101,
                   114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "getUserStakingSummary",
+      "discriminator": [
+        223,
+        49,
+        206,
+        85,
+        252,
+        80,
+        13,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "userStakingHistory",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
                 ]
               },
               {
@@ -1634,6 +1958,67 @@ export type SnakeContract = {
           "type": "i64"
         }
       ]
+    },
+    {
+      "name": "initializeGlobalStats",
+      "discriminator": [
+        57,
+        82,
+        52,
+        126,
+        182,
+        236,
+        5,
+        131
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "globalStakingStats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializeRewardPool",
@@ -1885,6 +2270,71 @@ export type SnakeContract = {
       ]
     },
     {
+      "name": "initializeStakingHistory",
+      "discriminator": [
+        102,
+        254,
+        212,
+        144,
+        216,
+        14,
+        203,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "userStakingHistory",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeUserClaim",
       "discriminator": [
         14,
@@ -1935,112 +2385,6 @@ export type SnakeContract = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "initiateOtcSwap",
-      "discriminator": [
-        40,
-        188,
-        38,
-        130,
-        222,
-        149,
-        139,
-        95
-      ],
-      "accounts": [
-        {
-          "name": "seller",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "sellerClaim",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  108,
-                  97,
-                  105,
-                  109
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "seller"
-              }
-            ]
-          }
-        },
-        {
-          "name": "otcSwap",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  111,
-                  116,
-                  99,
-                  95,
-                  115,
-                  119,
-                  97,
-                  112
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "seller"
-              }
-            ]
-          }
-        },
-        {
-          "name": "sellerTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "rate",
-          "type": "u64"
-        },
-        {
-          "name": "buyerRebate",
-          "type": "u64"
-        },
-        {
-          "name": "buyerRoleRequired",
-          "type": {
-            "defined": {
-              "name": "userRole"
-            }
-          }
-        }
-      ]
     },
     {
       "name": "initiateOtcSwapEnhanced",
@@ -2231,8 +2575,88 @@ export type SnakeContract = {
           "writable": true
         },
         {
+          "name": "userStakingHistory",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "globalStakingStats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -2785,75 +3209,6 @@ export type SnakeContract = {
       ]
     },
     {
-      "name": "sellbackToProject",
-      "discriminator": [
-        253,
-        39,
-        219,
-        66,
-        95,
-        68,
-        104,
-        161
-      ],
-      "accounts": [
-        {
-          "name": "patron",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "patronTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "treasuryTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "mint",
-          "writable": true
-        },
-        {
-          "name": "userClaim",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  108,
-                  97,
-                  105,
-                  109
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "patron"
-              }
-            ]
-          }
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "simulateBurnOnExit",
       "discriminator": [
         125,
@@ -3110,8 +3465,88 @@ export type SnakeContract = {
           "writable": true
         },
         {
+          "name": "userStakingHistory",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "globalStakingStats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -3262,6 +3697,19 @@ export type SnakeContract = {
   ],
   "accounts": [
     {
+      "name": "claimReceipt",
+      "discriminator": [
+        223,
+        233,
+        11,
+        229,
+        124,
+        165,
+        207,
+        28
+      ]
+    },
+    {
       "name": "daoRegistry",
       "discriminator": [
         230,
@@ -3285,6 +3733,19 @@ export type SnakeContract = {
         100,
         229,
         159
+      ]
+    },
+    {
+      "name": "globalStakingStats",
+      "discriminator": [
+        211,
+        22,
+        171,
+        98,
+        97,
+        237,
+        148,
+        125
       ]
     },
     {
@@ -3350,6 +3811,19 @@ export type SnakeContract = {
         147,
         32,
         209
+      ]
+    },
+    {
+      "name": "userStakingHistory",
+      "discriminator": [
+        166,
+        45,
+        215,
+        81,
+        81,
+        50,
+        38,
+        129
       ]
     },
     {
@@ -3849,43 +4323,433 @@ export type SnakeContract = {
   "errors": [
     {
       "code": 6000,
-      "name": "swapInactive",
-      "msg": "Swap is not active"
+      "name": "unauthorized",
+      "msg": "[SNAKE:6000] Unauthorized owner key"
     },
     {
       "code": 6001,
-      "name": "swapAlreadyAccepted",
-      "msg": "Swap already accepted"
+      "name": "cooldownNotPassed",
+      "msg": "[SNAKE:6001] Cooldown period not passed"
     },
     {
       "code": 6002,
-      "name": "invalidAmount",
-      "msg": "Invalid token amount"
+      "name": "yieldClaimCooldownNotPassed",
+      "msg": "[SNAKE:6002] Yield claim cooldown period not passed"
     },
     {
       "code": 6003,
-      "name": "invalidRate",
-      "msg": "Invalid SOL rate"
+      "name": "insufficientFundsInTreasury",
+      "msg": "[SNAKE:6003] Insufficient funds in treasury"
     },
     {
       "code": 6004,
-      "name": "invalidRebate",
-      "msg": "Invalid rebate percentage"
+      "name": "insufficientFunds",
+      "msg": "[SNAKE:6004] Insufficient funds"
     },
     {
       "code": 6005,
-      "name": "insufficientFunds",
-      "msg": "Insufficient funds"
+      "name": "invalidTreasuryAuthority",
+      "msg": "[SNAKE:6005] Invalid treasury authority"
     },
     {
       "code": 6006,
-      "name": "mathOverflow",
-      "msg": "Math overflow"
+      "name": "arithmeticOverflow",
+      "msg": "[SNAKE:6006] Arithmetic overflow occurred"
     },
     {
       "code": 6007,
+      "name": "endedClaim",
+      "msg": "[SNAKE:6007] Claim is ended"
+    },
+    {
+      "code": 6008,
+      "name": "patronApplicationExists",
+      "msg": "[SNAKE:6008] Patron application already exists"
+    },
+    {
+      "code": 6009,
+      "name": "patronNotApproved",
+      "msg": "[SNAKE:6009] Patron not approved"
+    },
+    {
+      "code": 6010,
+      "name": "patronAlreadyApproved",
+      "msg": "[SNAKE:6010] Patron already approved"
+    },
+    {
+      "code": 6011,
+      "name": "patronTokensLocked",
+      "msg": "[SNAKE:6011] Cannot exit as patron - tokens are locked"
+    },
+    {
+      "code": 6012,
+      "name": "onlyApprovedPatrons",
+      "msg": "[SNAKE:6012] Only approved patrons can perform this action"
+    },
+    {
+      "code": 6013,
+      "name": "tokensLocked",
+      "msg": "[SNAKE:6013] Tokens are currently locked"
+    },
+    {
+      "code": 6014,
+      "name": "noTokensLocked",
+      "msg": "[SNAKE:6014] No tokens locked for staking"
+    },
+    {
+      "code": 6015,
+      "name": "lockPeriodNotCompleted",
+      "msg": "[SNAKE:6015] Lock period not completed"
+    },
+    {
+      "code": 6016,
+      "name": "invalidLockDuration",
+      "msg": "[SNAKE:6016] Invalid lock duration"
+    },
+    {
+      "code": 6017,
+      "name": "cannotLockZeroTokens",
+      "msg": "[SNAKE:6017] Cannot lock zero tokens"
+    },
+    {
+      "code": 6018,
+      "name": "notEligibleForDao",
+      "msg": "[SNAKE:6018] Not eligible for DAO membership"
+    },
+    {
+      "code": 6019,
+      "name": "noAvailableSeats",
+      "msg": "[SNAKE:6019] No available DAO seats"
+    },
+    {
+      "code": 6020,
+      "name": "notDaoSeatHolder",
+      "msg": "[SNAKE:6020] Not a DAO seat holder"
+    },
+    {
+      "code": 6021,
+      "name": "insufficientStakeForDao",
+      "msg": "[SNAKE:6021] Insufficient stake for DAO eligibility"
+    },
+    {
+      "code": 6022,
+      "name": "lockDurationRequirementNotMet",
+      "msg": "[SNAKE:6022] Lock duration requirement not met for DAO"
+    },
+    {
+      "code": 6023,
+      "name": "patronTransferRestricted",
+      "msg": "[SNAKE:6023] Patron tokens can only be transferred to other patrons"
+    },
+    {
+      "code": 6024,
+      "name": "cannotSellBeforeLockEnds",
+      "msg": "[SNAKE:6024] Cannot sell tokens before lock period ends"
+    },
+    {
+      "code": 6025,
+      "name": "earlySaleDetected",
+      "msg": "[SNAKE:6025] Early sale detected - commitment violated"
+    },
+    {
+      "code": 6026,
+      "name": "invalidAmount",
+      "msg": "[SNAKE:6026] Invalid amount specified"
+    },
+    {
+      "code": 6027,
+      "name": "invalidRate",
+      "msg": "[SNAKE:6027] Invalid rate specified"
+    },
+    {
+      "code": 6028,
+      "name": "invalidRebate",
+      "msg": "[SNAKE:6028] Invalid rebate percentage"
+    },
+    {
+      "code": 6029,
+      "name": "onlyNormalUsersCanSell",
+      "msg": "[SNAKE:6029] Only normal users can sell tokens"
+    },
+    {
+      "code": 6030,
+      "name": "onlyPatronsCanBuy",
+      "msg": "[SNAKE:6030] Only patrons can buy in this swap"
+    },
+    {
+      "code": 6031,
+      "name": "swapInactive",
+      "msg": "[SNAKE:6031] Swap is not active"
+    },
+    {
+      "code": 6032,
+      "name": "swapAlreadyAccepted",
+      "msg": "[SNAKE:6032] Swap already accepted"
+    },
+    {
+      "code": 6033,
+      "name": "cannotBuyOwnSwap",
+      "msg": "[SNAKE:6033] Cannot buy your own swap"
+    },
+    {
+      "code": 6034,
+      "name": "swapExpired",
+      "msg": "[SNAKE:6034] Swap has expired"
+    },
+    {
+      "code": 6035,
+      "name": "swapNotExpired",
+      "msg": "[SNAKE:6035] Swap has not expired yet"
+    },
+    {
+      "code": 6036,
+      "name": "invalidSwapType",
+      "msg": "[SNAKE:6036] Invalid swap type"
+    },
+    {
+      "code": 6037,
+      "name": "treasuryFallbackNotAllowed",
+      "msg": "[SNAKE:6037] Treasury fallback not allowed for this swap"
+    },
+    {
+      "code": 6038,
+      "name": "mathOverflow",
+      "msg": "[SNAKE:6038] Math overflow occurred"
+    },
+    {
+      "code": 6039,
+      "name": "onlyExitersCanSell",
+      "msg": "[SNAKE:6039] Only exiters (None role) can sell in Phase 1"
+    },
+    {
+      "code": 6040,
+      "name": "tokensStillLocked",
+      "msg": "[SNAKE:6040] Tokens are still locked and cannot be sold"
+    },
+    {
+      "code": 6041,
+      "name": "patronAlreadyExited",
+      "msg": "[SNAKE:6041] Patron has already been marked as exited"
+    },
+    {
+      "code": 6042,
+      "name": "listingNotActive",
+      "msg": "[SNAKE:6042] Listing is not active yet (cooldown period)"
+    },
+    {
+      "code": 6043,
+      "name": "maxOtcLimitExceeded",
+      "msg": "[SNAKE:6043] Maximum OTC limit exceeded"
+    },
+    {
+      "code": 6044,
+      "name": "onlyTreasuryCanBuy",
+      "msg": "[SNAKE:6044] Only treasury can buy in this swap"
+    },
+    {
+      "code": 6045,
+      "name": "governanceNotActive",
+      "msg": "[SNAKE:6045] Governance is not active"
+    },
+    {
+      "code": 6046,
+      "name": "invalidProposalTitle",
+      "msg": "[SNAKE:6046] Invalid proposal title"
+    },
+    {
+      "code": 6047,
+      "name": "invalidProposalDescription",
+      "msg": "[SNAKE:6047] Invalid proposal description"
+    },
+    {
+      "code": 6048,
+      "name": "invalidProposal",
+      "msg": "[SNAKE:6048] Invalid proposal"
+    },
+    {
+      "code": 6049,
+      "name": "proposalNotActive",
+      "msg": "[SNAKE:6049] Proposal is not active"
+    },
+    {
+      "code": 6050,
+      "name": "proposalNotPassed",
+      "msg": "[SNAKE:6050] Proposal has not passed"
+    },
+    {
+      "code": 6051,
+      "name": "votingPeriodEnded",
+      "msg": "[SNAKE:6051] Voting period has ended"
+    },
+    {
+      "code": 6052,
+      "name": "votingPeriodNotEnded",
+      "msg": "[SNAKE:6052] Voting period has not ended"
+    },
+    {
+      "code": 6053,
+      "name": "cannotCancelProposal",
+      "msg": "[SNAKE:6053] Cannot cancel proposal with votes"
+    },
+    {
+      "code": 6054,
+      "name": "alreadyVoted",
+      "msg": "[SNAKE:6054] Already voted on this proposal"
+    },
+    {
+      "code": 6055,
+      "name": "invalidRoleTransition",
+      "msg": "[SNAKE:6055] Invalid role transition"
+    },
+    {
+      "code": 6056,
+      "name": "insufficientQualificationScore",
+      "msg": "[SNAKE:6056] Insufficient qualification score for patron"
+    },
+    {
+      "code": 6057,
+      "name": "noMiningHistory",
+      "msg": "[SNAKE:6057] No mining history - user must mine tokens in Phase 1"
+    },
+    {
+      "code": 6058,
+      "name": "vestingNotUnlocked",
+      "msg": "[SNAKE:6058] Vesting not unlocked yet"
+    },
+    {
+      "code": 6059,
+      "name": "vestingAlreadyWithdrawn",
+      "msg": "[SNAKE:6059] Vesting already withdrawn"
+    },
+    {
+      "code": 6060,
+      "name": "swapNotActive",
+      "msg": "[SNAKE:6060] Swap is not active"
+    },
+    {
+      "code": 6061,
+      "name": "notWhitelistedBuyer",
+      "msg": "[SNAKE:6061] Not whitelisted for this swap"
+    },
+    {
+      "code": 6062,
+      "name": "insufficientRole",
+      "msg": "[SNAKE:6062] Insufficient role for this swap"
+    },
+    {
+      "code": 6063,
+      "name": "onlyPatrons",
+      "msg": "[SNAKE:6063] Only patrons can perform this action"
+    },
+    {
+      "code": 6064,
+      "name": "noExitToTrack",
+      "msg": "[SNAKE:6064] No exit to track"
+    },
+    {
+      "code": 6065,
+      "name": "onlyPatronsCanSell",
+      "msg": "[SNAKE:6065] Only patrons can sell in this swap type"
+    },
+    {
+      "code": 6066,
+      "name": "notEligibleForOtc",
+      "msg": "[SNAKE:6066] Not eligible for OTC trading"
+    },
+    {
+      "code": 6067,
+      "name": "patronOnlyOrder",
+      "msg": "[SNAKE:6067] Order is for patrons only"
+    },
+    {
+      "code": 6068,
+      "name": "treasuryOnlyOrder",
+      "msg": "[SNAKE:6068] Order is for treasury only"
+    },
+    {
+      "code": 6069,
+      "name": "insufficientPatronScore",
+      "msg": "[SNAKE:6069] Insufficient patron score"
+    },
+    {
+      "code": 6070,
+      "name": "orderNotActive",
+      "msg": "[SNAKE:6070] Order is not active"
+    },
+    {
+      "code": 6071,
       "name": "invalidRole",
-      "msg": "Invalid role for this operation"
+      "msg": "[SNAKE:6071] Invalid role for this action"
+    },
+    {
+      "code": 6072,
+      "name": "notApprovedPatron",
+      "msg": "[SNAKE:6072] Not approved patron"
+    },
+    {
+      "code": 6073,
+      "name": "patronSoldEarly",
+      "msg": "[SNAKE:6073] Patron sold early"
+    },
+    {
+      "code": 6074,
+      "name": "vestingNotActive",
+      "msg": "[SNAKE:6074] Vesting is not active"
+    },
+    {
+      "code": 6075,
+      "name": "nothingToClaim",
+      "msg": "[SNAKE:6075] Nothing to claim"
+    },
+    {
+      "code": 6076,
+      "name": "month6NotReached",
+      "msg": "[SNAKE:6076] Month 6 milestone not reached"
+    },
+    {
+      "code": 6077,
+      "name": "maxSeatsReached",
+      "msg": "[SNAKE:6077] Maximum DAO seats reached"
+    },
+    {
+      "code": 6078,
+      "name": "seatNotActive",
+      "msg": "[SNAKE:6078] DAO seat is not active"
+    },
+    {
+      "code": 6079,
+      "name": "failedToFetchSeats",
+      "msg": "[SNAKE:6079] Failed to fetch DAO seats"
+    },
+    {
+      "code": 6080,
+      "name": "insufficientStakingHistory",
+      "msg": "[SNAKE:6080] Insufficient staking history"
+    },
+    {
+      "code": 6081,
+      "name": "patronEligibilityNotMet",
+      "msg": "[SNAKE:6081] Patron eligibility criteria not met"
+    },
+    {
+      "code": 6082,
+      "name": "insufficientTokenAmount",
+      "msg": "[SNAKE:6082] Insufficient token amount for staking"
+    },
+    {
+      "code": 6083,
+      "name": "invalidUserRole",
+      "msg": "[SNAKE:6083] Invalid user role for this action"
+    },
+    {
+      "code": 6084,
+      "name": "invalidApyRate",
+      "msg": "[SNAKE:6084] Invalid APY rate - must be between 0-100%"
+    },
+    {
+      "code": 6085,
+      "name": "swapAlreadyActive",
+      "msg": "[SNAKE:6085] Swap is already active for this user"
     }
   ],
   "types": [
@@ -3905,6 +4769,22 @@ export type SnakeContract = {
           {
             "name": "minPatronScore",
             "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "claimReceipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tweetId",
+            "type": "string"
+          },
+          {
+            "name": "claimer",
+            "type": "pubkey"
           }
         ]
       }
@@ -4232,6 +5112,42 @@ export type SnakeContract = {
       }
     },
     {
+      "name": "globalStakingStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "totalUsers",
+            "type": "u32"
+          },
+          {
+            "name": "totalStakers",
+            "type": "u32"
+          },
+          {
+            "name": "totalPatrons",
+            "type": "u32"
+          },
+          {
+            "name": "totalLockedAmount",
+            "type": "u64"
+          },
+          {
+            "name": "totalYieldDistributed",
+            "type": "u64"
+          },
+          {
+            "name": "lastUpdated",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "initializeRewardPoolParams",
       "type": {
         "kind": "struct",
@@ -4381,6 +5297,26 @@ export type SnakeContract = {
           {
             "name": "burnPenaltyRate",
             "type": "u64"
+          },
+          {
+            "name": "fixedPrice",
+            "type": "u64"
+          },
+          {
+            "name": "maxOtcLimit",
+            "type": "u64"
+          },
+          {
+            "name": "sellerExited",
+            "type": "bool"
+          },
+          {
+            "name": "cooldownPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "listingActiveAt",
+            "type": "i64"
           },
           {
             "name": "bump",
@@ -4835,6 +5771,70 @@ export type SnakeContract = {
       }
     },
     {
+      "name": "stakingAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "lock"
+          },
+          {
+            "name": "unlock"
+          },
+          {
+            "name": "yieldClaim"
+          },
+          {
+            "name": "roleChange"
+          }
+        ]
+      }
+    },
+    {
+      "name": "stakingHistoryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "stakingAction"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "role",
+            "type": {
+              "defined": {
+                "name": "userRole"
+              }
+            }
+          },
+          {
+            "name": "lockDurationMonths",
+            "type": "u8"
+          },
+          {
+            "name": "yieldAmount",
+            "type": "u64"
+          },
+          {
+            "name": "additionalData",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
       "name": "swapCancelled",
       "type": {
         "kind": "struct",
@@ -5080,6 +6080,14 @@ export type SnakeContract = {
             "type": "pubkey"
           },
           {
+            "name": "claimableAmount",
+            "type": "u64"
+          },
+          {
+            "name": "burnAmount",
+            "type": "u64"
+          },
+          {
             "name": "lastClaimTimestamp",
             "type": "i64"
           },
@@ -5195,6 +6203,56 @@ export type SnakeContract = {
           },
           {
             "name": "patron"
+          }
+        ]
+      }
+    },
+    {
+      "name": "userStakingHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "totalEntries",
+            "type": "u32"
+          },
+          {
+            "name": "totalLocked",
+            "type": "u64"
+          },
+          {
+            "name": "totalUnlocked",
+            "type": "u64"
+          },
+          {
+            "name": "totalYieldClaimed",
+            "type": "u64"
+          },
+          {
+            "name": "firstStakeTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "lastActivityTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "entries",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "stakingHistoryEntry"
+                }
+              }
+            }
           }
         ]
       }
@@ -5425,19 +6483,13 @@ export type SnakeContract = {
         "kind": "enum",
         "variants": [
           {
-            "name": "normalToPatron"
+            "name": "exiterToPatron"
           },
           {
-            "name": "normalToStaker"
+            "name": "exiterToTreasury"
           },
           {
             "name": "patronToPatron"
-          },
-          {
-            "name": "treasuryBuyback"
-          },
-          {
-            "name": "anyToAny"
           }
         ]
       }
@@ -5448,19 +6500,13 @@ export type SnakeContract = {
         "kind": "enum",
         "variants": [
           {
-            "name": "normalToPatron"
+            "name": "exiterToPatron"
           },
           {
-            "name": "normalToStaker"
+            "name": "exiterToTreasury"
           },
           {
             "name": "patronToPatron"
-          },
-          {
-            "name": "treasuryBuyback"
-          },
-          {
-            "name": "anyToAny"
           }
         ]
       }

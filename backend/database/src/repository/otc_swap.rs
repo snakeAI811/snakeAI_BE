@@ -604,12 +604,7 @@ impl OtcSwapRepository {
         
         let row = query!(
             r#"
-            SELECT 
-                id, seller_id, buyer_id, seller_wallet, buyer_wallet,
-                otc_swap_pda, token_amount, sol_rate, buyer_rebate,
-                swap_type, buyer_role_required, status,
-                initiate_tx_signature, accept_tx_signature, cancel_tx_signature,
-                created_at, updated_at, completed_at, cancelled_at, expires_at
+            SELECT  *
             FROM otc_swaps 
             WHERE seller_wallet = $1 AND status = 'active'
             ORDER BY created_at DESC

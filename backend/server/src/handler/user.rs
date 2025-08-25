@@ -16,7 +16,7 @@ use axum::{
 use base64::{Engine, engine};
 use serde_json::{json, Value};
 use types::{
-    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse, InitiateOtcSwapRequest, AcceptOtcSwapRequest},
+    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
@@ -45,7 +45,13 @@ pub struct PatronEligibilityRequest {
 
 // Import constants from smart contract
 use snake_contract::constants::{
-    PATRON_MIN_TOKEN_AMOUNT, PATRON_MIN_WALLET_AGE_DAYS, PATRON_MIN_STAKING_MONTHS, STAKER_MIN_STAKING_MONTHS, LAMPORTS_PER_SNK
+    REWARD_POOL_SEED,
+    USER_CLAIM_SEED,
+    VESTING_SEED,
+    PATRON_MIN_TOKEN_AMOUNT, 
+    PATRON_MIN_WALLET_AGE_DAYS, 
+    PATRON_MIN_STAKING_MONTHS, 
+    LAMPORTS_PER_SNK
 };
 
 #[derive(Deserialize)]
@@ -57,53 +63,6 @@ pub struct UpdateLockDetailsRequest {
 #[derive(Deserialize)]
 pub struct SetWalletAddressForUserRequest {
     pub wallet_address: String,
-}
-
-async fn initialize_user_claim_if_needed(
-    wallet: Pubkey,
-    state: &AppState,
-    admin: &Keypair,
-) -> Result<(), ApiError> {
-    let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_ref()],
-        &state.program.id(),
-    );
-
-    // Skip if already initialized
-    if state.program.rpc().get_account(&user_claim).is_ok() {
-        return Ok(());
-    }
-
-    let ix = Instruction {
-        program_id: state.program.id(),
-        accounts: snake_contract::accounts::InitializeUserClaim {
-            user: wallet,
-            user_claim,
-            system_program: system_program::ID,
-        }
-        .to_account_metas(None),
-        data: snake_contract::instruction::InitializeUserClaim {}.data(),
-    };
-
-    let latest_blockhash = state
-        .program
-        .rpc()
-        .get_latest_blockhash()
-        .map_err(|err| ApiError::InternalServerError(err.to_string()))?;
-
-    // ✅ Use admin as fee payer
-    let message = Message::new(&[ix], Some(&admin.pubkey())); // ✅ admin is payer
-    let mut tx = Transaction::new_unsigned(message);
-    tx.partial_sign(&[admin], latest_blockhash);    
-
-    // Send transaction to chain
-    state
-        .program
-        .rpc()
-        .send_and_confirm_transaction(&tx)
-        .map_err(|err| ApiError::InternalServerError(err.to_string()))?;
-
-    Ok(())
 }
 
 pub async fn token_validation(Extension(_): Extension<User>) -> Result<Json<bool>, ApiError> {
@@ -435,9 +394,6 @@ pub async fn get_tweets(
     Ok(Json(tweets))
 }
 
-const REWARD_POOL_SEED: &[u8] = b"reward_pool";
-const USER_CLAIM_SEED: &[u8] = b"user_claim";
-
 // Get token information for the user
 pub async fn get_token_info(
     Extension(user): Extension<User>,
@@ -525,7 +481,7 @@ pub async fn get_token_info(
                             .unwrap()
                             .as_secs() as i64;
 
-                        println!("UserClaim deserialized successfully - locked_amount: {}, lock_end: {}, role: {}, APY: {}%, current_time: {}",  
+                        log::debug!("UserClaim deserialized successfully - locked_amount: {}, lock_end: {}, role: {}, APY: {}%, current_time: {}",  
                                 user_claim_data.locked_amount, user_claim_data.lock_end_timestamp, role_str, apy_rate, current_time);
 
                         // ✅ FIXED: Use backend-compatible yield calculation
@@ -535,11 +491,11 @@ pub async fn get_token_info(
                             
                             // Use the new backend-compatible method
                             let calculated_yield = user_claim_data.calculate_yield_backend(current_time);
-                            println!("Calculated yield rewards: {} for role: {} ({}% APY)",  
+                            log::debug!("Calculated yield rewards: {} for role: {} ({}% APY)",  
                                     calculated_yield, role_str, apy_rate);
                             calculated_yield
                         } else { 
-                            println!("No yield rewards - role: {}, locked: {}, current_time: {}, lock_end: {}",  
+                            log::debug!("No yield rewards - role: {}, locked: {}, current_time: {}, lock_end: {}",  
                                     role_str, user_claim_data.locked_amount, current_time, user_claim_data.lock_end_timestamp); 
                             0 
                         };
@@ -666,39 +622,6 @@ pub async fn get_patron_application_status(
     })))
 }
 
-// Get active OTC swaps
-pub async fn get_active_swaps(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-    Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<types::dto::ActiveSwapsResponse>, ApiError> {
-    let page = params.get("page")
-        .and_then(|p| p.parse::<i32>().ok())
-        .unwrap_or(1);
-    let per_page = params.get("per_page")
-        .and_then(|p| p.parse::<i32>().ok())
-        .unwrap_or(20)
-        .min(100); // Cap at 100 per page
-
-    let user_role = user.role.as_deref().unwrap_or("none");
-    
-    match state.service.otc_swap.get_active_swaps(user_role, page, per_page).await {
-        Ok(response) => Ok(Json(response)),
-        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
-    }
-}
-
-// Get user's OTC swaps
-pub async fn get_my_swaps(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-) -> Result<Json<types::dto::MySwapsResponse>, ApiError> {
-    match state.service.otc_swap.get_user_swaps(&user).await {
-        Ok(response) => Ok(Json(response)),
-        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
-    }
-}
-
 // Get vesting information
 pub async fn get_vesting_info(
     Extension(user): Extension<User>,
@@ -818,13 +741,6 @@ pub struct VestingRequest {
     pub role_type: String, // "staker", "patron"
 }
 
-// OTC swap request structs are now imported from types::dto
-
-// const PATRON_APPLICATION_SEED: &[u8] = b"patron_application";
-// const TOKEN_LOCK_SEED: &[u8] = b"token_lock";
-const VESTING_SEED: &[u8] = b"vesting";
-const OTC_SWAP_SEED: &[u8] = b"otc_swap";
-// const ESCROW_SEED: &[u8] = b"escrow";
 
 /// Select user role (None, Staker, Patron)
 pub async fn select_role_tx(
@@ -852,7 +768,7 @@ pub async fn select_role_tx(
 
     // Check if user_claim account exists, if not, add initialization instruction
     if state.program.rpc().get_account(&user_claim).is_err() {
-        println!("User claim account not found for wallet: {}, adding initialization instruction", wallet);
+        log::debug!("User claim account not found for wallet: {}, adding initialization instruction", wallet);
         let init_ix = Instruction {
             program_id: state.program.id(),
             accounts: snake_contract::accounts::InitializeUserClaim {
@@ -865,7 +781,7 @@ pub async fn select_role_tx(
         };
         instructions.push(init_ix);
     } else {
-        println!("User claim account already exists for wallet: {}", wallet);
+        log::debug!("User claim account already exists for wallet: {}", wallet);
     }
 
     // Add select role instruction
@@ -995,11 +911,11 @@ pub async fn save_role_selection(
     // Update user role in database using the service
     match state.service.user.update_role(&user.id, role).await {
         Ok(_) => {
-            println!("✅ Role saved to database: {} for user {}", role, user.id);
+            log::debug!("✅ Role saved to database: {} for user {}", role, user.id);
             Ok(Json("Role saved successfully".to_string()))
         }
         Err(err) => {
-            eprintln!("❌ Failed to save role to database: {}", err);
+            log::debug!("❌ Failed to save role to database: {}", err);
             Err(ApiError::InternalServerError(format!("Failed to save role to database: {}", err)))
         }
     }
@@ -1323,68 +1239,6 @@ pub async fn claim_tweet_reward_tx(
     Ok(Json(serde_json::json!(base64_tx))) 
 }
 
-
-
-/// Start tweet mining - fetch user's tweets from Twitter and store them
-// pub async fn start_tweet_mining(
-//     Extension(user): Extension<User>,
-//     State(state): State<AppState>,
-// ) -> Result<Json<Value>, ApiError> {
-//     if user.twitter_username.is_none() {
-//         return Err(ApiError::BadRequest("Twitter authentication required".to_string()));
-//     }
-
-//     let twitter_username = user.twitter_username.as_ref().unwrap();
-//     let mut tweets_found = 0;
-//     let mut new_tweets = 0;
-
-//     // Simulate fetching tweets from Twitter API
-//     // In a real implementation, this would call Twitter API
-//     let mock_tweets = vec![
-//         format!("Just discovered @SnakeAI - the future of AI gaming! 🐍🚀 #MineTheSnake #AI #Gaming"),
-//         format!("Mining some serious tokens with SnakeAI! Who else is joining the revolution? 🐍⚡ #SnakeAI #Crypto"),
-//         format!("The SnakeAI ecosystem is growing fast! Love the community 💪 #MineTheSnake #Blockchain"),
-//         format!("SnakeAI is changing the game! 🎮🐍 #SnakeAI #Innovation #Web3"),
-//         format!("Earned my first tokens on SnakeAI! This platform is amazing 🔥 #MineTheSnake #Rewards"),
-//     ];
-
-//     for (index, content) in mock_tweets.iter().enumerate() {
-//         let tweet_id = format!("{}_{}", chrono::Utc::now().timestamp(), index);
-//         let created_at = chrono::Utc::now() - chrono::Duration::hours(index as i64);
-        
-//         // Check if tweet already exists
-//         let existing_tweets = state
-//             .service
-//             .tweet
-//             .get_tweets(&Some(user.id), Some(0), Some(1000))
-//             .await?;
-        
-//         let tweet_exists = existing_tweets
-//             .iter()
-//             .any(|t| t.tweet_id == tweet_id);
-        
-//         if !tweet_exists {
-//             // Insert new tweet
-//             let tweet
-//             let _reward = state
-//                 .service
-//                 .reward
-//                 .insert_reward_with_phase(&user.id, &tweet.id, 2)
-//                 .await?;
-            
-//             new_tweets += 1;
-//         }
-        
-//         tweets_found += 1;
-//     }
-
-//     Ok(Json(json!({
-//         "tweets_found": tweets_found,
-//         "new_tweets": new_tweets,
-//         "status": "success",
-//         "message": format!("Found {} tweets, {} are new", tweets_found, new_tweets)
-//     })))
-// }
 
 /// Apply for patron status
 pub async fn apply_patron_tx(
@@ -1946,311 +1800,4 @@ pub async fn withdraw_vesting_tx(
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
-}
-
-/// Initiate OTC swap
-pub async fn initiate_otc_swap_tx(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-    Json(payload): Json<InitiateOtcSwapRequest>,
-) -> Result<Json<String>, ApiError> {
-    let wallet = user.wallet()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
-    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
-    let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_ref()],
-        &state.program.id(),
-    );
-    // Derive otc_swap PDA using only the expected seeds
-    let (otc_swap, _) = Pubkey::find_program_address(
-        &[OTC_SWAP_SEED, wallet.as_ref()],
-        &state.program.id(),
-    );
-    
-    // Validate payload
-    if payload.token_amount == 0 {
-        return Err(ApiError::BadRequest("Token amount must be greater than 0".to_string()));
-    }
-    if payload.sol_rate == 0 {
-        return Err(ApiError::BadRequest("SOL rate must be greater than 0".to_string()));
-    }
-    
-    // Convert role string to enum
-    let _buyer_role_required = match payload.buyer_role_required.as_str() {
-        "none" => snake_contract::state::UserRole::None,
-        "staker" => snake_contract::state::UserRole::Staker,
-        "patron" => snake_contract::state::UserRole::Patron,
-        _ => return Err(ApiError::BadRequest("Invalid buyer role".to_string())),
-    };
-    
-    let instructions = match state
-        .program
-        .request()
-        .accounts(snake_contract::accounts::InitiateOtcSwapEnhanced {
-            seller: wallet,
-            seller_claim: user_claim,
-            otc_swap,
-            seller_token_account: seller_token_ata,
-            token_program: spl_token::ID,
-            system_program: system_program::ID,
-        })
-        .args(snake_contract::instruction::InitiateOtcSwapEnhanced {
-            token_amount: payload.token_amount,
-            sol_rate: payload.sol_rate,
-            buyer_rebate: payload.buyer_rebate,
-            swap_type: snake_contract::instructions::otc_swap_enhanced::SwapType::ExiterToPatron,
-        })
-        .instructions()
-    {
-        Ok(ixs) => ixs,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-    
-    let latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-        Ok(latest_blockhash) => latest_blockhash,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-    
-    let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.message.recent_blockhash = latest_blockhash;    
-    
-    // Check if user already has an active swap and cancel it first
-    let wallet_str = user.wallet_address
-        .as_ref()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-    
-    // Force cancel any existing active swaps in database first
-    match state.service.otc_swap.force_cancel_swap_by_wallet(wallet_str).await {
-        Ok(Some(_)) => {
-            eprintln!("Auto-cancelled existing swap for wallet: {}", wallet_str);
-        },
-        Ok(None) => {
-            // No existing swap to cancel
-        },
-        Err(err) => {
-            eprintln!("Warning: Failed to auto-cancel existing swap: {}", err);
-        }
-    }
-
-    // Create database record (will be updated with tx signature after user signs)
-    let otc_swap_pda = otc_swap.to_string();
-    match state.service.otc_swap.create_swap(&user, &payload, otc_swap_pda, None).await {
-        Ok(_) => {
-            // Successfully created database record
-        },
-        Err(err) => {
-            // Log error but don't fail the transaction creation
-            eprintln!("Failed to create OTC swap database record: {}", err);
-        }
-    }
-    
-    let serialized_transaction = bincode::serialize(&transaction).unwrap();
-    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
-    Ok(Json(base64_transaction))
-}
-
-/// Accept OTC swap
-pub async fn accept_otc_swap_tx(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-    Json(payload): Json<AcceptOtcSwapRequest>,
-) -> Result<Json<String>, ApiError> {
-    let wallet = user.wallet()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
-    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
-    let seller_pubkey = Pubkey::from_str(&payload.seller_pubkey)
-        .map_err(|_| ApiError::BadRequest("Invalid seller pubkey".to_string()))?;
-    
-    // Check if the swap exists and can be accepted by this user
-    match state.service.otc_swap.accept_swap(&user, &payload.seller_pubkey, None).await {
-        Ok(_) => {
-            // Successfully validated and prepared database update
-        },
-        Err(err) => {
-            return Err(ApiError::BadRequest(format!("Cannot accept swap: {}", err)));
-        }
-    }
-    
-    let buyer_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
-    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&seller_pubkey, &mint);
-    let (buyer_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
-        &state.program.id(),
-    );
-    let (otc_swap, _) = Pubkey::find_program_address(
-        &[OTC_SWAP_SEED, seller_pubkey.as_array()],
-        &state.program.id(),
-    );
-    let (treasury, _) = Pubkey::find_program_address(
-        &[b"treasury"],
-        &state.program.id(),
-    );
-
-    let (seller_claim, _) = Pubkey::find_program_address(
-        &[b"user_claim", seller_pubkey.as_array()],
-        &state.program.id(),
-    );
-
-    let instructions = match state
-        .program
-        .request()
-        .accounts(snake_contract::accounts::AcceptOtcSwap {
-            buyer: wallet,
-            buyer_claim,
-            seller: seller_pubkey,
-            seller_claim,
-            otc_swap,
-            seller_token_account: seller_token_ata,
-            buyer_token_account: buyer_token_ata,
-            treasury,
-            token_mint: mint,
-            token_program: spl_token::ID,
-            system_program: system_program::ID,
-        })
-        .args(snake_contract::instruction::AcceptOtcSwap {})
-        .instructions()
-    {
-        Ok(ixs) => ixs,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-
-    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-        Ok(latest_blockhash) => latest_blockhash,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-
-    let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], _latest_blockhash);
-    
-    let serialized_transaction = bincode::serialize(&transaction).unwrap();
-    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
-
-    Ok(Json(base64_transaction))
-}
-
-/// Cancel OTC swap
-pub async fn cancel_otc_swap_tx(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-) -> Result<Json<String>, ApiError> {
-    let wallet = user.wallet()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-
-    // Check if user has an active swap to cancel
-    match state.service.otc_swap.cancel_swap(&user, None).await {
-        Ok(_) => {
-            // Successfully validated and prepared database update
-        },
-        Err(err) => {
-            return Err(ApiError::BadRequest(format!("Cannot cancel swap: {}", err)));
-        }
-    }
-
-    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
-    let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
-    let seller_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
-    let (otc_swap, _) = Pubkey::find_program_address(
-        &[OTC_SWAP_SEED, wallet.as_array()],
-        &state.program.id(),
-    );
-
-    let instructions = match state
-        .program
-        .request()
-        .accounts(snake_contract::accounts::CancelOtcSwap {
-            seller: wallet,
-            otc_swap,
-            seller_token_account: seller_token_ata,
-            token_program: spl_token::ID,
-        })
-        .args(snake_contract::instruction::CancelOtcSwap {})
-        .instructions()
-    {
-        Ok(ixs) => ixs,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-
-    let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-        Ok(latest_blockhash) => latest_blockhash,
-        Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-    };
-
-    let message = Message::new(&instructions, Some(&wallet));
-    let mut transaction = Transaction::new_unsigned(message);
-    transaction.partial_sign(&[&admin], _latest_blockhash);
-    
-    let serialized_transaction = bincode::serialize(&transaction).unwrap();
-    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
-
-    Ok(Json(base64_transaction))
-}
-
-
-
-/// Update OTC swap with transaction signature after user signs the transaction
-pub async fn update_otc_swap_tx_signature(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-    Json(payload): Json<types::dto::UpdateOtcSwapTxRequest>,
-) -> Result<Json<String>, ApiError> {
-    match state.service.otc_swap.update_swap_tx_signature(&user, payload.tx_signature).await {
-        Ok(_) => Ok(Json("Transaction signature updated successfully".to_string())),
-        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
-    }
-}
-
-/// Debug endpoint to check what swaps exist for the current user
-pub async fn debug_user_swaps(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-) -> Result<Json<Value>, ApiError> {
-    let wallet = user.wallet_address
-        .as_ref()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-
-    match state.service.otc_swap.get_all_swaps_for_wallet(wallet).await {
-        Ok(swaps) => {
-            let debug_info = json!({
-                "wallet": wallet,
-                "total_swaps": swaps.len(),
-                "swaps": swaps.iter().map(|swap_with_users| {
-                    let swap = &swap_with_users.swap;
-                    json!({
-                        "id": swap.id,
-                        "status": swap.status,
-                        "expires_at": swap.expires_at,
-                        "expired": swap.is_expired(),
-                        "has_initiate_tx_sig": swap.initiate_tx_signature.is_some(),
-                        "initiate_tx_signature": swap.initiate_tx_signature,
-                        "token_amount": swap.token_amount,
-                        "sol_rate": swap.sol_rate,
-                        "created_at": swap.created_at
-                    })
-                }).collect::<Vec<_>>()
-            });
-            Ok(Json(debug_info))
-        },
-        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
-    }
-}
-
-/// Force cancel a swap in database (for cleaning up mismatched state)
-pub async fn force_cancel_user_swap(
-    Extension(user): Extension<User>,
-    State(state): State<AppState>,
-) -> Result<Json<String>, ApiError> {
-    let wallet = user.wallet_address
-        .as_ref()
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
-
-    match state.service.otc_swap.force_cancel_swap_by_wallet(wallet).await {
-        Ok(Some(_)) => Ok(Json("Swap force cancelled successfully".to_string())),
-        Ok(None) => Ok(Json("No active swap found to cancel".to_string())),
-        Err(err) => Err(ApiError::InternalServerError(err.to_string())),
-    }
 }

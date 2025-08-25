@@ -20,11 +20,11 @@ const AuthDebug: React.FC = () => {
     }
   };
 
-  const mockLogin = async () => {
+  const mockLogin = async (id: string) => {
     try {
       setTestResult('Creating development session...');
       
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1'}/dev/login`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1'}/dev/login${id}`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -60,9 +60,14 @@ const AuthDebug: React.FC = () => {
       <p><strong>User:</strong> {user?.twitter_username || 'none'}</p>
       
       {!isAuthenticated && (
-        <button onClick={mockLogin} style={{ marginTop: '10px', backgroundColor: '#A9E000', border: 'none', padding: '5px 10px' }}>
-          Mock Login (Dev)
-        </button>
+        <>
+          <button onClick={() => mockLogin('')} style={{ marginTop: '10px', backgroundColor: '#A9E000', border: 'none', padding: '5px 10px' }}>
+            Mock Login (Dev)
+          </button>
+          <button onClick={() => mockLogin('2')} style={{ marginTop: '10px', backgroundColor: '#A9E000', border: 'none', padding: '5px 10px' }}>
+            Mock Login (Dev_2_patron)
+          </button>
+        </>
       )}
       
       <button onClick={testApiCall} style={{ marginTop: '10px', marginLeft: '5px' }}>

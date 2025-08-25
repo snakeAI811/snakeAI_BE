@@ -12,6 +12,14 @@ pub struct InitiateOtcSwapRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InitiateOtcSwapEnhancedRequest {
+    pub token_amount: u64,
+    pub sol_rate: u64,
+    pub buyer_rebate: u64,
+    pub swap_type: String, // "ExiterToPatron", "ExiterToTreasury", "PatronToPatron"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcceptOtcSwapRequest {
     pub seller_pubkey: String,
 }
@@ -23,7 +31,11 @@ pub struct CancelOtcSwapRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateOtcSwapTxRequest {
-    pub tx_signature: String,
+    pub token_amount: u64,
+    pub sol_rate: u64,
+    pub buyer_rebate: u64,
+    pub swap_type: String, // "ExiterToPatron", "ExiterToTreasury", "PatronToPatron"
+    pub txSignature: String, // base64-encoded signed transaction
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

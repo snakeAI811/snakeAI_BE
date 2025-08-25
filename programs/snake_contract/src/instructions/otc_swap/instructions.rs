@@ -20,15 +20,17 @@ use super::{
 pub struct InitiateOtcSwap<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
-    
+
+    // Auto-create on first call
     #[account(
-        mut,
-        constraint = seller_claim.initialized @ SnakeError::Unauthorized,
+        init_if_needed,
+        payer = seller,
+        space = 8 + UserClaim::INIT_SPACE,
         seeds = [b"user_claim", seller.key().as_ref()],
         bump,
     )]
     pub seller_claim: Account<'info, UserClaim>,
-    
+
     #[account(
         init_if_needed,
         payer = seller,
@@ -37,14 +39,14 @@ pub struct InitiateOtcSwap<'info> {
         bump,
     )]
     pub otc_swap: Account<'info, OtcSwap>,
-    
+
     #[account(
         mut,
         constraint = seller_token_account.owner == seller.key(),
-        constraint = seller_token_account.amount >= 0 @ SnakeError::InsufficientFunds,
+        // amount >= 0 constraint is redundant; TokenAccount.amount is u64.
     )]
     pub seller_token_account: Account<'info, TokenAccount>,
-    
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -53,15 +55,16 @@ pub struct InitiateOtcSwap<'info> {
 pub struct AcceptOtcSwap<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
-    
+
     #[account(
-        mut,
+        init_if_needed,
+        payer = buyer,
+        space = 8 + UserClaim::INIT_SPACE,
         seeds = [b"user_claim", buyer.key().as_ref()],
         bump,
-        constraint = buyer_claim.initialized @ SnakeError::Unauthorized,
     )]
     pub buyer_claim: Account<'info, UserClaim>,
-    
+
     #[account(
         mut,
         seeds = [b"otc_swap", otc_swap.seller.as_ref()],
@@ -69,7 +72,7 @@ pub struct AcceptOtcSwap<'info> {
         constraint = otc_swap.is_active @ SnakeError::SwapInactive,
     )]
     pub otc_swap: Account<'info, OtcSwap>,
-    
+
     #[account(
         mut,
         seeds = [b"user_claim", otc_swap.seller.as_ref()],
@@ -131,7 +134,7 @@ pub struct CancelOtcSwap<'info> {
         seeds = [b"otc_swap", seller.key().as_ref()],
         bump,
         constraint = otc_swap.seller == seller.key() @ SnakeError::Unauthorized,
-        constraint = otc_swap.is_active @ SnakeError::SwapInactive,
+        // allow cancel during cooldown; active check moved to handler
     )]
     pub otc_swap: Account<'info, OtcSwap>,
     
@@ -148,18 +151,16 @@ pub fn initiate_swap(
     swap_type: SwapType,
 ) -> Result<()> {
     let current_time = Clock::get()?.unix_timestamp;
-    
-    // Validate parameters
+
+    // If just created, mark claim initialized
+    if !ctx.accounts.seller_claim.initialized {
+        // FIXED: Only pass the user key, not the bump
+        ctx.accounts.seller_claim.init(ctx.accounts.seller.key());
+    }
+
     OtcSwapValidation::validate_swap_params(token_amount, sol_rate, buyer_rebate)?;
-    
-    // Validate seller eligibility
-    OtcSwapValidation::validate_seller_eligibility(
-        &ctx.accounts.seller_claim,
-        &swap_type,
-        current_time,
-    )?;
-    
-    // Initialize swap directly
+    OtcSwapValidation::validate_seller_eligibility(&ctx.accounts.seller_claim, &swap_type, current_time)?;
+
     OtcSwapCore::initialize_swap(
         &mut ctx.accounts.otc_swap,
         ctx.accounts.seller.key(),
@@ -168,10 +169,9 @@ pub fn initiate_swap(
         buyer_rebate,
         swap_type.clone(),
         current_time,
-        ctx.bumps.otc_swap,
+        ctx.bumps.otc_swap, // FIXED: Direct field access instead of .get()
     )?;
-    
-    // Emit event
+
     OtcSwapEvents::emit_swap_initiated(
         ctx.accounts.seller.key(),
         swap_type,
@@ -180,7 +180,6 @@ pub fn initiate_swap(
         ctx.accounts.otc_swap.key(),
         buyer_rebate,
     );
-    
     Ok(())
 }
 
@@ -189,6 +188,12 @@ pub fn accept_swap(
     buyer_rebate: u64,
 ) -> Result<()> {
     let current_time = Clock::get()?.unix_timestamp;
+    
+    // Initialize buyer claim if needed
+    if !ctx.accounts.buyer_claim.initialized {
+        // FIXED: Only pass the user key, not the bump
+        ctx.accounts.buyer_claim.init(ctx.accounts.buyer.key());
+    }
     
     // Validate buyer eligibility
     OtcSwapValidation::validate_buyer_eligibility(
@@ -217,6 +222,7 @@ pub fn accept_swap(
         &ctx.accounts.mint,
         &ctx.accounts.reward_pool.to_account_info(),
         &ctx.accounts.token_program,
+        // FIXED: Use direct field access for reward_pool bump
         &[&[b"reward_pool", &[ctx.bumps.reward_pool]]],
         &mut ctx.accounts.daily_volume_tracker,
         current_time,
@@ -236,15 +242,23 @@ pub fn accept_swap(
 }
 
 pub fn cancel_swap(ctx: Context<CancelOtcSwap>) -> Result<()> {
-    // Cancel the swap
-    ctx.accounts.otc_swap.is_active = false;
-    
-    // Emit cancellation event
-    OtcSwapEvents::emit_swap_cancelled(
-        ctx.accounts.seller.key(),
-        ctx.accounts.otc_swap.key(),
-    );
-    
+    let otc = &mut ctx.accounts.otc_swap;
+
+    // Cannot cancel after acceptance/completion
+    require!(otc.buyer.is_none(), SnakeError::SwapAlreadyAccepted);
+
+    if !otc.is_active {
+        // Already inactive (cooldown and not activated yet, or already canceled)
+        // Make cancel idempotent for better UX across all swap types
+        return Ok(());
+    }
+
+    // Cancel active swap
+    otc.is_active = false;
+
+    // Emit cancellation event once upon actual state change
+    OtcSwapEvents::emit_swap_cancelled(ctx.accounts.seller.key(), otc.key());
+
     Ok(())
 }
 

@@ -57,6 +57,33 @@
           "writable": true
         },
         {
+          "name": "seller_claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
           "name": "otc_swap",
           "writable": true,
           "pda": {
@@ -109,6 +136,10 @@
               }
             ]
           }
+        },
+        {
+          "name": "token_mint",
+          "writable": true
         },
         {
           "name": "token_program",
@@ -995,14 +1026,101 @@
           }
         },
         {
-          "name": "user_token_ata",
+          "name": "claim_receipt",
           "writable": true
         },
         {
+          "name": "user_token_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
           "name": "reward_pool_pda",
-          "docs": [
-            "Reward Pool PDA that has authority over the treasury token account"
-          ],
           "pda": {
             "seeds": [
               {
@@ -1026,9 +1144,6 @@
         },
         {
           "name": "treasury_token_account",
-          "docs": [
-            "Treasury token account owned by the reward pool PDA"
-          ],
           "writable": true
         },
         {
@@ -1038,6 +1153,14 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -1052,6 +1175,10 @@
               "name": "UserRole"
             }
           }
+        },
+        {
+          "name": "tweet_id",
+          "type": "string"
         }
       ]
     },
@@ -1195,7 +1322,7 @@
         {
           "name": "reward_pool_pda",
           "docs": [
-            "Reward Pool PDA that has minting authority"
+            "Reward Pool PDA"
           ],
           "pda": {
             "seeds": [
@@ -1219,8 +1346,95 @@
           }
         },
         {
+          "name": "treasury",
+          "docs": [
+            "Treasury token account owned by reward pool PDA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "user_staking_history",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_staking_stats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -1521,6 +1735,57 @@
       "args": []
     },
     {
+      "name": "get_global_staking_stats",
+      "discriminator": [
+        252,
+        88,
+        46,
+        250,
+        9,
+        67,
+        196,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "global_staking_stats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "get_swap_stats",
       "discriminator": [
         186,
@@ -1554,6 +1819,65 @@
                   107,
                   101,
                   114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "get_user_staking_summary",
+      "discriminator": [
+        223,
+        49,
+        206,
+        85,
+        252,
+        80,
+        13,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "user_staking_history",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
                 ]
               },
               {
@@ -1628,6 +1952,67 @@
           "type": "i64"
         }
       ]
+    },
+    {
+      "name": "initialize_global_stats",
+      "discriminator": [
+        57,
+        82,
+        52,
+        126,
+        182,
+        236,
+        5,
+        131
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_staking_stats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "initialize_reward_pool",
@@ -1879,6 +2264,71 @@
       ]
     },
     {
+      "name": "initialize_staking_history",
+      "discriminator": [
+        102,
+        254,
+        212,
+        144,
+        216,
+        14,
+        203,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_staking_history",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize_user_claim",
       "discriminator": [
         14,
@@ -1929,112 +2379,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "initiate_otc_swap",
-      "discriminator": [
-        40,
-        188,
-        38,
-        130,
-        222,
-        149,
-        139,
-        95
-      ],
-      "accounts": [
-        {
-          "name": "seller",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "seller_claim",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  108,
-                  97,
-                  105,
-                  109
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "seller"
-              }
-            ]
-          }
-        },
-        {
-          "name": "otc_swap",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  111,
-                  116,
-                  99,
-                  95,
-                  115,
-                  119,
-                  97,
-                  112
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "seller"
-              }
-            ]
-          }
-        },
-        {
-          "name": "seller_token_account",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "rate",
-          "type": "u64"
-        },
-        {
-          "name": "buyer_rebate",
-          "type": "u64"
-        },
-        {
-          "name": "buyer_role_required",
-          "type": {
-            "defined": {
-              "name": "UserRole"
-            }
-          }
-        }
-      ]
     },
     {
       "name": "initiate_otc_swap_enhanced",
@@ -2225,8 +2569,88 @@
           "writable": true
         },
         {
+          "name": "user_staking_history",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_staking_stats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -2779,75 +3203,6 @@
       ]
     },
     {
-      "name": "sellback_to_project",
-      "discriminator": [
-        253,
-        39,
-        219,
-        66,
-        95,
-        68,
-        104,
-        161
-      ],
-      "accounts": [
-        {
-          "name": "patron",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "patron_token_account",
-          "writable": true
-        },
-        {
-          "name": "treasury_token_account",
-          "writable": true
-        },
-        {
-          "name": "mint",
-          "writable": true
-        },
-        {
-          "name": "user_claim",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  108,
-                  97,
-                  105,
-                  109
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "patron"
-              }
-            ]
-          }
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "simulate_burn_on_exit",
       "discriminator": [
         125,
@@ -3104,8 +3459,88 @@
           "writable": true
         },
         {
+          "name": "user_staking_history",
+          "docs": [
+            "User staking history PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_staking_stats",
+          "docs": [
+            "Global staking stats PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  107,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -3166,9 +3601,108 @@
           }
         }
       ]
+    },
+    {
+      "name": "update_user_stats",
+      "docs": [
+        "Update user statistics for patron qualification"
+      ],
+      "discriminator": [
+        182,
+        105,
+        179,
+        64,
+        228,
+        226,
+        150,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "reward_pool",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "user_claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateUserStatsParams"
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "ClaimReceipt",
+      "discriminator": [
+        223,
+        233,
+        11,
+        229,
+        124,
+        165,
+        207,
+        28
+      ]
+    },
     {
       "name": "DAORegistry",
       "discriminator": [
@@ -3193,6 +3727,19 @@
         100,
         229,
         159
+      ]
+    },
+    {
+      "name": "GlobalStakingStats",
+      "discriminator": [
+        211,
+        22,
+        171,
+        98,
+        97,
+        237,
+        148,
+        125
       ]
     },
     {
@@ -3258,6 +3805,19 @@
         147,
         32,
         209
+      ]
+    },
+    {
+      "name": "UserStakingHistory",
+      "discriminator": [
+        166,
+        45,
+        215,
+        81,
+        81,
+        50,
+        38,
+        129
       ]
     },
     {
@@ -3757,43 +4317,433 @@
   "errors": [
     {
       "code": 6000,
-      "name": "SwapInactive",
-      "msg": "Swap is not active"
+      "name": "Unauthorized",
+      "msg": "[SNAKE:6000] Unauthorized owner key"
     },
     {
       "code": 6001,
-      "name": "SwapAlreadyAccepted",
-      "msg": "Swap already accepted"
+      "name": "CooldownNotPassed",
+      "msg": "[SNAKE:6001] Cooldown period not passed"
     },
     {
       "code": 6002,
-      "name": "InvalidAmount",
-      "msg": "Invalid token amount"
+      "name": "YieldClaimCooldownNotPassed",
+      "msg": "[SNAKE:6002] Yield claim cooldown period not passed"
     },
     {
       "code": 6003,
-      "name": "InvalidRate",
-      "msg": "Invalid SOL rate"
+      "name": "InsufficientFundsInTreasury",
+      "msg": "[SNAKE:6003] Insufficient funds in treasury"
     },
     {
       "code": 6004,
-      "name": "InvalidRebate",
-      "msg": "Invalid rebate percentage"
+      "name": "InsufficientFunds",
+      "msg": "[SNAKE:6004] Insufficient funds"
     },
     {
       "code": 6005,
-      "name": "InsufficientFunds",
-      "msg": "Insufficient funds"
+      "name": "InvalidTreasuryAuthority",
+      "msg": "[SNAKE:6005] Invalid treasury authority"
     },
     {
       "code": 6006,
-      "name": "MathOverflow",
-      "msg": "Math overflow"
+      "name": "ArithmeticOverflow",
+      "msg": "[SNAKE:6006] Arithmetic overflow occurred"
     },
     {
       "code": 6007,
+      "name": "EndedClaim",
+      "msg": "[SNAKE:6007] Claim is ended"
+    },
+    {
+      "code": 6008,
+      "name": "PatronApplicationExists",
+      "msg": "[SNAKE:6008] Patron application already exists"
+    },
+    {
+      "code": 6009,
+      "name": "PatronNotApproved",
+      "msg": "[SNAKE:6009] Patron not approved"
+    },
+    {
+      "code": 6010,
+      "name": "PatronAlreadyApproved",
+      "msg": "[SNAKE:6010] Patron already approved"
+    },
+    {
+      "code": 6011,
+      "name": "PatronTokensLocked",
+      "msg": "[SNAKE:6011] Cannot exit as patron - tokens are locked"
+    },
+    {
+      "code": 6012,
+      "name": "OnlyApprovedPatrons",
+      "msg": "[SNAKE:6012] Only approved patrons can perform this action"
+    },
+    {
+      "code": 6013,
+      "name": "TokensLocked",
+      "msg": "[SNAKE:6013] Tokens are currently locked"
+    },
+    {
+      "code": 6014,
+      "name": "NoTokensLocked",
+      "msg": "[SNAKE:6014] No tokens locked for staking"
+    },
+    {
+      "code": 6015,
+      "name": "LockPeriodNotCompleted",
+      "msg": "[SNAKE:6015] Lock period not completed"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidLockDuration",
+      "msg": "[SNAKE:6016] Invalid lock duration"
+    },
+    {
+      "code": 6017,
+      "name": "CannotLockZeroTokens",
+      "msg": "[SNAKE:6017] Cannot lock zero tokens"
+    },
+    {
+      "code": 6018,
+      "name": "NotEligibleForDAO",
+      "msg": "[SNAKE:6018] Not eligible for DAO membership"
+    },
+    {
+      "code": 6019,
+      "name": "NoAvailableSeats",
+      "msg": "[SNAKE:6019] No available DAO seats"
+    },
+    {
+      "code": 6020,
+      "name": "NotDAOSeatHolder",
+      "msg": "[SNAKE:6020] Not a DAO seat holder"
+    },
+    {
+      "code": 6021,
+      "name": "InsufficientStakeForDAO",
+      "msg": "[SNAKE:6021] Insufficient stake for DAO eligibility"
+    },
+    {
+      "code": 6022,
+      "name": "LockDurationRequirementNotMet",
+      "msg": "[SNAKE:6022] Lock duration requirement not met for DAO"
+    },
+    {
+      "code": 6023,
+      "name": "PatronTransferRestricted",
+      "msg": "[SNAKE:6023] Patron tokens can only be transferred to other patrons"
+    },
+    {
+      "code": 6024,
+      "name": "CannotSellBeforeLockEnds",
+      "msg": "[SNAKE:6024] Cannot sell tokens before lock period ends"
+    },
+    {
+      "code": 6025,
+      "name": "EarlySaleDetected",
+      "msg": "[SNAKE:6025] Early sale detected - commitment violated"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidAmount",
+      "msg": "[SNAKE:6026] Invalid amount specified"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidRate",
+      "msg": "[SNAKE:6027] Invalid rate specified"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidRebate",
+      "msg": "[SNAKE:6028] Invalid rebate percentage"
+    },
+    {
+      "code": 6029,
+      "name": "OnlyNormalUsersCanSell",
+      "msg": "[SNAKE:6029] Only normal users can sell tokens"
+    },
+    {
+      "code": 6030,
+      "name": "OnlyPatronsCanBuy",
+      "msg": "[SNAKE:6030] Only patrons can buy in this swap"
+    },
+    {
+      "code": 6031,
+      "name": "SwapInactive",
+      "msg": "[SNAKE:6031] Swap is not active"
+    },
+    {
+      "code": 6032,
+      "name": "SwapAlreadyAccepted",
+      "msg": "[SNAKE:6032] Swap already accepted"
+    },
+    {
+      "code": 6033,
+      "name": "CannotBuyOwnSwap",
+      "msg": "[SNAKE:6033] Cannot buy your own swap"
+    },
+    {
+      "code": 6034,
+      "name": "SwapExpired",
+      "msg": "[SNAKE:6034] Swap has expired"
+    },
+    {
+      "code": 6035,
+      "name": "SwapNotExpired",
+      "msg": "[SNAKE:6035] Swap has not expired yet"
+    },
+    {
+      "code": 6036,
+      "name": "InvalidSwapType",
+      "msg": "[SNAKE:6036] Invalid swap type"
+    },
+    {
+      "code": 6037,
+      "name": "TreasuryFallbackNotAllowed",
+      "msg": "[SNAKE:6037] Treasury fallback not allowed for this swap"
+    },
+    {
+      "code": 6038,
+      "name": "MathOverflow",
+      "msg": "[SNAKE:6038] Math overflow occurred"
+    },
+    {
+      "code": 6039,
+      "name": "OnlyExitersCanSell",
+      "msg": "[SNAKE:6039] Only exiters (None role) can sell in Phase 1"
+    },
+    {
+      "code": 6040,
+      "name": "TokensStillLocked",
+      "msg": "[SNAKE:6040] Tokens are still locked and cannot be sold"
+    },
+    {
+      "code": 6041,
+      "name": "PatronAlreadyExited",
+      "msg": "[SNAKE:6041] Patron has already been marked as exited"
+    },
+    {
+      "code": 6042,
+      "name": "ListingNotActive",
+      "msg": "[SNAKE:6042] Listing is not active yet (cooldown period)"
+    },
+    {
+      "code": 6043,
+      "name": "MaxOTCLimitExceeded",
+      "msg": "[SNAKE:6043] Maximum OTC limit exceeded"
+    },
+    {
+      "code": 6044,
+      "name": "OnlyTreasuryCanBuy",
+      "msg": "[SNAKE:6044] Only treasury can buy in this swap"
+    },
+    {
+      "code": 6045,
+      "name": "GovernanceNotActive",
+      "msg": "[SNAKE:6045] Governance is not active"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidProposalTitle",
+      "msg": "[SNAKE:6046] Invalid proposal title"
+    },
+    {
+      "code": 6047,
+      "name": "InvalidProposalDescription",
+      "msg": "[SNAKE:6047] Invalid proposal description"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidProposal",
+      "msg": "[SNAKE:6048] Invalid proposal"
+    },
+    {
+      "code": 6049,
+      "name": "ProposalNotActive",
+      "msg": "[SNAKE:6049] Proposal is not active"
+    },
+    {
+      "code": 6050,
+      "name": "ProposalNotPassed",
+      "msg": "[SNAKE:6050] Proposal has not passed"
+    },
+    {
+      "code": 6051,
+      "name": "VotingPeriodEnded",
+      "msg": "[SNAKE:6051] Voting period has ended"
+    },
+    {
+      "code": 6052,
+      "name": "VotingPeriodNotEnded",
+      "msg": "[SNAKE:6052] Voting period has not ended"
+    },
+    {
+      "code": 6053,
+      "name": "CannotCancelProposal",
+      "msg": "[SNAKE:6053] Cannot cancel proposal with votes"
+    },
+    {
+      "code": 6054,
+      "name": "AlreadyVoted",
+      "msg": "[SNAKE:6054] Already voted on this proposal"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidRoleTransition",
+      "msg": "[SNAKE:6055] Invalid role transition"
+    },
+    {
+      "code": 6056,
+      "name": "InsufficientQualificationScore",
+      "msg": "[SNAKE:6056] Insufficient qualification score for patron"
+    },
+    {
+      "code": 6057,
+      "name": "NoMiningHistory",
+      "msg": "[SNAKE:6057] No mining history - user must mine tokens in Phase 1"
+    },
+    {
+      "code": 6058,
+      "name": "VestingNotUnlocked",
+      "msg": "[SNAKE:6058] Vesting not unlocked yet"
+    },
+    {
+      "code": 6059,
+      "name": "VestingAlreadyWithdrawn",
+      "msg": "[SNAKE:6059] Vesting already withdrawn"
+    },
+    {
+      "code": 6060,
+      "name": "SwapNotActive",
+      "msg": "[SNAKE:6060] Swap is not active"
+    },
+    {
+      "code": 6061,
+      "name": "NotWhitelistedBuyer",
+      "msg": "[SNAKE:6061] Not whitelisted for this swap"
+    },
+    {
+      "code": 6062,
+      "name": "InsufficientRole",
+      "msg": "[SNAKE:6062] Insufficient role for this swap"
+    },
+    {
+      "code": 6063,
+      "name": "OnlyPatrons",
+      "msg": "[SNAKE:6063] Only patrons can perform this action"
+    },
+    {
+      "code": 6064,
+      "name": "NoExitToTrack",
+      "msg": "[SNAKE:6064] No exit to track"
+    },
+    {
+      "code": 6065,
+      "name": "OnlyPatronsCanSell",
+      "msg": "[SNAKE:6065] Only patrons can sell in this swap type"
+    },
+    {
+      "code": 6066,
+      "name": "NotEligibleForOTC",
+      "msg": "[SNAKE:6066] Not eligible for OTC trading"
+    },
+    {
+      "code": 6067,
+      "name": "PatronOnlyOrder",
+      "msg": "[SNAKE:6067] Order is for patrons only"
+    },
+    {
+      "code": 6068,
+      "name": "TreasuryOnlyOrder",
+      "msg": "[SNAKE:6068] Order is for treasury only"
+    },
+    {
+      "code": 6069,
+      "name": "InsufficientPatronScore",
+      "msg": "[SNAKE:6069] Insufficient patron score"
+    },
+    {
+      "code": 6070,
+      "name": "OrderNotActive",
+      "msg": "[SNAKE:6070] Order is not active"
+    },
+    {
+      "code": 6071,
       "name": "InvalidRole",
-      "msg": "Invalid role for this operation"
+      "msg": "[SNAKE:6071] Invalid role for this action"
+    },
+    {
+      "code": 6072,
+      "name": "NotApprovedPatron",
+      "msg": "[SNAKE:6072] Not approved patron"
+    },
+    {
+      "code": 6073,
+      "name": "PatronSoldEarly",
+      "msg": "[SNAKE:6073] Patron sold early"
+    },
+    {
+      "code": 6074,
+      "name": "VestingNotActive",
+      "msg": "[SNAKE:6074] Vesting is not active"
+    },
+    {
+      "code": 6075,
+      "name": "NothingToClaim",
+      "msg": "[SNAKE:6075] Nothing to claim"
+    },
+    {
+      "code": 6076,
+      "name": "Month6NotReached",
+      "msg": "[SNAKE:6076] Month 6 milestone not reached"
+    },
+    {
+      "code": 6077,
+      "name": "MaxSeatsReached",
+      "msg": "[SNAKE:6077] Maximum DAO seats reached"
+    },
+    {
+      "code": 6078,
+      "name": "SeatNotActive",
+      "msg": "[SNAKE:6078] DAO seat is not active"
+    },
+    {
+      "code": 6079,
+      "name": "FailedToFetchSeats",
+      "msg": "[SNAKE:6079] Failed to fetch DAO seats"
+    },
+    {
+      "code": 6080,
+      "name": "InsufficientStakingHistory",
+      "msg": "[SNAKE:6080] Insufficient staking history"
+    },
+    {
+      "code": 6081,
+      "name": "PatronEligibilityNotMet",
+      "msg": "[SNAKE:6081] Patron eligibility criteria not met"
+    },
+    {
+      "code": 6082,
+      "name": "InsufficientTokenAmount",
+      "msg": "[SNAKE:6082] Insufficient token amount for staking"
+    },
+    {
+      "code": 6083,
+      "name": "InvalidUserRole",
+      "msg": "[SNAKE:6083] Invalid user role for this action"
+    },
+    {
+      "code": 6084,
+      "name": "InvalidAPYRate",
+      "msg": "[SNAKE:6084] Invalid APY rate - must be between 0-100%"
+    },
+    {
+      "code": 6085,
+      "name": "SwapAlreadyActive",
+      "msg": "[SNAKE:6085] Swap is already active for this user"
     }
   ],
   "types": [
@@ -3813,6 +4763,22 @@
           {
             "name": "min_patron_score",
             "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimReceipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tweet_id",
+            "type": "string"
+          },
+          {
+            "name": "claimer",
+            "type": "pubkey"
           }
         ]
       }
@@ -4140,6 +5106,42 @@
       }
     },
     {
+      "name": "GlobalStakingStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "total_users",
+            "type": "u32"
+          },
+          {
+            "name": "total_stakers",
+            "type": "u32"
+          },
+          {
+            "name": "total_patrons",
+            "type": "u32"
+          },
+          {
+            "name": "total_locked_amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_yield_distributed",
+            "type": "u64"
+          },
+          {
+            "name": "last_updated",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "InitializeRewardPoolParams",
       "type": {
         "kind": "struct",
@@ -4289,6 +5291,26 @@
           {
             "name": "burn_penalty_rate",
             "type": "u64"
+          },
+          {
+            "name": "fixed_price",
+            "type": "u64"
+          },
+          {
+            "name": "max_otc_limit",
+            "type": "u64"
+          },
+          {
+            "name": "seller_exited",
+            "type": "bool"
+          },
+          {
+            "name": "cooldown_period",
+            "type": "i64"
+          },
+          {
+            "name": "listing_active_at",
+            "type": "i64"
           },
           {
             "name": "bump",
@@ -4743,6 +5765,70 @@
       }
     },
     {
+      "name": "StakingAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Lock"
+          },
+          {
+            "name": "Unlock"
+          },
+          {
+            "name": "YieldClaim"
+          },
+          {
+            "name": "RoleChange"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakingHistoryEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "StakingAction"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "role",
+            "type": {
+              "defined": {
+                "name": "UserRole"
+              }
+            }
+          },
+          {
+            "name": "lock_duration_months",
+            "type": "u8"
+          },
+          {
+            "name": "yield_amount",
+            "type": "u64"
+          },
+          {
+            "name": "additional_data",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwapCancelled",
       "type": {
         "kind": "struct",
@@ -4939,6 +6025,42 @@
       }
     },
     {
+      "name": "UpdateUserStatsParams",
+      "docs": [
+        "Update user statistics for patron qualification",
+        "This allows admin to set mining amounts, wallet age, and community scores"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "phase1_mined",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "wallet_age_days",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "community_score",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "phase2_mining_completed",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "UserClaim",
       "type": {
         "kind": "struct",
@@ -4950,6 +6072,14 @@
           {
             "name": "user",
             "type": "pubkey"
+          },
+          {
+            "name": "claimable_amount",
+            "type": "u64"
+          },
+          {
+            "name": "burn_amount",
+            "type": "u64"
           },
           {
             "name": "last_claim_timestamp",
@@ -5067,6 +6197,56 @@
           },
           {
             "name": "Patron"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStakingHistory",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "total_entries",
+            "type": "u32"
+          },
+          {
+            "name": "total_locked",
+            "type": "u64"
+          },
+          {
+            "name": "total_unlocked",
+            "type": "u64"
+          },
+          {
+            "name": "total_yield_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "first_stake_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "last_activity_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "entries",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "StakingHistoryEntry"
+                }
+              }
+            }
           }
         ]
       }
@@ -5297,19 +6477,13 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "NormalToPatron"
+            "name": "ExiterToPatron"
           },
           {
-            "name": "NormalToStaker"
+            "name": "ExiterToTreasury"
           },
           {
             "name": "PatronToPatron"
-          },
-          {
-            "name": "TreasuryBuyback"
-          },
-          {
-            "name": "AnyToAny"
           }
         ]
       }
@@ -5320,19 +6494,13 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "NormalToPatron"
+            "name": "ExiterToPatron"
           },
           {
-            "name": "NormalToStaker"
+            "name": "ExiterToTreasury"
           },
           {
             "name": "PatronToPatron"
-          },
-          {
-            "name": "TreasuryBuyback"
-          },
-          {
-            "name": "AnyToAny"
           }
         ]
       }

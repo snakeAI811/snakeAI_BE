@@ -1,13 +1,10 @@
 use crate::{repository::OtcSwapRepository, DatabasePool};
-use sqlx::types::{
-    Uuid,
-    chrono::{DateTime, Utc},
-};
+use sqlx::types::{Uuid, chrono::Utc};
 use std::sync::Arc;
 use types::{
     dto::{
         OtcSwapResponse, ActiveSwapsResponse, MySwapsResponse, SwapStatsResponse,
-        InitiateOtcSwapRequest, AcceptOtcSwapRequest,
+        InitiateOtcSwapRequest,
     },
     error::DbError,
     model::{CreateOtcSwap, UpdateOtcSwap, User},
@@ -75,6 +72,48 @@ impl OtcSwapService {
         Ok(self.swap_to_response(swap.into_swap_with_users(), user.role.as_deref().unwrap_or("none")))
     }
 
+    /// Create a new enhanced OTC swap
+    pub async fn create_enhanced_swap(
+        &self,
+        user_id: Uuid,
+        seller_wallet: &str,
+        otc_swap_pda: &str,
+        token_amount: i64,
+        sol_rate: i64,
+        buyer_rebate: i64,
+        swap_type: &str,
+    ) -> Result<(), DbError> {
+        // Check if user already has an active swap
+        if let Some(_existing) = self.repository.get_active_by_seller(seller_wallet).await? {
+            return Err(DbError::ValidationError(
+                "User already has an active OTC swap".to_string(),
+            ));
+        }
+
+        // Convert swap_type to buyer_role_required for backwards compatibility
+        let buyer_role_required = match swap_type {
+            "ExiterToPatron" => "patron",
+            "ExiterToTreasury" => "treasury", 
+            "PatronToPatron" => "patron",
+            _ => "none",
+        };
+
+        let create_swap = CreateOtcSwap {
+            seller_id: user_id,
+            seller_wallet: seller_wallet.to_string(),
+            otc_swap_pda: otc_swap_pda.to_string(),
+            token_amount,
+            sol_rate,
+            buyer_rebate,
+            swap_type: swap_type.to_string(),
+            buyer_role_required: buyer_role_required.to_string(),
+            initiate_tx_signature: None,
+        };
+
+        self.repository.create(create_swap).await?;
+        Ok(())
+    }
+
     /// Accept an OTC swap
     pub async fn accept_swap(
         &self,
@@ -122,9 +161,14 @@ impl OtcSwapService {
         tx_signature: Option<String>,
     ) -> Result<OtcSwapResponse, DbError> {
         let wallet = user.wallet_address
-            .as_ref()
-            .ok_or_else(|| DbError::ValidationError("User wallet not set".to_string()))?;
-
+        .as_ref()
+        .map(|w| w.trim())
+        .ok_or_else(|| DbError::ValidationError("User wallet not set".to_string()))?;
+        
+        // Add debug logging
+        eprintln!("Debug: Attempting to cancel swap for wallet: '{}'", wallet);
+        eprintln!("Debug: Wallet length: {}", wallet.len());
+        
         // Get the active swap (more lenient query for cancellation)
         let swap = self.repository.get_active_by_seller_for_cancel(wallet).await?
             .ok_or_else(|| {
