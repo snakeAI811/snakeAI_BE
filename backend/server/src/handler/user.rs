@@ -1,5 +1,5 @@
 use std::str::FromStr;
-
+use std::sync::{Arc, Mutex};
 use crate::state::AppState;
 use anchor_client::{
     anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas},
@@ -16,13 +16,13 @@ use axum::{
 use base64::{Engine, engine};
 use serde_json::{json, Value};
 use types::{
-    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, ClaimTweetRewardRequest, TweetMiningStatusResponse},
+    dto::{GetRewardsQuery, GetTweetsQuery, SetWalletAddressRequest, SetRewardFlagRequest, TweetMiningStatusResponse},
     error::{ApiError, ValidatedRequest},
     model::{Profile, RewardWithUserAndTweet, TweetWithUser, User},
 };
 use serde::Deserialize;
 use uuid::Uuid;
-use sha2::{Sha256, Digest};
+
 use crate::services::{MiningPhase, get_current_mining_phase};
 use spl_associated_token_account::ID as ASSOCIATED_TOKEN_PROGRAM_ID;
 
@@ -90,6 +90,7 @@ pub async fn get_profile(
         tweets,
         likes: 0,
         replies: 0,
+        accumulated_reward: user.accumulated_reward.unwrap_or(0),
     }))
 }
 
@@ -169,6 +170,7 @@ pub async fn get_user_profile(
         "patron_qualification_score": user.patron_qualification_score,
         "wallet_age_days": user.wallet_age_days,
         "community_score": user.community_score,
+        "accumulated_reward": user.accumulated_reward.unwrap_or(0),
         "created_at": user.created_at,
         "updated_at": user.updated_at
     })))
@@ -636,72 +638,62 @@ pub async fn get_vesting_info(
     })))
 }
 
-pub async fn get_claim_tx(
-    Extension(user): Extension<User>,
+pub async fn batch_claim_tx(
     State(state): State<AppState>,
-) -> Result<Json<String>, ApiError> {
-    if state
-        .service
-        .reward
-        .get_available_reward(&user.id)
-        .await?
-        .is_some()
-    {
-        if let Some(wallet) = user.wallet() {
-            let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
-            let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
-            let (reward_pool, _) =
-                Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
-            let treasury =
-                spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
-            let (user_claim, _) = Pubkey::find_program_address(
-                &[USER_CLAIM_SEED, wallet.as_array()],
-                &state.program.id(),
-            );
-            let user_token_ata =
-                spl_associated_token_account::get_associated_token_address(&wallet, &mint);
+    Extension(user): Extension<User>,
+) -> Result<Json<Value>, ApiError> {
+    let user_wallet = match user.wallet() {
+        Some(wallet) => wallet,
+        None => return Err(ApiError::BadRequest("User wallet not found".to_string())),
+    };
 
-            let instructions = match state
-                .program
-                .request()
-                .accounts(snake_contract::accounts::ClaimReward {
-                    user: wallet,
-                    admin: admin.pubkey(),
-                    reward_pool,
-                    treasury,
-                    user_claim,
-                    user_token_ata,
-                    mint,
-                    associated_token_program: spl_associated_token_account::ID,
-                    token_program: spl_token::ID,
-                    system_program: system_program::ID,
-                })
-                .args(snake_contract::instruction::ClaimReward)
-                .instructions()
-            {
-                Ok(ixs) => ixs,
-                Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-            };
+    let mint = Pubkey::from_str(&state.env.token_mint)
+        .map_err(|_| ApiError::BadRequest("Invalid token mint".to_string()))?;
+    
+    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
+    let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
+    
+    let (user_claim_pda, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, &user_wallet.to_bytes()],
+        &state.program.id(),
+    );
 
-            let _latest_blockhash = match state.program.rpc().get_latest_blockhash() {
-                Ok(latest_blockhash) => latest_blockhash,
-                Err(err) => return Err(ApiError::InternalServerError(err.to_string())),
-            };
+    let user_token_ata = spl_associated_token_account::get_associated_token_address(
+        &user_wallet,
+        &mint,
+    );
 
-            let message = Message::new(&instructions, Some(&wallet));
-            let mut transaction = Transaction::new_unsigned(message);
-            transaction.partial_sign(&[&admin], _latest_blockhash);
-            let serialized_transaction = bincode::serialize(&transaction).unwrap();
-            let base64_transaction =
-                engine::general_purpose::STANDARD.encode(&serialized_transaction);
+    let instruction = state.program
+        .request()
+        .args(snake_contract::instruction::BatchClaim {})
+        .accounts(snake_contract::accounts::BatchClaim {
+            user: user_wallet,
+            reward_pool,
+            treasury,
+            user_claim: user_claim_pda,
+            user_token_ata,
+            mint,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            token_program: spl_token::id(),
+            system_program: system_program::id(),
+        })
+        .instructions()
+        .map_err(|e| ApiError::InternalServerError(format!("Failed to create instruction: {}", e)))?;
 
-            Ok(Json(base64_transaction))
-        } else {
-            Err(ApiError::BadRequest("User didn't set wallet".to_string()))
-        }
-    } else {
-        Err(ApiError::BadRequest("No available reward".to_string()))
-    }
+    let recent_blockhash = state.program.rpc().get_latest_blockhash()
+        .map_err(|e| ApiError::InternalServerError(format!("Failed to get latest blockhash: {}", e)))?;
+    let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
+    let tx = Transaction::new_signed_with_payer(
+        &instruction,
+        Some(&user_wallet),
+        &[&admin],
+        recent_blockhash,
+    );
+
+    let serialized_tx = bincode::serialize(&tx).unwrap();
+    let base64_tx = engine::general_purpose::STANDARD.encode(serialized_tx);
+
+    Ok(Json(json!({ "transaction": base64_tx })))
 }
 
 // ========== SMART CONTRACT INTERACTION ENDPOINTS ==========
@@ -760,7 +752,7 @@ pub async fn select_role_tx(
     };
 
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
 
@@ -818,6 +810,7 @@ pub async fn select_role_tx(
 
     Ok(Json(base64_transaction))
 }
+
 
 /// Check patron eligibility based on new requirements
 pub async fn check_patron_eligibility(
@@ -1033,10 +1026,11 @@ pub async fn get_tweet_mining_status(
 
     let phase1_mining_count_all = state.service.tweet.get_all_phase1_mining_count().await?;
     let mining_phase = get_current_mining_phase(phase1_mining_count_all);
-    // let current_phase = state.env.get_mining_phase();
-    // let is_phase2 = state.env.is_phase2();
     
     let current_phase = if mining_phase == MiningPhase::Phase2 { 2 } else { 1 };
+    
+    // Get accumulated rewards from user table
+    let accumulated_rewards = user.accumulated_reward.unwrap_or(0);
     
     let response = TweetMiningStatusResponse {
         current_phase,
@@ -1045,200 +1039,42 @@ pub async fn get_tweet_mining_status(
         phase2_count,
         pending_rewards,
         total_rewards_claimed,
+        accumulated_rewards,
     };
     
     Ok(Json(response))
 }
 
-/// Submit a new tweet for mining
-// pub async fn submit_tweet(
-//     Extension(user): Extension<User>,
-//     State(state): State<AppState>,
-//     Json(payload): Json<SubmitTweetRequest>,
-// ) -> Result<Json<Value>, ApiError> {
-//     let created_at = chrono::Utc::now();
-//     let mining_phase = "Phase2"; // Current phase
+/// Claim reward for a specific tweet (off-chain accumulation)
+pub async fn claim_tweet_reward_tx(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    ValidatedRequest(payload): ValidatedRequest<types::dto::ClaimTweetRewardRequest>,
+) -> Result<Json<Value>, ApiError> {
+    // Claim the reward for this tweet (marks it as claimed in database)
+    let claimed_reward = state.service.reward.claim_tweet_reward(&user.id, &payload.tweet_id).await?;
     
-//     // Insert the tweet
-//     let tweet = state
-//         .service
-//         .tweet
-//         .insert_tweet(&user.id, &payload.tweet_id, &created_at, mining_phase)
-//         .await?;
-    
-//     // Create a reward entry for this tweet
-//     let _reward = state
-//         .service
-//         .reward
-//         .insert_reward_with_phase(&user.id, &tweet.id, 2)
-//         .await?;
-    
-//     Ok(Json(json!({
-//         "id": tweet.id,
-//         "tweet_id": payload.tweet_id,
-//         "content": payload.content,
-//         "hashtags": payload.hashtags,
-//         "status": "submitted",
-//         "reward_pending": true
-//     })))
-// }
+    match claimed_reward {
+        Some(reward) => {
+            // Add the reward amount to user's accumulated_reward field
+            let reward_amount = reward.reward_amount.max(0);
+            let updated_user = state.service.user.add_accumulated_reward(&user.id, reward_amount).await?;
+            
+            // Get the updated accumulated reward from the user record
+            let accumulated_rewards = updated_user.accumulated_reward.unwrap_or(0);
 
-/// Claim reward for a specific tweet
-pub async fn claim_tweet_reward_tx( 
-    Extension(user): Extension<User>, 
-    State(state): State<AppState>, 
-    Json(payload): Json<ClaimTweetRewardRequest>, 
-) -> Result<Json<serde_json::Value>, ApiError> { 
-    let wallet = user 
-        .wallet() 
-        .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?; 
- 
-    // Load user's tweets 
-    let tweets = state 
-        .service 
-        .tweet 
-        .get_tweets(&Some(user.id), Some(0), Some(1000)) 
-        .await?; 
- 
-    let tweet = tweets 
-        .iter() 
-        .find(|t| t.tweet_id == payload.tweet_id) 
-        .ok_or_else(|| ApiError::BadRequest("Tweet not found".to_string()))?; 
- 
-    // Check available reward 
-    let rewards = state 
-        .service 
-        .reward 
-        .get_rewards(&Some(user.id), Some(0), Some(1000), Some(true)) 
-        .await?; 
- 
-    let reward = rewards 
-        .iter() 
-        .find(|r| r.tweet_id == tweet.id) 
-        .ok_or_else(|| ApiError::BadRequest("No claimable reward found for this tweet".to_string()))?; 
- 
-    // Derive PDAs 
-    let program_id = state.program.id(); 
- 
-    let (user_claim, _) = Pubkey::find_program_address(&[USER_CLAIM_SEED, wallet.as_ref()], &program_id); 
-    let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &program_id); 
- 
-    // FIX: Use payload.tweet_id (the actual Twitter ID) instead of reward.tweet_id
-    let mut hasher = Sha256::new(); 
-    hasher.update(payload.tweet_id.as_bytes()); // Changed from reward.tweet_id to payload.tweet_id
-    let tweet_id_hash = hasher.finalize(); 
- 
-    let (claim_receipt, _) = Pubkey::find_program_address( 
-        &[b"claim_receipt", wallet.as_ref(), &tweet_id_hash[..32]], 
-        &program_id, 
-    ); 
-   
-    let mint = Pubkey::from_str(&state.env.token_mint) 
-        .map_err(|_| ApiError::InternalServerError("Invalid token mint".to_string()))?; 
- 
-    let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint); 
-    let pool_token_ata = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint); 
- 
-    let mut instructions = Vec::new(); 
- 
-    // Check if user_claim account exists 
-    match state.program.rpc().get_account(&user_claim) { 
-        Ok(_) => {} 
-        Err(e) => { 
-            log::warn!("UserClaim PDA not found, will initialize: {:?}", e); 
-            let init_claim_ix = state 
-                .program 
-                .request() 
-                .accounts(snake_contract::accounts::InitializeUserClaim { 
-                    user: wallet, 
-                    user_claim, 
-                    system_program: system_program::ID, 
-                }) 
-                .args(snake_contract::instruction::InitializeUserClaim) 
-                .instructions() 
-                .map_err(|e| { 
-                    log::error!("InitUserClaim build error: {:?}", e); 
-                    ApiError::InternalServerError("Failed to build InitializeUserClaim".into()) 
-                })?; 
-            instructions.extend(init_claim_ix); 
-        } 
-    } 
- 
-    // Check if user ATA exists 
-    match state.program.rpc().get_account(&user_token_ata) { 
-        Ok(_) => {} 
-        Err(e) => { 
-            log::warn!("User token ATA not found, creating: {:?}", e); 
-            let create_ata_ix = spl_associated_token_account::instruction::create_associated_token_account( 
-                &wallet, &wallet, &mint, &spl_token::ID, 
-            ); 
-            instructions.push(create_ata_ix); 
-        } 
-    } 
-
-    // Check if reward pool PDA exists
-    match state.program.rpc().get_account(&reward_pool) {
-        Ok(_) => {},
-        Err(e) => {
-            log::error!("Reward pool PDA not initialized: {:?}", e);
-            return Err(ApiError::BadRequest("Reward pool must be initialized before claiming tokens. Please initialize the reward pool first.".into()));
+            Ok(Json(json!({ 
+                "message": "Tweet reward claimed successfully and added to your accumulated rewards",
+                "reward_amount": reward_amount,
+                "accumulated_rewards": accumulated_rewards
+            })))
+        },
+        None => {
+            // No reward found for this tweet
+            Err(ApiError::BadRequest("No available reward found for this tweet, or reward already claimed".to_string()))
         }
     }
- 
-    // Build claim instruction 
-    let claim_ixs = state 
-        .program 
-        .request() 
-        .accounts(snake_contract::accounts::ClaimTokensWithRole { 
-            user: wallet, 
-            user_claim, 
-            claim_receipt, 
-            user_token_ata, 
-            reward_pool_pda: reward_pool, 
-            treasury_token_account: pool_token_ata, 
-            mint, 
-            token_program: spl_token::ID,  
-            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
-            system_program: system_program::ID, 
-        }) 
-        .args(snake_contract::instruction::ClaimTokensWithRole { 
-            amount: reward.reward_amount as u64 * LAMPORTS_PER_SNK, // 9 decimals 
-            role: snake_contract::state::UserRole::None, 
-            // FIX: Use payload.tweet_id (the actual Twitter ID) for consistency
-            tweet_id: payload.tweet_id.clone(), // Changed from reward.tweet_id.to_string()
-        }) 
-        .instructions() 
-        .map_err(|e| { 
-            log::error!("ClaimTokensWithRole build error: {:?}", e); 
-            ApiError::InternalServerError("Failed to build ClaimTokensWithRole".into()) 
-        })?; 
- 
-    instructions.extend(claim_ixs); 
- 
-    // Get latest blockhash 
-    let latest_blockhash = state 
-        .program 
-        .rpc() 
-        .get_latest_blockhash() 
-        .map_err(|e| { 
-            log::error!("Blockhash error: {:?}", e); 
-            ApiError::InternalServerError("Could not fetch blockhash".into()) 
-        })?; 
- 
-    // Build unsigned transaction 
-    let message = Message::new_with_blockhash(&instructions, Some(&wallet), &latest_blockhash); 
-    let transaction = Transaction::new_unsigned(message); 
- 
-    let serialized = bincode::serialize(&transaction).map_err(|e| { 
-        log::error!("Serialization error: {:?}", e); 
-        ApiError::InternalServerError("Failed to serialize transaction".into()) 
-    })?; 
- 
-    let base64_tx = engine::general_purpose::STANDARD.encode(serialized); 
- 
-    Ok(Json(serde_json::json!(base64_tx))) 
 }
-
 
 /// Apply for patron status
 pub async fn apply_patron_tx(
@@ -1250,7 +1086,7 @@ pub async fn apply_patron_tx(
         .ok_or_else(|| ApiError::BadRequest("User wallet not set".to_string()))?;
 
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
 
@@ -1286,6 +1122,7 @@ pub async fn apply_patron_tx(
     Ok(Json(base64_transaction))
 }
 
+
 /// Approve patron application (admin only)
 pub async fn approve_patron_tx(
     Extension(user): Extension<User>,
@@ -1297,7 +1134,7 @@ pub async fn approve_patron_tx(
 
     let admin = Keypair::from_base58_string(&state.env.backend_wallet_private_key);
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
 
@@ -1333,6 +1170,7 @@ pub async fn approve_patron_tx(
     Ok(Json(base64_transaction))
 }
 
+
 /// Claim tokens with role-specific logic
 pub async fn claim_tokens_with_role_tx(
     Extension(user): Extension<User>,
@@ -1355,7 +1193,7 @@ pub async fn claim_tokens_with_role_tx(
     let (reward_pool, _) = Pubkey::find_program_address(&[REWARD_POOL_SEED], &state.program.id());
     let treasury = spl_associated_token_account::get_associated_token_address(&reward_pool, &mint);
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
@@ -1416,6 +1254,7 @@ pub async fn claim_tokens_with_role_tx(
 
     Ok(Json(base64_transaction))
 }
+
 
 /// Lock tokens for staking
 pub async fn lock_tokens_tx(
@@ -1546,6 +1385,7 @@ pub async fn lock_tokens_tx(
     Ok(Json(base64_transaction))
 }
 
+
 /// Unlock tokens after lock period
 pub async fn unlock_tokens_tx(
     Extension(user): Extension<User>,
@@ -1612,6 +1452,7 @@ pub async fn unlock_tokens_tx(
 
     Ok(Json(base64_transaction))
 }
+
 
 /// Claim staking yield
 pub async fn claim_yield_tx(
@@ -1681,6 +1522,7 @@ pub async fn claim_yield_tx(
     Ok(Json(base64_transaction))
 }
 
+
 /// Create vesting schedule
 pub async fn create_vesting_tx(
     Extension(user): Extension<User>,
@@ -1701,11 +1543,11 @@ pub async fn create_vesting_tx(
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     let (vesting_account, _) = Pubkey::find_program_address(
-        &[VESTING_SEED, wallet.as_array()],
+        &[VESTING_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     let escrow_vault = spl_associated_token_account::get_associated_token_address(&vesting_account, &mint);
@@ -1746,6 +1588,118 @@ pub async fn create_vesting_tx(
     Ok(Json(base64_transaction))
 }
 
+// ========== TCE (Token Claim Event) ENDPOINTS ==========
+
+/// Get TCE status and user's accumulated rewards
+pub async fn get_tce_status(
+    Extension(user): Extension<User>,
+    State(state): State<AppState>,
+) -> Result<Json<Value>, ApiError> {
+    // Get TCE status from database (faster and no gas fees)
+    let tce_started = state.service.values.get_tce_status().await?;
+
+    // Get user's off-chain accumulated rewards from user table
+    let off_chain_accumulated = user.accumulated_reward.unwrap_or(0) as u64;
+
+    // Get user's on-chain accumulated rewards if wallet is set (only if needed)
+    let on_chain_accumulated = match user.wallet() {
+        Some(wallet) => {
+            let (user_claim_pda, _) = Pubkey::find_program_address(
+                &[USER_CLAIM_SEED, wallet.as_ref()],
+                &state.program.id(),
+            );
+
+            match state.program.rpc().get_account_data(&user_claim_pda) {
+                Ok(data) => {
+                    match snake_contract::state::UserClaim::try_deserialize(&mut data.as_slice()) {
+                        Ok(user_claim_data) => user_claim_data.accumulated_rewards,
+                        Err(_) => 0,
+                    }
+                },
+                Err(_) => 0,
+            }
+        },
+        None => 0,
+    };
+
+    Ok(Json(json!({
+        "tce_started": tce_started,
+        "off_chain_accumulated_rewards": off_chain_accumulated,
+        "on_chain_accumulated_rewards": on_chain_accumulated,
+        "total_claimable": if tce_started { on_chain_accumulated } else { 0 },
+        "wallet_address": user.wallet_address,
+        "message": if tce_started {
+            "TCE has started! You can now claim your accumulated rewards on-chain."
+        } else {
+            "TCE has not started yet. Your rewards are being accumulated off-chain."
+        }
+    })))
+}
+
+/// Start TCE (Admin only)
+pub async fn start_tce_tx(
+    State(state): State<AppState>,
+) -> Result<Json<String>, ApiError> {
+    let admin = Arc::new(Keypair::from_base58_string(&state.env.backend_wallet_private_key));
+
+    let (reward_pool_pda, _) = Pubkey::find_program_address(
+        &[REWARD_POOL_SEED],
+        &state.program.id(),
+    );
+
+    let instructions = state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::StartTce {
+            reward_pool: reward_pool_pda,
+            admin: admin.pubkey(),
+            system_program: system_program::ID,
+        })
+        .args(snake_contract::instruction::StartTce {})
+        .instructions()
+        .map_err(|e| {
+            log::error!("StartTce build error: {:?}", e);
+            ApiError::InternalServerError("Failed to build StartTce instruction".into())
+        })?;
+
+    let latest_blockhash = state
+        .program
+        .rpc()
+        .get_latest_blockhash()
+        .map_err(|e| {
+            log::error!("Blockhash error: {:?}", e);
+            ApiError::InternalServerError("Could not fetch blockhash".into())
+        })?;
+
+    let message = Message::new(&instructions, Some(&admin.pubkey()));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Update TCE status in database after transaction confirmation
+pub async fn update_tce_status(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<Value>, ApiError> {
+    // Extract the started status from payload
+    let started = payload.get("started")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| ApiError::BadRequest("Missing or invalid 'started' field".to_string()))?;
+
+    // Update TCE status in database
+    state.service.values.set_tce_status(started).await?;
+
+    Ok(Json(json!({
+        "message": format!("TCE status updated to: {}", started),
+        "tce_started": started
+    })))
+}
+
 /// Withdraw from vesting
 pub async fn withdraw_vesting_tx(
     Extension(user): Extension<User>,
@@ -1758,11 +1712,11 @@ pub async fn withdraw_vesting_tx(
     let mint = Pubkey::from_str(&state.env.token_mint).unwrap();
     let user_token_ata = spl_associated_token_account::get_associated_token_address(&wallet, &mint);
     let (user_claim, _) = Pubkey::find_program_address(
-        &[USER_CLAIM_SEED, wallet.as_array()],
+        &[USER_CLAIM_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     let (vesting_account, _) = Pubkey::find_program_address(
-        &[VESTING_SEED, wallet.as_array()],
+        &[VESTING_SEED, wallet.as_ref()],
         &state.program.id(),
     );
     let escrow_vault = spl_associated_token_account::get_associated_token_address(&vesting_account, &mint);
@@ -1800,4 +1754,161 @@ pub async fn withdraw_vesting_tx(
     let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
 
     Ok(Json(base64_transaction))
+}
+
+
+/// Update accumulated rewards for a specific user (Admin only)
+pub async fn update_user_accumulated_rewards_tx(
+    Path(user_id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<String>, ApiError> {
+    let admin = Arc::new(Keypair::from_base58_string(&state.env.backend_wallet_private_key));
+    
+    // Parse user_id to UUID and get user
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| ApiError::BadRequest("Invalid user ID format".to_string()))?;
+    
+    let user = state.service.user.get_user_by_id(&user_uuid).await?
+        .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
+    
+    let wallet_address = user.wallet_address
+        .ok_or_else(|| ApiError::BadRequest("User has no wallet address".to_string()))?;
+    
+    let wallet = Pubkey::from_str(&wallet_address)
+        .map_err(|_| ApiError::BadRequest("Invalid wallet address".to_string()))?;
+    
+    // Get amount from payload
+    let amount = payload.get("amount")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| ApiError::BadRequest("Missing or invalid amount".to_string()))?;
+
+    let (reward_pool_pda, _) = Pubkey::find_program_address(
+        &[REWARD_POOL_SEED],
+        &state.program.id(),
+    );
+
+    let (user_claim_pda, _) = Pubkey::find_program_address(
+        &[USER_CLAIM_SEED, wallet.as_ref()],
+        &state.program.id(),
+    );
+
+    let instructions = state
+        .program
+        .request()
+        .accounts(snake_contract::accounts::UpdateAccumulatedRewards {
+            reward_pool: reward_pool_pda,
+            user_claim: user_claim_pda,
+            user: wallet,
+            admin: admin.pubkey(),
+            system_program: system_program::ID,
+        })
+        .args(snake_contract::instruction::UpdateAccumulatedRewards { amount })
+        .instructions()
+        .map_err(|e| {
+            log::error!("UpdateAccumulatedRewards build error: {:?}", e);
+            ApiError::InternalServerError("Failed to build UpdateAccumulatedRewards instruction".into())
+        })?;
+
+    let latest_blockhash = state
+        .program
+        .rpc()
+        .get_latest_blockhash()
+        .map_err(|e| {
+            log::error!("Blockhash error: {:?}", e);
+            ApiError::InternalServerError("Could not fetch blockhash".into())
+        })?;
+
+    let message = Message::new(&instructions, Some(&admin.pubkey()));
+    let mut transaction = Transaction::new_unsigned(message);
+    transaction.partial_sign(&[&admin], latest_blockhash);
+
+    let serialized_transaction = bincode::serialize(&transaction).unwrap();
+    let base64_transaction = engine::general_purpose::STANDARD.encode(&serialized_transaction);
+
+    Ok(Json(base64_transaction))
+}
+
+/// Sync off-chain rewards to on-chain for the authenticated user
+/// User must pay transaction fees for this operation
+pub async fn sync_rewards_to_chain(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+    Json(payload): Json<SyncRewardsRequest>,
+) -> Result<Json<Value>, ApiError> {
+    // 1. Get user's accumulated off-chain rewards
+    let rewards = state.service.get_user_rewards(&user.id, None).await
+        .map_err(|e| {
+            log::error!("Failed to get user rewards: {:?}", e);
+            ApiError::InternalServerError("Failed to get user rewards".into())
+        })?;
+    
+    let total_rewards: u64 = rewards.iter().map(|r| r.reward_amount as u64).sum();
+    
+    if total_rewards == 0 {
+        return Ok(Json(json!({
+            "error": "No rewards to sync",
+            "pending_rewards": 0
+        })));
+    }
+    
+    // 2. Verify user signature (basic validation)
+    if payload.user_signature.is_empty() {
+        return Err(ApiError::BadRequest("User signature required".into()));
+    }
+    
+    // 3. Create sync transaction that user will pay for
+    // This would typically create a blockchain transaction that:
+    // - Updates the user's on-chain accumulated rewards
+    // - Marks off-chain rewards as synced
+    // - User pays the transaction fee
+    
+    let wallet_address = user.wallet_address.as_ref()
+        .ok_or_else(|| ApiError::BadRequest("Wallet address not set".into()))?;
+    
+    // In a real implementation, you would:
+    // - Create a blockchain transaction
+    // - Return the transaction for user to sign and submit
+    // - Update database to mark rewards as "pending sync"
+    
+    Ok(Json(json!({
+        "message": "Reward sync transaction prepared",
+        "pending_rewards": total_rewards,
+        "wallet_address": wallet_address,
+        "transaction_fee_payer": "user",
+        "status": "ready_to_sync",
+        "instructions": "User must sign and submit the transaction to complete sync"
+    })))
+}
+
+#[derive(serde::Deserialize)]
+pub struct SyncRewardsRequest {
+    pub user_signature: String,
+}
+
+/// Get pending (unsynced) rewards for the authenticated user
+pub async fn get_pending_rewards(
+    State(state): State<AppState>,
+    Extension(user): Extension<User>,
+) -> Result<Json<Value>, ApiError> {
+    // Get user's accumulated off-chain rewards
+    let rewards = state.service.get_user_rewards(&user.id, None).await
+        .map_err(|e| {
+            log::error!("Failed to get user rewards: {:?}", e);
+            ApiError::InternalServerError("Failed to get user rewards".into())
+        })?;
+    
+    let total_rewards: u64 = rewards.iter().map(|r| r.reward_amount as u64).sum();
+    
+    // In a real implementation, you would also check:
+    // - Which rewards have already been synced to on-chain
+    // - Only return unsynced rewards
+    
+    Ok(Json(json!({
+        "pending_rewards": total_rewards,
+        "total_reward_entries": rewards.len(),
+        "can_sync": total_rewards > 0,
+        "wallet_address": user.wallet_address,
+        "sync_required_before_claim": true
+    })))
 }

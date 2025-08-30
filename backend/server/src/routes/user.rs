@@ -21,7 +21,7 @@ use crate::{
             claim_tweet_reward_tx,
             claim_yield_tx,
             create_vesting_tx,
-            get_claim_tx,
+            batch_claim_tx,
             get_dao_user_count,
             // DAO endpoints
             get_dao_users,
@@ -51,7 +51,14 @@ use crate::{
             update_lock_details,
             update_patron_status,
             update_user_role,
-            withdraw_vesting_tx
+            withdraw_vesting_tx,
+            // TCE endpoints
+            get_tce_status,
+            start_tce_tx,
+            sync_rewards_to_chain,
+            get_pending_rewards,
+            update_user_accumulated_rewards_tx,
+            update_tce_status
         },
     },
     state::AppState,
@@ -71,7 +78,7 @@ pub fn routes() -> Router<AppState> {
         .route("/wallet_address", post(set_wallet_address))
         .route("/rewards", get(get_rewards))
         .route("/tweets", get(get_tweets))
-        .route("/claim_tx", post(get_claim_tx))
+        .route("/batch_claim_tx", post(batch_claim_tx))
         .route("/set_reward_flag", post(set_reward_flag))
         // Tweet mining endpoints
         .route("/tweet_mining_status", get(get_tweet_mining_status))
@@ -98,6 +105,12 @@ pub fn routes() -> Router<AppState> {
         .route("/claim_yield", post(claim_yield_tx))
         .route("/create_vesting", post(create_vesting_tx))
         .route("/withdraw_vesting", post(withdraw_vesting_tx))
+        // TCE (Token Claim Event) endpoints
+        .route("/tce_status", get(get_tce_status))
+        .route("/start_tce", post(start_tce_tx))
+        .route("/update_tce_status", post(update_tce_status))
+        .route("/sync_rewards", post(sync_rewards_to_chain))
+        .route("/pending_rewards", get(get_pending_rewards))
         // OTC swap endpoints
         .route("/initiate_otc_swap", post(initiate_otc_swap_tx))
         .route(
@@ -121,4 +134,5 @@ pub fn routes() -> Router<AppState> {
         .route("/{user_id}/role", post(update_user_role))
         .route("/{user_id}/lock_details", post(update_lock_details))
         .route("/{user_id}/phase2_tweets", get(get_user_phase2_tweets))
+        .route("/{user_id}/update_rewards", post(update_user_accumulated_rewards_tx))
     }

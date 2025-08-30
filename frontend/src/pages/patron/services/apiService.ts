@@ -626,18 +626,92 @@ export const userApi = {
             phase2_count: number;
             pending_rewards: number;
             total_rewards_claimed: number;
+            accumulated_rewards: number;
             current_phase: any;
         }>('/user/tweet_mining_status', {
             method: 'GET',
         });
     },
 
-    claimTweetReward: async (tweetId: string): Promise<WalletTransactionResponse> => {
-        const response = await apiCall<string>('/user/claim_tweet_reward', {
+    getTceStatus: async () => {
+        return apiCall<{
+            tce_started: boolean;
+            off_chain_accumulated_rewards: number;
+            on_chain_accumulated_rewards: number;
+        }>('/user/tce_status', {
+            method: 'GET',
+        });
+    },
+
+    getAccumulatedRewards: async () => {
+        // First check TCE status to determine if claiming is available
+        const tceResponse = await apiCall<{
+            tce_started: boolean;
+            off_chain_accumulated_rewards: number;
+            on_chain_accumulated_rewards: number;
+        }>('/user/tce_status', {
+            method: 'GET',
+        });
+
+        if (tceResponse.success && tceResponse.data) {
+            return {
+                success: true,
+                data: {
+                    accumulated_rewards: tceResponse.data.off_chain_accumulated_rewards,
+                    last_claim_timestamp: 0,
+                    can_claim: tceResponse.data.tce_started && tceResponse.data.off_chain_accumulated_rewards > 0
+                }
+            };
+        }
+
+        // Fallback to tweet_mining_status if TCE status fails
+        const response = await apiCall<{
+            total_tweets: number;
+            phase1_count: number;
+            phase2_count: number;
+            pending_rewards: number;
+            total_rewards_claimed: number;
+            accumulated_rewards: number;
+            current_phase: any;
+        }>('/user/tweet_mining_status', {
+            method: 'GET',
+        });
+
+        if (response.success && response.data) {
+            return {
+                success: true,
+                data: {
+                    accumulated_rewards: response.data.accumulated_rewards,
+                    last_claim_timestamp: 0,
+                    can_claim: false // TCE not started, so can't claim
+                }
+            };
+        }
+
+         // Return a properly structured error response
+        return {
+            success: false,
+            error: response.error || 'Failed to fetch accumulated rewards',
+            data: {
+                accumulated_rewards: 0,
+                last_claim_timestamp: 0,
+                can_claim: false
+            }
+        };
+    },
+
+    claimTweetReward: async (tweetId: string): Promise<ApiResponse<{ message: string; accumulated_rewards: number }>> => {
+        return apiCall<{ message: string; accumulated_rewards: number }>('/user/claim_tweet_reward', {
             method: 'POST',
             body: JSON.stringify({
                 tweet_id: tweetId,
             }),
+        });
+    },
+
+    batchClaim: async (): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/user/batch_claim_tx', {
+            method: 'POST',
         });
 
         if (response.success && response.data) {
@@ -663,6 +737,33 @@ export const userApi = {
         timestamp: string;
     }) => {
         return apiCall<string>('/user/save_role_selection', {
+            method: 'POST',
+            body: JSON.stringify(params),
+        });
+    },
+
+    // Reward sync methods
+    getPendingRewards: async () => {
+        return apiCall<{
+            pending_rewards: number;
+            total_reward_entries: number;
+            can_sync: boolean;
+            wallet_address: string | null;
+            sync_required_before_claim: boolean;
+        }>('/user/pending_rewards', {
+            method: 'GET',
+        });
+    },
+
+    syncRewardsToChain: async (params: { user_signature: string }) => {
+        return apiCall<{
+            message: string;
+            pending_rewards: number;
+            wallet_address: string;
+            transaction_fee_payer: string;
+            status: string;
+            instructions: string;
+        }>('/user/sync_rewards', {
             method: 'POST',
             body: JSON.stringify(params),
         });

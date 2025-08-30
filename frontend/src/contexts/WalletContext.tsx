@@ -6,6 +6,7 @@ interface WalletContextState {
   connecting: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
+  signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
 }
 
 interface WalletContextProviderProps {
@@ -18,6 +19,7 @@ const WalletContext = createContext<WalletContextState>({
   connecting: false,
   connect: async () => {},
   disconnect: () => {},
+  signMessage: undefined,
 });
 
 export const useWalletContext = () => useContext(WalletContext);
@@ -90,12 +92,27 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     }
   };
 
+  const signMessage = async (message: Uint8Array): Promise<Uint8Array> => {
+    if (!connected || typeof window === 'undefined' || !(window as any).solana) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const signedMessage = await (window as any).solana.signMessage(message, 'utf8');
+      return signedMessage.signature;
+    } catch (error) {
+      console.error('Error signing message:', error);
+      throw error;
+    }
+  };
+
   const value: WalletContextState = {
     connected,
     publicKey,
     connecting,
     connect,
     disconnect,
+    signMessage,
   };
 
   return (

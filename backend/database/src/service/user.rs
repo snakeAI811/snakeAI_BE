@@ -163,4 +163,15 @@ impl UserService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn add_accumulated_reward(
+        &self,
+        user_id: &Uuid,
+        reward_amount: i64,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .add_accumulated_reward(user_id, reward_amount)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

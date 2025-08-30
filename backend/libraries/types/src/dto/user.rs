@@ -39,6 +39,7 @@ pub struct TweetMiningStatusResponse {
     pub phase2_count: i64,
     pub pending_rewards: i64,
     pub total_rewards_claimed: i64,
+    pub accumulated_rewards: i64,
 }
 
 #[derive(Clone, Serialize, Deserialize, Validate, Debug)]

@@ -36,7 +36,7 @@ impl UserRepository {
                 lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,
                 initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
                 total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
-                role_transaction_signature, role_updated_at,  is_following
+                role_transaction_signature, role_updated_at, is_following, accumulated_reward
             "#,
             twitter_id,
             twitter_username,
@@ -212,6 +212,23 @@ impl UserRepository {
             "UPDATE users SET is_following = $1 WHERE twitter_id = $2 RETURNING *",
             is_following,
             twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn add_accumulated_reward(
+        &self,
+        user_id: &Uuid,
+        reward_amount: i64,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET accumulated_reward = COALESCE(accumulated_reward, 0) + $1 WHERE id = $2 RETURNING *",
+            reward_amount,
+            user_id,
         )
         .fetch_one(self.db_conn.get_pool())
         .await?;

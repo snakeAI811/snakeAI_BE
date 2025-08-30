@@ -31,3 +31,5 @@ types.path = "../libraries/types"
 twitter-v2.workspace = true
 urlencoding.workspace = true
 utils.path = "../libraries/utils"
+anchor-client.workspace = true
+log.workspace = true

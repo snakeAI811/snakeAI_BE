@@ -37,7 +37,8 @@ pub struct User {
     pub community_score: Option<i32>,
     pub role_transaction_signature: Option<String>,
     pub role_updated_at: Option<DateTime<Utc>>,
-    pub is_following: bool
+    pub is_following: bool,
+    pub accumulated_reward: Option<i64>
 }
 
 // Extended user model for patron framework features
@@ -117,4 +118,5 @@ pub struct Profile {
     pub tweets: i64,
     pub likes: i64,
     pub replies: i64,
+    pub accumulated_reward: i64,
 }

@@ -22,7 +22,9 @@ pub struct Env {
     pub backend_wallet_private_key: String,
     pub token_mint: String,
     pub solana_job_schedule: String,
+    // pub reward_sync_job_schedule: String,
     pub solana_rpc_url: String,
+    pub solana_ws_url: String,
     pub play_snake_ai_id: String,
 }
 
@@ -81,6 +83,10 @@ impl Env {
         let solana_job_schedule =
             std::env::var("SOLANA_JOB_SCHEDULE").expect("SOLANA_JOB_SCHEDULE must be set");
         let solana_rpc_url = std::env::var("SOLANA_RPC_URL").expect("SOLANA_RPC_URL must be set");
+        let solana_ws_url = std::env::var("SOLANA_WS_URL").unwrap_or_else(|_| solana_rpc_url.replace("http", "ws"));
+
+        // let reward_sync_job_schedule =
+        //     std::env::var("REWARD_SYNC_JOB_SCHEDULE").expect("REWARD_SYNC_JOB_SCHEDULE must be set");
 
         let play_snake_ai_id =
             std::env::var("PLAY_SNAKE_AI_ID").expect("PLAY_SNAKE_AI_ID must be set");
@@ -104,7 +110,9 @@ impl Env {
             backend_wallet_private_key,
             token_mint,
             solana_job_schedule,
+            // reward_sync_job_schedule,
             solana_rpc_url,
+            solana_ws_url,
             play_snake_ai_id,
         }
     }

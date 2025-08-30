@@ -4,6 +4,12 @@ pub use initialize_reward_pool::*;
 pub mod claim_reward;
 pub use claim_reward::*;
 
+pub mod log_claim;
+pub use log_claim::*;
+
+pub mod batch_claim;
+pub use batch_claim::*;
+
 pub mod update_reward_pool;
 pub use update_reward_pool::*;
 
@@ -54,4 +60,11 @@ pub use update_user_stats::*;
 // ========== STAKING HISTORY TRACKING ==========
 pub mod get_staking_history;
 pub use get_staking_history::*;
+
+// ========== TCE (Token Claim Event) ==========
+pub mod start_tce;
+pub use start_tce::*;
+
+pub mod update_accumulated_rewards;
+pub use update_accumulated_rewards::*;
 

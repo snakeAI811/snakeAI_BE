@@ -12,7 +12,7 @@ impl ValidationUtils {
     /// Validate user has sufficient tokens for operation
     pub fn validate_sufficient_tokens(user_claim: &UserClaim, required_amount: u64) -> Result<()> {
         require!(
-            user_claim.claimable_amount >= required_amount,
+            user_claim.accumulated_rewards >= required_amount,
             SnakeError::InsufficientFunds
         );
         Ok(())

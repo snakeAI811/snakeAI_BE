@@ -63,6 +63,9 @@ pub struct UserClaim {
     pub wallet_age_days: u32,           // Wallet age in days (for patron selection)
     pub community_score: u32,           // Community contribution score (0-100)
     pub patron_qualification_score: u32, // Calculated eligibility score
+
+    // Accumulated rewards from tweet mining (to be claimed at TCE)
+    pub accumulated_rewards: u64,
 }
 
 impl UserClaim {
@@ -91,6 +94,7 @@ impl UserClaim {
         self.wallet_age_days = 0;
         self.community_score = 0;
         self.patron_qualification_score = 0;
+        self.accumulated_rewards = 0;
         emit!(UserClaimInitialized { user: self.user });
     }
     

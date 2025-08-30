@@ -12,6 +12,7 @@ pub struct RewardPool {
     pub minted_accum: u64,
     pub burned: u64,
     pub airdropped: u64,
+    pub tce_started: bool, // Token Claim Event flag
 }
 
 impl RewardPool {
@@ -24,6 +25,7 @@ impl RewardPool {
         self.minted_accum = 0;
         self.burned = 0;
         self.airdropped = 0;
+        self.tce_started = false; // TCE starts as false
         emit!(RewardPoolInitialized {
             owner: self.owner,
             admin: self.admin,

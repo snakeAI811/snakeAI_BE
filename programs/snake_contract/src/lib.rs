@@ -39,6 +39,14 @@ pub mod snake_contract {
         instructions::claim_reward(ctx)
     }
 
+    pub fn log_claim(ctx: Context<LogClaim>) -> Result<()> {
+        instructions::log_claim(ctx)
+    }
+
+    pub fn batch_claim(ctx: Context<BatchClaim>) -> Result<()> {
+        instructions::batch_claim(ctx)
+    }
+
     pub fn select_role(ctx: Context<SelectRole>, role: UserRole) -> Result<()> {
         instructions::select_role(ctx, role)
     }
@@ -202,6 +210,22 @@ pub mod snake_contract {
         params: UpdateUserStatsParams,
     ) -> Result<()> {
         instructions::update_user_stats(ctx, params)
+    }
+
+    // ========== TCE (Token Claim Event) ==========
+    
+    /// Start the Token Claim Event - allows users to claim accumulated rewards
+    pub fn start_tce(ctx: Context<StartTce>) -> Result<()> {
+        instructions::start_tce(ctx)
+    }
+
+    /// Update a user's accumulated rewards (Admin only)
+    /// Used to sync off-chain rewards to on-chain during TCE
+    pub fn update_accumulated_rewards(
+        ctx: Context<UpdateAccumulatedRewards>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::update_accumulated_rewards(ctx, amount)
     }
    
 }

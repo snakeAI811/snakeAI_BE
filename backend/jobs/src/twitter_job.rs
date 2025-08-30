@@ -23,7 +23,7 @@ impl MiningPhase {
             MiningPhase::Phase2 => "phase2".to_string(),
         }
     }
-    
+
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
             "phase1" => Some(MiningPhase::Phase1),
@@ -139,7 +139,7 @@ impl TwitterClient {
         hashtag: &str,
         latest_tweet_id: Option<String>,
     ) -> Result<(Vec<TweetWithAuthor>, Option<String>), anyhow::Error> {
-        let query = format!("@{} #{}", username, hashtag);
+        let query = format!("@{} AND #{} -is:reply", username, hashtag);
 
         let mut url = format!(
             "https://api.twitter.com/2/tweets/search/recent?query={}&max_results=100&sort_order=recency&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username",
@@ -332,7 +332,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     // ✳️ Persist follower status to DB
     for twitter_id in author_ids {
         let is_following = current_followers.contains(&twitter_id);
-        service.user.update_is_following_by_twitter_id(&twitter_id, is_following).await.ok();
+        service
+            .user
+            .update_is_following_by_twitter_id(&twitter_id, is_following)
+            .await
+            .ok();
     }
 
     let mut cnt = 0;
@@ -353,7 +357,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 // Set follow status if inserted
                 if let Some(u) = &new_user {
                     let is_following = current_followers.contains(&u.twitter_id);
-                    service.user.update_is_following_by_twitter_id(&u.twitter_id, is_following).await.ok();
+                    service
+                        .user
+                        .update_is_following_by_twitter_id(&u.twitter_id, is_following)
+                        .await
+                        .ok();
                 }
 
                 new_user
@@ -379,7 +387,13 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
             if let Ok(tweet) = service
                 .tweet
-                .insert_tweet(&user.id, &t.id, &created_at, &mining_phase.to_string(), reward_amount)
+                .insert_tweet(
+                    &user.id,
+                    &t.id,
+                    &created_at,
+                    &mining_phase.to_string(),
+                    reward_amount,
+                )
                 .await
             {
                 let mut text = String::new();
@@ -387,40 +401,45 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 let should_create_reward = if user.is_following {
                     match service.reward.get_available_reward(&user.id).await? {
                         Some(reward) => {
-                            // text = format!(
-                            //     "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
-                            //     reward.get_reward_url(&env.frontend_url)
-                            // );
-                            true
-                            // false
+                            text = format!(
+                                "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
+                                reward.get_reward_url(&env.frontend_url)
+                            );
+                            false
                         }
-                        // None => match user.latest_claim_timestamp {
-                        //     Some(timestamp) => {
-                        //         let result = timestamp
-                        //             .checked_add_days(Days::new(1))
-                        //             .map(|next_claim_date| next_claim_date < Utc::now())
-                        //             .unwrap_or(false);
+                        None => match user.latest_claim_timestamp {
+                            Some(timestamp) => {
+                                let result = timestamp
+                                    .checked_add_signed(Duration::minutes(25)) // ✅ cooldown check changed
+                                    .map(|next_claim_date| next_claim_date < Utc::now())
+                                    .unwrap_or(false);
 
-                        //         if !result {
-                        //             let formatted_time = timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
-                        //             let formatted_next_time = (timestamp + Duration::hours(24)).format("%Y-%-m-%-d %H:%M:%S").to_string();
-                        //             text = format!(
-                        //                 "⏰ You claimed at {}. Next mining available after {} (24hr cooldown). Thanks for playing! 🐍",
-                        //                 formatted_time, formatted_next_time
-                        //             );
-                        //         }
+                                if !result {
+                                    let formatted_time =
+                                        timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                    let formatted_next_time = (timestamp + Duration::minutes(25))
+                                        .format("%Y-%-m-%-d %H:%M:%S")
+                                        .to_string();
+                                    text = format!(
+                                                "⏰ You claimed at {}. Next mining available after {} (25 min cooldown). Thanks for playing! 🐍",
+                                                formatted_time, formatted_next_time
+                                            );
+                                }
 
-                        //         result
-                        //     }
+                                result
+                            }
                             None => true,
-                        // },
+                        },
                     }
                 } else {
                     text = "👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI & #MineTheSnake! 🐍".to_string();
                     false
                 };
 
-                println!("log: should_create_reward: {}, text: {}", should_create_reward, text);
+                println!(
+                    "log: should_create_reward: {}, text: {}",
+                    should_create_reward, text
+                );
 
                 if should_create_reward {
                     println!(
@@ -437,7 +456,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         .insert_reward_with_phase_and_amounts(
                             &user.id,
                             &tweet.id,
-                            if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
+                            if mining_phase == MiningPhase::Phase2 {
+                                2
+                            } else {
+                                1
+                            },
                             reward_amount,
                             burn_amount,
                         )
@@ -461,7 +484,10 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     );
 
     if let Some(latest_tweet_id) = latest_tweet_id {
-        service.util.upsert_latest_tweet_id(&latest_tweet_id).await?;
+        service
+            .util
+            .upsert_latest_tweet_id(&latest_tweet_id)
+            .await?;
     }
 
     if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
@@ -485,9 +511,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     Ok(())
 }
-
-
-
 
 fn get_current_mining_phase(tweet_count: i64) -> MiningPhase {
     if tweet_count < 1_000_000 {

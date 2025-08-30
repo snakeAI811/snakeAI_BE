@@ -313,4 +313,28 @@ impl RewardRepository {
         
         Ok(count.unwrap_or(0))
     }
+
+    pub async fn claim_tweet_reward(&self, user_id: &Uuid, tweet_twitter_id: &str) -> Result<Option<Reward>, sqlx::Error> {
+        // Find the reward for this tweet and user, then mark it as claimed
+        let reward = sqlx::query_as::<_, Reward>(
+            r#"
+            UPDATE rewards 
+            SET available = false, 
+                transaction_signature = 'off-chain-claim',
+                block_time = NOW()
+            FROM tweets 
+            WHERE rewards.tweet_id = tweets.id 
+                AND rewards.user_id = $1 
+                AND tweets.tweet_id = $2 
+                AND rewards.available = true
+            RETURNING rewards.*
+            "#
+        )
+        .bind(user_id)
+        .bind(tweet_twitter_id)
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(reward)
+    }
 }

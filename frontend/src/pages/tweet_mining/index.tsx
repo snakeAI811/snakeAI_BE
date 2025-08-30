@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
+import BatchClaimComponent from "../../components/BatchClaimComponent";
 import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../patron/services/apiService';
 import { Transaction, Connection, clusterApiUrl, Cluster } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { SOLANA_RPC_URL } from '../../config/program';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
+import { useToast } from '../../contexts/ToastContext';
 
 
 interface Tweet {
@@ -20,15 +23,17 @@ interface Tweet {
 }
 
 interface MiningStats {
-    current_stage: string;
-    total_reward_amount: number;
-    new_reward_amount: number;
     total_tweets: number;
-    rewarded_tweets: number;
-    pending_tweets: number;
+    phase1_count: number;
+    phase2_count: number;
+    pending_rewards: number;
+    total_rewards_claimed: number;
+    accumulated_rewards: number;
+    current_phase: string;
 }
 
 function TweetMiningPage() {
+    const navigate = useNavigate();
     const { user, logout } = useAuth();
     const [tweets, setTweets] = useState<Tweet[]>([]);
     const [miningStats, setMiningStats] = useState<MiningStats | null>(null);
@@ -37,7 +42,9 @@ function TweetMiningPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [rewards, setRewards] = useState<any[]>([]);
+
     const { handleError, isUserRejection } = useErrorHandler();
+    const { showSuccess, showError, showInfo } = useToast();
     
 
     useEffect(() => {
@@ -57,12 +64,13 @@ function TweetMiningPage() {
             const response = await userApi.getTweetMiningStatus();
             if (response.success && response.data) {
                 setMiningStats({
-                    current_stage: 'Phase ' + response.data.current_phase || 'Phase', // Current mining phase
-                    total_reward_amount: response.data.total_rewards_claimed,
-                    new_reward_amount: response.data.pending_rewards,
+                    current_phase: 'Phase ' + response.data.current_phase || 'Phase', // Current mining phase
+                    total_rewards_claimed: response.data.total_rewards_claimed,
+                    pending_rewards: response.data.pending_rewards,
                     total_tweets: response.data.total_tweets,
-                    rewarded_tweets: response.data.total_rewards_claimed,
-                    pending_tweets: response.data.pending_rewards
+                    phase1_count: response.data.phase1_count || 0,
+                    phase2_count: response.data.phase2_count || 0,
+                    accumulated_rewards: response.data.accumulated_rewards || 0
                 });
             }
         } catch (err) {
@@ -156,50 +164,9 @@ function TweetMiningPage() {
         try {
             const response = await userApi.claimTweetReward(tweetId);
             if (response.success && response.data) {
-                const transactionBase64 = response.data;
-                const solana = (window as any).solana;
-                if (!solana || !solana.isPhantom) {
-                    throw new Error('Phantom wallet not found. Please install Phantom.');
-                }
-                if (!solana.isConnected) {
-                    await solana.connect();
-                }
-
-                const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-
-                // ✅ Get fresh blockhash and rebuild transaction
-                const { blockhash } = await connection.getLatestBlockhash('confirmed');
-                const transactionBuffer = Buffer.from(transactionBase64, 'base64');
-                const transaction = Transaction.from(transactionBuffer);
-
-                // ✅ Update with fresh blockhash
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = solana.publicKey;
-
-                setSuccess('Signing transaction...');
-
-                const signedTransaction = await solana.signTransaction(transaction);
-
-                // ✅ Send with better error handling
-                const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-                    skipPreflight: false,
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 0 // Prevent automatic retries
-                });
-
-                setSuccess(`Reward claimed successfully! Transaction: ${signature}`);
-
-                // Wait for confirmation
-                const confirmation = await connection.confirmTransaction({
-                    signature,
-                    blockhash,
-                    lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-                }, 'confirmed');
-
-                if (confirmation.value.err) {
-                    throw new Error(`Transaction failed: ${confirmation.value.err}`);
-                }
-
+                setSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
+                showSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
+                
                 // ✅ Mark as rewarded locally
                 setTweets(prev =>
                     prev.map(tweet =>
@@ -218,21 +185,18 @@ function TweetMiningPage() {
                     )
                 );
 
-
                 setRewardFlag(tweetId);
 
                 // ✅ Reload data from backend to ensure consistency
                 setTimeout(async () => {
-                    // await loadData();
                     await loadMiningStats();
-                }, 3000);
+                }, 1000);
+            } else {
+                throw new Error(response.error || 'Failed to log reward');
             }
         } catch (err) {
             console.error(err);
-            if (!isUserRejection(err)) {
-                handleError(err, 'Failed to select role');
-            }
-            setError('Failed to claim reward. Please try again.');
+            setError('Failed to log reward. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -281,33 +245,33 @@ function TweetMiningPage() {
                                                     <div className="col-md-3">
                                                         <div className="text-center">
                                                             <div className="fs-4 fw-bold text-primary">
-                                                                {miningStats.current_stage}
+                                                                {miningStats.total_tweets}
                                                             </div>
-                                                            <small className="text-muted">Current Stage</small>
+                                                            <small className="text-muted">Total Tweets</small>
                                                         </div>
                                                     </div>
                                                     <div className="col-md-3">
                                                         <div className="text-center">
                                                             <div className="fs-4 fw-bold text-success">
-                                                                {formatTokenAmount(miningStats.rewarded_tweets)}
+                                                                {formatTokenAmount(miningStats.accumulated_rewards)}
                                                             </div>
-                                                            <small className="text-muted">Total Rewards</small>
+                                                            <small className="text-muted">Accumulated Rewards</small>
                                                         </div>
                                                     </div>
                                                     <div className="col-md-3">
                                                         <div className="text-center">
                                                             <div className="fs-4 fw-bold text-warning">
-                                                                {formatTokenAmount(miningStats.pending_tweets)}
+                                                                {formatTokenAmount(miningStats.phase1_count)}
                                                             </div>
-                                                            <small className="text-muted">Pending Rewards</small>
+                                                            <small className="text-muted">Phase 1 Tweets</small>
                                                         </div>
                                                     </div>
                                                     <div className="col-md-3">
                                                         <div className="text-center">
                                                             <div className="fs-4 fw-bold text-info">
-                                                                {formatTokenAmount(miningStats.rewarded_tweets + miningStats.pending_tweets)}
+                                                                {formatTokenAmount(miningStats.phase2_count)}
                                                             </div>
-                                                            <small className="text-muted">Total Tweets</small>
+                                                            <small className="text-muted">Phase 2 Tweets</small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -316,6 +280,13 @@ function TweetMiningPage() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Batch Claim Component */}
+                            <div className="row mb-4">
+                                <div className="col-12">
+                                    <BatchClaimComponent />
+                                </div>
+                            </div>
 
                             {/* Start Mining Section */}
                             <div className="row mb-4">
@@ -352,9 +323,20 @@ function TweetMiningPage() {
                                                 ) : isMining ? (
                                                     '⚡ Mining Active'
                                                 ) : (
-                                                    (miningStats?.rewarded_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'
+                                                    (miningStats?.total_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'
                                                 )}
                                             </button>
+
+                                            {/* {miningStats && miningStats.accumulated_rewards > 0 && (
+                                                <div className="mt-3">
+                                                    <button
+                                                        className="btn btn-outline-success"
+                                                        onClick={() => navigate('/claim')}
+                                                    >
+                                                        🎁 View Claim Page ({miningStats.accumulated_rewards.toLocaleString()} SNAKE accumulated)
+                                                    </button>
+                                                </div>
+                                            )} */}
 
                                             {!user?.twitter_username && (
                                                 <div className="mt-3">
@@ -413,14 +395,14 @@ function TweetMiningPage() {
                                                                                 disabled={isLoading || tweet.rewarded}
                                                                                 title={
                                                                                     tweet.rewarded
-                                                                                        ? 'Reward already claimed'
-                                                                                        : `Claim ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
+                                                                                        ? 'Reward already logged'
+                                                                                        : `Log ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE reward`
                                                                                 }
                                                                             >
                                                                                 {tweet.rewarded ? (
-                                                                                    '✅ Claimed'
+                                                                                    '✅ Logged'
                                                                                 ) : (
-                                                                                    `Claim ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
+                                                                                    `Log ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
                                                                                 )}
                                                                             </button>
                                                                             <a
@@ -444,7 +426,7 @@ function TweetMiningPage() {
                                                     <div className="fs-1 mb-3">🐦</div>
                                                     <h5 className="text-muted">No tweets found</h5>
                                                     <p className="text-muted">
-                                                        Click "{(miningStats?.rewarded_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'}" to fetch your recent tweets and start earning rewards!
+                                                        Click "{(miningStats?.total_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'}" to fetch your recent tweets and start earning rewards!
                                                     </p>
                                                 </div>
                                             )}

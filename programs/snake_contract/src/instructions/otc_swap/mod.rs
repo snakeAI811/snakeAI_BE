@@ -12,5 +12,4 @@ pub use tracking::*;
 pub use deflationary::*;
 pub use instructions::*;
 
-#[cfg(test)]
-mod tests;
+

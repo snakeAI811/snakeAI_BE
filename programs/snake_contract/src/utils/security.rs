@@ -63,7 +63,7 @@ impl SecurityUtils {
         }
 
         // Check for unusual token amounts
-        if user_claim.claimable_amount > 1_000_000 * LAMPORTS_PER_SNK { // 1M tokens
+        if user_claim.accumulated_rewards > 1_000_000 * LAMPORTS_PER_SNK { // 1M tokens
             msg!("Warning: Large token amount detected");
         }
 

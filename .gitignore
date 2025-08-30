@@ -26,6 +26,7 @@ Cargo.toml
 yarn.lock
 Cargo.lock
 Anchor.toml
+.log
 .gitignore
 .zencoder/
 .vscode/
@@ -37,3 +38,8 @@ M1_2_testing_result/
 solana-token-metadata/package-lock.json
 setup_contract.sh
 tests/
+yarn.lock
+validator.log
+yarn.lock
+test_pda.js
+scripts/calc_rent.sh

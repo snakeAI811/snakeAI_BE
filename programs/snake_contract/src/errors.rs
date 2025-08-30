@@ -210,4 +210,12 @@ pub enum SnakeError {
     InvalidAPYRate,
     #[msg("[SNAKE:6085] Swap is already active for this user")]
     SwapAlreadyActive,
+    #[msg("[SNAKE:6086] No rewards available to claim")]
+    NoRewardsToClaim,
+    
+    // ========== TCE (Token Claim Event) ERRORS ==========
+    #[msg("[SNAKE:6087] Token Claim Event has not started yet")]
+    TceNotStarted,
+    #[msg("[SNAKE:6088] Token Claim Event has already started")]
+    TceAlreadyStarted,
 }

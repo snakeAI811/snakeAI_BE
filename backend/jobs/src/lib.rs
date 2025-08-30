@@ -1,5 +1,6 @@
 mod solana_job;
 mod twitter_job;
+mod reward_sync_job;
 
 use anyhow::Context;
 use database::{AppService, DatabasePool};
@@ -31,6 +32,7 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
 
     let is_twitter_job_running = Arc::new(Mutex::new(false));
     let is_solana_job_running = Arc::new(Mutex::new(false));
+    let is_reward_sync_job_running = Arc::new(Mutex::new(false));
 
     let job_service = service.clone();
     let job_env = env.clone();
@@ -97,6 +99,40 @@ pub async fn serve(service: Arc<AppService>, env: Env) -> anyhow::Result<JobSche
         )
         .await
         .context("Failed to add solana job to scheduler")?;
+
+    // Add reward sync job
+    let job_service = service.clone();
+    let job_env = env.clone();
+    let job_is_running = is_reward_sync_job_running.clone();
+    // let schedule = env.reward_sync_job_schedule.clone();
+
+    // scheduler
+    //     .add(
+    //         Job::new_async(&schedule, move |_uuid, _l| {
+    //             println!("reward sync job run: {}", job_env.now());
+    //             let service = job_service.clone();
+    //             let env = job_env.clone();
+    //             let running_flag = job_is_running.clone();
+    //             Box::pin(async move {
+    //                 let mut running = running_flag.lock().await;
+    //                 if *running == false {
+    //                     *running = true;
+    //                     drop(running);
+    //                     if let Err(err) = reward_sync_job::run(service, env).await {
+    //                         println!("reward sync job failed: {:?}", err);
+    //                     }
+    //                     let mut running = running_flag.lock().await;
+    //                     *running = false;
+    //                     drop(running);
+    //                 } else {
+    //                     println!("reward_sync_job::run() already in progress, skipping");
+    //                 }
+    //             })
+    //         })
+    //         .context("Failed to create reward sync job")?,
+    //     )
+    //     .await
+    //     .context("Failed to add reward sync job to scheduler")?;
 
     scheduler
         .start()
