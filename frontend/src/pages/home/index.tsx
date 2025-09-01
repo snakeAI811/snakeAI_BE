@@ -306,7 +306,7 @@ const Home: React.FC = () => {
               </div>
               <div className="d-flex justify-content-center align-items-center">
                 <IconLeftLogo aria-label="Snake AI Logo" />
-                <span className="fs-1 fs-lg-2 fs-xl-1 fw-bold">SNAKE.AI</span>
+                <span className="fs-1 fs-lg-2 fs-xl-1 fw-bold">SnakeAI</span>
               </div>
               <div>
                 <WalletDisplay />
