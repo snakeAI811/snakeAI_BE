@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
 import BatchClaimComponent from "../../components/BatchClaimComponent";
@@ -34,6 +34,7 @@ interface MiningStats {
 
 function TweetMiningPage() {
     const navigate = useNavigate();
+    const { id: rewardId } = useParams<{ id: string }>();
     const { user, logout } = useAuth();
     const [tweets, setTweets] = useState<Tweet[]>([]);
     const [miningStats, setMiningStats] = useState<MiningStats | null>(null);
@@ -42,6 +43,8 @@ function TweetMiningPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [rewards, setRewards] = useState<any[]>([]);
+    const [showEducationalModal, setShowEducationalModal] = useState(false);
+    const [claimLinkReward, setClaimLinkReward] = useState<any>(null);
 
     const { handleError, isUserRejection } = useErrorHandler();
     const { showSuccess, showError, showInfo } = useToast();
@@ -53,6 +56,13 @@ function TweetMiningPage() {
             loadData();
         }
     }, [user]);
+
+    // Handle claim link access
+    useEffect(() => {
+        if (rewardId && user) {
+            checkClaimLinkAccess(rewardId);
+        }
+    }, [rewardId, user]);
 
     const loadData = async () => {
         await loadUserRewards();
@@ -125,6 +135,41 @@ function TweetMiningPage() {
             return 'success'
         }
     }
+
+    const checkClaimLinkAccess = async (rewardId: string) => {
+        try {
+            console.log('🔍 Checking claim link for reward ID:', rewardId);
+            console.log('👤 Current user ID:', user?.id);
+            
+            const response = await userApi.getRewardById(rewardId);
+            console.log('📡 API Response:', response);
+            
+            if (response.success && response.data) {
+                setClaimLinkReward(response.data);
+                console.log('🎁 Reward data:', response.data);
+                console.log('🔒 Reward owner ID:', response.data.user_id);
+                
+                // Check if the current user owns this reward
+                if (response.data.user_id !== user?.id) {
+                    console.log('❌ User does not own this reward - showing educational modal');
+                    // User doesn't own this reward - show educational modal
+                    setShowEducationalModal(true);
+                } else {
+                    console.log('✅ User owns this reward');
+                    // User owns this reward - show success message and highlight it
+                    showSuccess('🎁 This is your reward! You can claim it below.');
+                }
+            } else {
+                console.log('❌ API call failed:', response.error);
+                showError('❌ Invalid or expired reward link.');
+                setShowEducationalModal(true);
+            }
+        } catch (err) {
+            console.error('Failed to check claim link:', err);
+            showError('❌ Failed to verify reward link.');
+            setShowEducationalModal(true);
+        }
+    };
 
     const handleStartMining = async () => {
         if (!user?.twitter_username) {
@@ -438,6 +483,105 @@ function TweetMiningPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Educational Modal for Non-Owners */}
+            {showEducationalModal && (
+                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
+                    <div className="modal-dialog modal-lg">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">🚫 This Reward Doesn't Belong to You</h5>
+                                <button 
+                                    type="button" 
+                                    className="btn-close" 
+                                    onClick={() => setShowEducationalModal(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="text-center mb-4">
+                                    <div className="fs-1 mb-3">🎁</div>
+                                    <h4 className="text-primary">Want to Earn Your Own SNAKE Tokens?</h4>
+                                    <p className="text-muted">
+                                        This reward link belongs to someone else, but you can easily mine your own tokens!
+                                    </p>
+                                </div>
+
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <div className="card h-100">
+                                            <div className="card-body text-center">
+                                                <div className="fs-2 mb-3">🐦</div>
+                                                <h5 className="card-title">Step 1: Tweet Mining</h5>
+                                                <p className="card-text">
+                                                    Post tweets mentioning <strong>@playSnakeAI</strong> and <strong>#MineTheSnake</strong> to earn rewards!
+                                                </p>
+                                                <div className="alert alert-info">
+                                                    <small>
+                                                        <strong>Example:</strong><br/>
+                                                        "Just discovered @playSnakeAI! 🐍 This AI-powered snake game is amazing! #MineTheSnake #GameFi"
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="card h-100">
+                                            <div className="card-body text-center">
+                                                <div className="fs-2 mb-3">⛏️</div>
+                                                <h5 className="card-title">Step 2: Start Mining</h5>
+                                                <p className="card-text">
+                                                    Connect your Twitter account and use our mining page to automatically detect and reward your tweets.
+                                                </p>
+                                                <div className="alert alert-success">
+                                                    <small>
+                                                        <strong>Rewards:</strong><br/>
+                                                        Phase 1: 60 - 375 SNAKE per tweet<br/>
+                                                        Phase 2: 40 SNAKE per tweet
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <div className="alert alert-warning">
+                                        <h6>📋 Mining Requirements:</h6>
+                                        <ul className="mb-0">
+                                            <li>Tweet must mention <strong>@playSnakeAI</strong></li>
+                                            <li>Tweet must include <strong>#MineTheSnake</strong> hashtag</li>
+                                            <li>Must not be a reply to another tweet</li>
+                                            <li>Account must be connected via Twitter OAuth</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    type="button" 
+                                    className="btn btn-secondary" 
+                                    onClick={() => setShowEducationalModal(false)}
+                                >
+                                    Close
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-primary" 
+                                    onClick={() => {
+                                        setShowEducationalModal(false);
+                                        // If user is not authenticated, they'll need to login first
+                                        if (!user?.twitter_username) {
+                                            showInfo('Please connect your Twitter account first to start mining!');
+                                        }
+                                    }}
+                                >
+                                    🚀 Start Mining My Own Tokens
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

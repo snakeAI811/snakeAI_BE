@@ -139,7 +139,7 @@ impl TwitterClient {
         hashtag: &str,
         latest_tweet_id: Option<String>,
     ) -> Result<(Vec<TweetWithAuthor>, Option<String>), anyhow::Error> {
-        let query = format!("@{} AND #{} -is:reply", username, hashtag);
+        let query = format!("@{} #{} -is:reply", username, hashtag);
 
         let mut url = format!(
             "https://api.twitter.com/2/tweets/search/recent?query={}&max_results=100&sort_order=recency&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username",

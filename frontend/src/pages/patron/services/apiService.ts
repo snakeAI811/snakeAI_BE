@@ -1,5 +1,5 @@
 
-const { API_BASE_URL } = require("../../../config/program");
+import { API_BASE_URL } from "../../../config/program";
 
 
 export interface ApiResponse<T> {
@@ -574,23 +574,29 @@ export const userApi = {
     },
 
     getRewardById: async (rewardId: string) => {
-        return apiCall<{
-            id: string;
-            user_id: string;
-            tweet_id: string;
-            created_at: string;
-            available: boolean;
-            message_sent: boolean;
-            transaction_signature: string | null;
-            reward_amount: number;
-            wallet_address: string | null;
-            block_time: string | null;
-            media_id: string | null;
-            media_id_expires_at: string | null;
-            phase: string | null;
-        }>(`/reward/${rewardId}`, {
-            method: 'GET',
-        });
+        // This endpoint is public (no auth required) to allow anyone to check reward details
+        try {
+            const response = await fetch(`${API_BASE_URL}/reward/${rewardId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, data };
+            } else {
+                const errorText = await response.text();
+                return { success: false, error: errorText || 'Failed to get reward' };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Network error'
+            };
+        }
     },
 
     getTweets: async (offset?: number, limit?: number) => {
