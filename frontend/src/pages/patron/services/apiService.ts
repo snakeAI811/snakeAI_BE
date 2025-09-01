@@ -1,5 +1,5 @@
-// API Service for Patron Framework
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';
+const { API_BASE_URL } = require("../../../config/program")
+
 
 export interface ApiResponse<T> {
     success: boolean;

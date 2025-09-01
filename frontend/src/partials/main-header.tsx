@@ -1,6 +1,7 @@
 import { ReactComponent as IconSmallLogo } from "../svgs/logo-small.svg";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import {API_BASE_URL} from "../config/program";
 
 function MainHeader() {
     const { isAuthenticated, user, logout } = useAuth();
@@ -34,7 +35,7 @@ function MainHeader() {
                         </div>
                     ) : (
                         <div className="d-flex gap-3">
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1'}/login`} className="border border-0 fs-5 fw-bold py-2 px-3 text-decoration-none text-center" style={{ backgroundColor: "#A9E000", color: "black" }}>Log In</a>
+                            <a href={`${API_BASE_URL}/login`} className="border border-0 fs-5 fw-bold py-2 px-3 text-decoration-none text-center" style={{ backgroundColor: "#A9E000", color: "black" }}>Log In</a>
                         </div>
                     )}
                 </div>

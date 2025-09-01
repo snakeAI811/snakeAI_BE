@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { roleApi } from '../pages/patron/services/apiService';
+import { API_BASE_URL } from '../config/program';
 
 const AuthDebug: React.FC = () => {
   const { isAuthenticated, user, sessionId, login } = useAuth();
@@ -24,7 +25,7 @@ const AuthDebug: React.FC = () => {
     try {
       setTestResult('Creating development session...');
       
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1'}/dev/login${id}`, {
+      const response = await fetch(`${API_BASE_URL}/dev/login${id}`, {
         method: 'GET',
         credentials: 'include',
       });
