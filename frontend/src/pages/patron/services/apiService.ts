@@ -1,4 +1,5 @@
-const { API_BASE_URL } = require("../../config/program")
+
+const { API_BASE_URL } = require("../../../config/program");
 
 
 export interface ApiResponse<T> {
