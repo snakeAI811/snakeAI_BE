@@ -88,10 +88,6 @@ pub fn routes() -> Router<AppState> {
         // Tweet mining endpoints
         .route("/tweet_mining_status", get(get_tweet_mining_status))
         .route("/claim_tweet_reward", post(claim_tweet_reward_tx))
-        // Tweet template endpoints
-        .route("/tweet_templates", get(get_tweet_templates))
-        .route("/post_tweet", post(post_tweet))
-        .route("/fresh_templates", get(get_fresh_templates))
         // Data endpoints (replacing test endpoints)
         .route("/token_info", get(get_token_info))
         .route("/patron_application", get(get_patron_application_status))
@@ -135,6 +131,10 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/swap_stats", get(get_swap_stats))
         .route("/swap/{pda}", get(get_swap_by_pda))
+        // Tweet template endpoints (must be before user_id routes to avoid conflicts)
+        .route("/tweet_templates", get(get_tweet_templates))
+        .route("/post_tweet", post(post_tweet))
+        .route("/fresh_templates", get(get_fresh_templates))
         // User ID specific routes (must be at the end to avoid conflicts)
         .route("/{user_id}", get(get_user_profile))
         .route("/{user_id}/mining_status", get(get_user_mining_status))

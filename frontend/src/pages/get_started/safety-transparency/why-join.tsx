@@ -6,7 +6,7 @@ import { ReactComponent as IconUsers } from '../../../svgs/users.svg';
 function WhyJoinPage() {
     return (
         <div className="w-100 border border-5 border-black w-100 p-2" style={{ minHeight: "84vh", backgroundColor: '#131200' }}>
-            <div className="text-uppercase fs-1 fs-lg-6 fs-xl-5 fw-bolder p-3 mb-5" style={{ lineHeight: 'normal', color: '#A9E000' }}>WHY JOIN SnakeAI?</div>
+            <div className="text-uppercase fs-1 fs-lg-6 fs-xl-5 fw-bolder p-3 mb-5" style={{ lineHeight: 'normal', color: '#A9E000' }}>WHY JOIN Snake AI?</div>
             <div className="row p-3">
                 <div className="col-md-4 mb-4">
                     <div className='d-flex justify-content-center'>
