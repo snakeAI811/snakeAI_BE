@@ -495,7 +495,8 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             if client
                 .reply_with_media(
                     &format!(
-                        "🎉 Congrats! Your tweet qualified for Snake AI token rewards! 🐍💰\n\n🔗 Claim your tokens: {}\n\n#SnakeAI #TokenRewards",
+                        // "🎉 Congrats! Your tweet qualified for Snake AI token rewards! 🐍💰\n\n🔗 Claim your tokens: {}\n\n#SnakeAI #TokenRewards",
+                        "Congratsss!🐍Your X tweet qualified for Snake AI token rewardsss. \n\n Keep it up!  Claim your tokens: {}",
                         reward.get_reward_url(&env.frontend_url)
                     ),
                     &None,

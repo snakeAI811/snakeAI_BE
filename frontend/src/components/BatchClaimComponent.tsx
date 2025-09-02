@@ -151,7 +151,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
     return (
         <div className="card">
             <div className="card-body">
-                <h5 className="card-title">🎁 Accumulated Mining Rewards</h5>
+                <h5 className="card-title"> Accumulated Mining Rewards</h5>
                 
                 {accumulatedRewards && (
                     <div className="mb-3">
@@ -170,7 +170,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
                                 <div className="card">
                                     <div className="card-body text-center">
                                         <div className="fs-2 fw-bold">
-                                            {accumulatedRewards.can_claim ? '✅ Ready' : '⏳ Waiting for TCE'}
+                                            {accumulatedRewards.can_claim ? ' Ready' : ' Waiting for TCE'}
                                         </div>
                                         <small>Claim Status</small>
                                     </div>
@@ -205,7 +205,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
                             </button>
                         ) : (
                             <div className="sn-success py-2 px-2 rounded align-items-center justify-content-center">
-                                <h6>🕐 Token Claim Event (TCE) Not Yet Active</h6>
+                                <h6> Token Claim Event (TCE) Not Yet Active</h6>
                                 <p className='mb-0'>Your rewards are safely accumulated off-chain. You'll be able to claim all your tokens in a single transaction once the TCE begins!</p>
                             </div>
                         )
@@ -219,7 +219,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
 
                 <div className="mt-3">
                     <small className="text-muted">
-                        💡 <strong>How it works:</strong> Your mining rewards are accumulated off-chain to save on transaction fees. 
+                         <strong>How it works:</strong> Your mining rewards are accumulated off-chain to save on transaction fees. 
                         After the Token Claim Event (TCE), you can claim all your rewards in a single transaction!
                     </small>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
@@ -50,20 +50,61 @@ function TweetMiningPage() {
     const { handleError, isUserRejection } = useErrorHandler();
     const { showSuccess, showError, showInfo } = useToast();
     
+    const checkClaimLinkAccess = useCallback(async (rewardId: string) => {
+        try {
+            console.log('🔍 Checking claim link for reward ID:', rewardId);
+            console.log('👤 Current user ID:', user?.id);
+            
+            const response = await userApi.getRewardById(rewardId);
+            console.log('📡 API Response:', response);
+            
+            if (response.success && response.data) {
+                setClaimLinkReward(response.data);
+                console.log('Reward data:', response.data);
+                console.log('Reward owner ID:', response.data.user_id);
+                
+                // Check if the current user owns this reward
+                if (response.data.user_id !== user?.id) {
+                    console.log('❌ User does not own this reward - showing educational modal');
+                    // User doesn't own this reward - show educational modal
+                    setShowEducationalModal(true);
+                } else {
+                    console.log('User owns this reward');
+                    // User owns this reward - show success message and highlight it
+                    showSuccess('This is your reward! You can claim it below.');
+                }
+            } else {
+                console.log('❌ API call failed:', response.error);
+                showError('❌ Invalid or expired reward link.');
+                setShowEducationalModal(true);
+            }
+        } catch (err) {
+            console.error('Failed to check claim link:', err);
+            showError('❌ Failed to verify reward link.');
+            setShowEducationalModal(true);
+        }
+    }, [user?.id, showSuccess, showError]);
 
     useEffect(() => {
         if (user) {
             loadMiningStats();
             loadData();
+            
+            // If there's a reward ID in the URL, check claim link access
+            if (rewardId) {
+                console.log('🔄 User loaded with reward ID, checking claim link access...');
+                checkClaimLinkAccess(rewardId);
+            }
         }
-    }, [user]);
+    }, [user, rewardId, checkClaimLinkAccess]); // Added checkClaimLinkAccess as dependency
 
     // Handle claim link access
     useEffect(() => {
         if (rewardId && user) {
+            console.log('🔄 User logged in, checking claim link access...');
             checkClaimLinkAccess(rewardId);
         }
-    }, [rewardId, user]);
+    }, [rewardId, user?.id, checkClaimLinkAccess]); // Use user.id instead of user to trigger when user actually changes
 
     const loadData = async () => {
         await loadUserRewards();
@@ -137,41 +178,6 @@ function TweetMiningPage() {
         }
     }
 
-    const checkClaimLinkAccess = async (rewardId: string) => {
-        try {
-            console.log('🔍 Checking claim link for reward ID:', rewardId);
-            console.log('👤 Current user ID:', user?.id);
-            
-            const response = await userApi.getRewardById(rewardId);
-            console.log('📡 API Response:', response);
-            
-            if (response.success && response.data) {
-                setClaimLinkReward(response.data);
-                console.log('🎁 Reward data:', response.data);
-                console.log('🔒 Reward owner ID:', response.data.user_id);
-                
-                // Check if the current user owns this reward
-                if (response.data.user_id !== user?.id) {
-                    console.log('❌ User does not own this reward - showing educational modal');
-                    // User doesn't own this reward - show educational modal
-                    setShowEducationalModal(true);
-                } else {
-                    console.log('✅ User owns this reward');
-                    // User owns this reward - show success message and highlight it
-                    showSuccess('🎁 This is your reward! You can claim it below.');
-                }
-            } else {
-                console.log('❌ API call failed:', response.error);
-                showError('❌ Invalid or expired reward link.');
-                setShowEducationalModal(true);
-            }
-        } catch (err) {
-            console.error('Failed to check claim link:', err);
-            showError('❌ Failed to verify reward link.');
-            setShowEducationalModal(true);
-        }
-    };
-
     const handleStartMining = async () => {
         if (!user?.twitter_username) {
             setError('Please authenticate with Twitter/X first');
@@ -213,7 +219,7 @@ function TweetMiningPage() {
                 setSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
                 showSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
                 
-                // ✅ Mark as rewarded locally
+                //  Mark as rewarded locally
                 setTweets(prev =>
                     prev.map(tweet =>
                         tweet.tweet_id === tweetId
@@ -222,7 +228,7 @@ function TweetMiningPage() {
                     )
                 );
 
-                // ✅ Update rewards state
+                //  Update rewards state
                 setRewards(prev =>
                     prev.map(reward =>
                         reward.tweet_id === tweets.find(t => t.tweet_id === tweetId)?.id
@@ -233,7 +239,7 @@ function TweetMiningPage() {
 
                 setRewardFlag(tweetId);
 
-                // ✅ Reload data from backend to ensure consistency
+                //  Reload data from backend to ensure consistency
                 setTimeout(async () => {
                     await loadMiningStats();
                 }, 1000);
@@ -386,7 +392,7 @@ function TweetMiningPage() {
                                                         className="btn btn-outline-success"
                                                         onClick={() => navigate('/claim')}
                                                     >
-                                                        🎁 View Claim Page ({miningStats.accumulated_rewards.toLocaleString()} SNAKE accumulated)
+                                                         View Claim Page ({miningStats.accumulated_rewards.toLocaleString()} SNAKE accumulated)
                                                     </button>
                                                 </div>
                                             )} */}
@@ -414,7 +420,7 @@ function TweetMiningPage() {
                                                 onClick={loadData}
                                                 disabled={isLoading}
                                             >
-                                                🔄 Refresh
+                                                Refresh
                                             </button> */}
                                         </div>
                                         <div className="card-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
@@ -453,7 +459,7 @@ function TweetMiningPage() {
                                                                                 }
                                                                             >
                                                                                 {tweet.rewarded ? (
-                                                                                    '✅ Logged'
+                                                                                    ' Logged'
                                                                                 ) : (
                                                                                     `Log ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
                                                                                 )}
@@ -465,7 +471,7 @@ function TweetMiningPage() {
                                                                                 className="btn btn-outline-primary btn-sm"
                                                                                 title="Retweet"
                                                                             >
-                                                                                🔄 RT
+                                                                                View
                                                                             </a>
                                                                         </div>
                                                                     </div>
@@ -476,7 +482,7 @@ function TweetMiningPage() {
                                                 </div>
                                             ) : (
                                                 <div className="text-center py-5">
-                                                    <div className="fs-1 mb-3">🐦</div>
+                                                    <div className="fs-1 mb-3"></div>
                                                     <h5 className="text-muted">No tweets found</h5>
                                                     <p className="text-muted">
                                                         Click "{(miningStats?.total_tweets || 0) > 0 ? 'Continue Mining' : ' Start Mining'}" to fetch your recent tweets and start earning rewards!
@@ -507,7 +513,7 @@ function TweetMiningPage() {
                             </div>
                             <div className="modal-body">
                                 <div className="text-center mb-4">
-                                    <div className="fs-1 mb-3">🎁</div>
+                                    <div className="fs-1 mb-3"></div>
                                     <h4 className="text-primary">Want to Earn Your Own SNAKE Tokens?</h4>
                                     <p className="text-muted">
                                         This reward link belongs to someone else, but you can easily mine your own tokens!
@@ -518,7 +524,7 @@ function TweetMiningPage() {
                                     <div className="col-md-6">
                                         <div className="card h-100">
                                             <div className="card-body text-center">
-                                                <div className="fs-2 mb-3">🐦</div>
+                                                <div className="fs-2 mb-3"></div>
                                                 <h5 className="card-title">Step 1: Tweet Mining</h5>
                                                 <p className="card-text">
                                                     Post tweets mentioning <strong>@playSnakeAI</strong> and <strong>#MineTheSnake</strong> to earn rewards!
@@ -526,7 +532,7 @@ function TweetMiningPage() {
                                                 <div className="alert alert-info">
                                                     <small>
                                                         <strong>Example:</strong><br/>
-                                                        "Just discovered @playSnakeAI! 🐍 This AI-powered snake game is amazing! #MineTheSnake #GameFi"
+                                                        "Just discovered @playSnakeAI! This AI-powered snake game is amazing! #MineTheSnake #GameFi"
                                                     </small>
                                                 </div>
                                             </div>
@@ -535,7 +541,7 @@ function TweetMiningPage() {
                                     <div className="col-md-6">
                                         <div className="card h-100">
                                             <div className="card-body text-center">
-                                                <div className="fs-2 mb-3">⛏️</div>
+                                                <div className="fs-2 mb-3"></div>
                                                 <h5 className="card-title">Step 2: Start Mining</h5>
                                                 <p className="card-text">
                                                     Connect your Twitter account and use our mining page to automatically detect and reward your tweets.
@@ -554,7 +560,7 @@ function TweetMiningPage() {
 
                                 <div className="mt-4">
                                     <div className="alert alert-warning">
-                                        <h6>📋 Mining Requirements:</h6>
+                                        <h6> Mining Requirements:</h6>
                                         <ul className="mb-0">
                                             <li>Tweet must mention <strong>@playSnakeAI</strong></li>
                                             <li>Tweet must include <strong>#MineTheSnake</strong> hashtag</li>
@@ -583,7 +589,7 @@ function TweetMiningPage() {
                                         }
                                     }}
                                 >
-                                    🚀 Start Mining My Own Tokens
+                                    Start Mining My Own Tokens
                                 </button>
                             </div>
                         </div>

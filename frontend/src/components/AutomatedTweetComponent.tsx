@@ -43,7 +43,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                 setCategories(response.data.categories);
                 
                 if (!showLoadingIndicator) {
-                    showInfo('🔄 Tweet templates refreshed with fresh content!');
+                    showInfo(' Tweet templates refreshed with fresh content!');
                 }
             } else {
                 showError('Failed to load tweet templates');
@@ -129,7 +129,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
             const response = await userApi.postTweet({ template_id: templateId });
             if (response.success && response.data) {
                 if (response.data.success) {
-                    showSuccess(`🐦 ${response.data.message}`);
+                    showSuccess(` ${response.data.message}`);
                     // Set the last post time to start cooldown
                     setLastPostTime(new Date());
                 } else {
@@ -171,7 +171,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <p className="text-muted mb-0">
                     <small>
-                        ✨ Pre-crafted tweets ready to post! Fresh templates will load automatically when your cooldown ends.
+                         Pre-crafted tweets ready to post! Fresh templates will load automatically when your cooldown ends.
                     </small>
                 </p>
                 <div className="d-flex align-items-center gap-2">
@@ -181,7 +181,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                         disabled={isLoading}
                         title="Refresh templates now"
                     >
-                        🔄
+                        Refresh
                     </button>
                 </div>
             </div>
@@ -190,7 +190,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
             {!isPostingAllowed() && (
                 <div className="alert alert-info mb-3">
                     <div className="d-flex align-items-center">
-                        <span className="me-2">⏰</span>
+                        <span className="me-2"></span>
                         <small>
                             <strong>Cooldown active:</strong> You can post your next tweet in {formatTimeUntilRefresh(timeUntilNextPost)}
                         </small>
@@ -245,7 +245,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                                                 </>
                                             ) : !isPostingAllowed() ? (
                                                 <>
-                                                    ⏰ {Math.ceil(timeUntilNextPost / (1000 * 60))}m
+                                                     {Math.ceil(timeUntilNextPost / (1000 * 60))}m
                                                 </>
                                             ) : (
                                                 'Post'
@@ -259,7 +259,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                 </div>
             ) : (
                 <div className="text-center py-4">
-                    <div className="fs-1 mb-3">📝</div>
+                    <div className="fs-1 mb-3"></div>
                     <h6 className="text-muted">No templates available</h6>
                     <p className="text-muted mb-0">
                         <small>Try refreshing or selecting a different category</small>
@@ -294,7 +294,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                             type="button"
                             role="tab"
                         >
-                            ⛏️ Mining Rewards
+                             Mining Rewards
                         </button>
                     </li>
                     <li className="nav-item" role="presentation">
@@ -304,7 +304,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                             type="button"
                             role="tab"
                         >
-                            🐦 Tweet Assistant
+                             Tweet Assistant
                         </button>
                     </li>
                 </ul>
