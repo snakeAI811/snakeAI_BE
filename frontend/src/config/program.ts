@@ -18,10 +18,6 @@ export const SOLANA_RPC_URL = process.env.REACT_APP_SOLANA_RPC_URL || 'http://lo
 // API Configuration
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';
 
-// Program Seeds (from your smart contract)
-export const REWARD_POOL_SEED = 'reward_pool';
-export const USER_CLAIM_SEED = 'user_claim';
-
 console.log('🐍 Snake AI Configuration Loaded:');
 console.log('  Program ID:', PROGRAM_ID.toString());
 console.log('  Token Mint:', TOKEN_MINT.toString());

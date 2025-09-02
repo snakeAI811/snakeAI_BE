@@ -1,6 +1,7 @@
 mod reward;
 mod session;
 mod tweet;
+mod tweet_template;
 mod user;
 mod util;
 mod otc_swap;
@@ -9,6 +10,7 @@ mod values;
 pub use reward::*;
 pub use session::*;
 pub use tweet::*;
+pub use tweet_template::*;
 pub use user::*;
 pub use util::*;
 pub use otc_swap::*;
@@ -26,6 +28,7 @@ pub struct AppService {
     pub reward: RewardService,
     pub session: SessionService,
     pub tweet: TweetService,
+    pub tweet_template: TweetTemplateService,
     pub user: UserService,
     pub util: UtilService,
     pub otc_swap: OtcSwapService,
@@ -38,6 +41,7 @@ impl AppService {
             reward: RewardService::new(db),
             session: SessionService::new(db),
             tweet: TweetService::new(db),
+            tweet_template: TweetTemplateService::new(db),
             user: UserService::new(db),
             util: UtilService::new(db),
             otc_swap: OtcSwapService::new(db.clone()),

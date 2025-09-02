@@ -204,9 +204,9 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
                                 )}
                             </button>
                         ) : (
-                            <div className="alert alert-info">
+                            <div className="sn-success py-2 px-2 rounded align-items-center justify-content-center">
                                 <h6>🕐 Token Claim Event (TCE) Not Yet Active</h6>
-                                <p>Your rewards are safely accumulated off-chain. You'll be able to claim all your tokens in a single transaction once the TCE begins!</p>
+                                <p className='mb-0'>Your rewards are safely accumulated off-chain. You'll be able to claim all your tokens in a single transaction once the TCE begins!</p>
                             </div>
                         )
                     ) : (

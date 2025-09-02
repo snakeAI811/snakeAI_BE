@@ -13,6 +13,11 @@ use crate::{
             update_otc_swap_tx_signature,
         },
         patron_minimal::get_initialize_user_claim_tx,
+        tweet_template::{
+            get_tweet_templates,
+            post_tweet,
+            get_fresh_templates,
+        },
         user::{
             apply_patron_tx,
             approve_patron_tx,
@@ -83,6 +88,10 @@ pub fn routes() -> Router<AppState> {
         // Tweet mining endpoints
         .route("/tweet_mining_status", get(get_tweet_mining_status))
         .route("/claim_tweet_reward", post(claim_tweet_reward_tx))
+        // Tweet template endpoints
+        .route("/tweet_templates", get(get_tweet_templates))
+        .route("/post_tweet", post(post_tweet))
+        .route("/fresh_templates", get(get_fresh_templates))
         // Data endpoints (replacing test endpoints)
         .route("/token_info", get(get_token_info))
         .route("/patron_application", get(get_patron_application_status))

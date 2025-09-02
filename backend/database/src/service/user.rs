@@ -174,4 +174,24 @@ impl UserService {
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
+
+    pub async fn update_twitter_tokens(
+        &self,
+        user_id: &Uuid,
+        access_token: &str,
+        refresh_token: Option<&str>,
+        expires_at: Option<&DateTime<Utc>>,
+    ) -> Result<User, ApiError> {
+        self.user_repo
+            .update_twitter_tokens(user_id, access_token, refresh_token, expires_at)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_user_twitter_access_token(&self, user_id: &str) -> Result<Option<String>, ApiError> {
+        self.user_repo
+            .get_user_twitter_access_token(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
 }

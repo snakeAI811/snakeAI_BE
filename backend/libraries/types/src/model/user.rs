@@ -38,7 +38,11 @@ pub struct User {
     pub role_transaction_signature: Option<String>,
     pub role_updated_at: Option<DateTime<Utc>>,
     pub is_following: bool,
-    pub accumulated_reward: Option<i64>
+    pub accumulated_reward: Option<i64>,
+    // Twitter OAuth tokens
+    pub twitter_access_token: Option<String>,
+    pub twitter_refresh_token: Option<String>,
+    pub twitter_token_expires_at: Option<DateTime<Utc>>
 }
 
 // Extended user model for patron framework features

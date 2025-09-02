@@ -36,7 +36,8 @@ impl UserRepository {
                 lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,
                 initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
                 total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
-                role_transaction_signature, role_updated_at, is_following, accumulated_reward
+                role_transaction_signature, role_updated_at, is_following, accumulated_reward,
+                twitter_access_token, twitter_refresh_token, twitter_token_expires_at
             "#,
             twitter_id,
             twitter_username,
@@ -234,6 +235,38 @@ impl UserRepository {
         .await?;
 
         Ok(user)
+    }
+
+    pub async fn update_twitter_tokens(
+        &self,
+        user_id: &Uuid,
+        access_token: &str,
+        refresh_token: Option<&str>,
+        expires_at: Option<&DateTime<Utc>>,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET twitter_access_token = $1, twitter_refresh_token = $2, twitter_token_expires_at = $3 WHERE id = $4 RETURNING *",
+            access_token,
+            refresh_token,
+            expires_at,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_twitter_access_token(&self, user_id: &str) -> Result<Option<String>, sqlx::Error> {
+        let result = sqlx::query!(
+            "SELECT twitter_access_token FROM users WHERE id = $1",
+            Uuid::parse_str(user_id).map_err(|_| sqlx::Error::RowNotFound)?
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(result.and_then(|row| row.twitter_access_token))
     }
 
 }

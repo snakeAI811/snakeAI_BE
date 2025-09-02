@@ -775,6 +775,48 @@ export const userApi = {
             body: JSON.stringify(params),
         });
     },
+
+    // Tweet template endpoints
+    getTweetTemplates: async (count?: number, category?: string) => {
+        const params = new URLSearchParams();
+        if (count !== undefined) params.append('count', count.toString());
+        if (category) params.append('category', category);
+
+        return apiCall<{
+            templates: Array<{
+                id: number;
+                content: string;
+                category?: string;
+            }>;
+            categories: string[];
+        }>(`/user/tweet_templates${params.toString() ? '?' + params.toString() : ''}`, {
+            method: 'GET',
+        });
+    },
+
+    postTweet: async (params: { template_id?: number; custom_content?: string }) => {
+        return apiCall<{
+            success: boolean;
+            tweet_id?: string;
+            message: string;
+        }>('/user/post_tweet', {
+            method: 'POST',
+            body: JSON.stringify(params),
+        });
+    },
+
+    getFreshTemplates: async (count?: number) => {
+        const params = new URLSearchParams();
+        if (count !== undefined) params.append('count', count.toString());
+
+        return apiCall<Array<{
+            id: number;
+            content: string;
+            category?: string;
+        }>>(`/user/fresh_templates${params.toString() ? '?' + params.toString() : ''}`, {
+            method: 'GET',
+        });
+    },
 };
 
 // DAO Management API calls

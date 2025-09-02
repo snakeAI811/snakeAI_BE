@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
 import BatchClaimComponent from "../../components/BatchClaimComponent";
+import AutomatedTweetComponent from "../../components/AutomatedTweetComponent";
 import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../patron/services/apiService';
 import { Transaction, Connection, clusterApiUrl, Cluster } from '@solana/web3.js';
@@ -329,7 +330,14 @@ function TweetMiningPage() {
                             {/* Batch Claim Component */}
                             <div className="row mb-4">
                                 <div className="col-12">
-                                    <BatchClaimComponent />
+                                    
+                                </div>
+                            </div>
+
+                            {/* Automated Tweet Component */}
+                            <div className="row mb-4">
+                                <div className="col-12">
+                                    <AutomatedTweetComponent />
                                 </div>
                             </div>
 
