@@ -64,10 +64,12 @@ function SnakePanel({ snake, milisecond = 50, callback = (result: string) => { }
             }
 
             // compare if snake take the coin (as default, coin position is center of canvas.)
-            if (snake.x === _coinPosition.x && snake.y === _coinPosition.y) { // if snake eats the coin.
+            const coinRange = 3;
+            if (snake.x >= _coinPosition.x - coinRange && 
+                snake.x <= _coinPosition.x + coinRange &&
+                snake.y >= _coinPosition.y - coinRange && 
+                snake.y <= _coinPosition.y + coinRange) {
                 setEatenCoin(true);
-                callback('out');
-            } else if ((snake.x <= 0 || snake.x >= _cellCountXRef.current) || (snake.y <= 0 || snake.y >= _cellCountY)) { // if snake is out of game board.
                 callback('out');
             }
 
@@ -78,6 +80,7 @@ function SnakePanel({ snake, milisecond = 50, callback = (result: string) => { }
             clearInterval(interval);
         };
     }, []);
+
 
     // get events
     useEffect(() => {

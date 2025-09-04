@@ -17,7 +17,7 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
     <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
       {showMessage && (
         <div className="text-center mb-4">
-          <h4 className="text-muted mb-3">🔗 Wallet Connection Required</h4>
+          <h4 className="text-muted mb-3">🔗 Phantom Wallet Connection Required</h4>
           <p className="text-muted">Please connect your wallet to access this feature.</p>
         </div>
       )}
@@ -45,6 +45,23 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
             Connect Wallet
           </button>
         )}
+
+        {/* Wallets supported section */}
+        <div className="mt-4">
+          <small className="text-muted d-block mb-2">Wallets supported</small>
+          <a
+            href="https://phantom.app/download"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="d-inline-flex align-items-center text-decoration-none"
+            aria-label="Download Phantom Wallet"
+          >
+            <span style={{ fontSize: '1.25rem', marginRight: '8px' }}>
+              <img src="/phantom.png" alt="Phantom Logo" style={{ height: '24px', width: '24px' }} />
+            </span>
+            <span>Phantom download</span>
+          </a>
+        </div>
       </div>
     </div>
   );
