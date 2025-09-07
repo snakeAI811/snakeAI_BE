@@ -77,7 +77,7 @@ function ResponsiveMenu({ className = "" }: ResponsiveMenuProps) {
   const DesktopMenu = () => (
     <div className="custom-menu d-none d-md-block">
       <div className="w-100">
-        <div className="fs-1 text-center" style={{ lineHeight: 'normal' }}>MENU</div>
+        <div className="fs-1 text-center py-1" style={{ lineHeight: 'normal' }}>MENU</div>
       </div>
       <div className="custom-border-y custom-content-height d-flex align-items-center">
         <div className="w-100 text-center custom-border d-flex align-items-center justify-content-center" style={{ height: '98%' }}>
@@ -119,8 +119,8 @@ function ResponsiveMenu({ className = "" }: ResponsiveMenuProps) {
         left: '20px',
         zIndex: 1000,
         backgroundColor: 'black',
-        color: '#A9E000',
-        border: '2px dashed #A9E000',
+        color: 'black',
+        background: '#A9E000',
         borderRadius: '8px'
       }}
     >
@@ -136,7 +136,7 @@ function ResponsiveMenu({ className = "" }: ResponsiveMenuProps) {
         position: 'fixed',
         top: '70px',
         left: '20px',
-        backgroundColor: 'black',
+        backgroundColor: '#e2ebe5ff',
         border: '2px solid #A9E000',
         borderRadius: '8px',
         zIndex: 999,
@@ -149,7 +149,6 @@ function ResponsiveMenu({ className = "" }: ResponsiveMenuProps) {
     >
       <div className="p-3">
         <div className="text-center mb-3" style={{ color: '#A9E000', fontSize: '1.2rem', fontWeight: 'bold' }}>
-          MENU
         </div>
         {menuItems.map((item) => {
           const IconComponent = item.icon;
@@ -159,10 +158,10 @@ function ResponsiveMenu({ className = "" }: ResponsiveMenuProps) {
               className="mobile-menu-item d-flex align-items-center p-2 mb-2"
               onClick={() => handleMenuClick(item.path)}
               style={{
-                opacity: isActive(item.path) ? 1 : 0.5,
+                opacity: isActive(item.path) ? 1 : 0.8,
                 cursor: 'pointer',
-                backgroundColor: isActive(item.path) ? '#A9E000' : 'transparent',
-                color: isActive(item.path) ? 'black' : '#A9E000',
+                // backgroundColor: isActive(item.path) ? '#A9E000' : 'transparent',
+                // color: isActive(item.path) ? 'black' : '#A9E000',
                 borderRadius: '4px',
                 transition: 'all 0.2s ease'
               }}

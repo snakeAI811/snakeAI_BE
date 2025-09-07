@@ -32,13 +32,14 @@ const SimpleWalletConnection: React.FC = () => {
         
         {connected && publicKey && (
           <div style={{
-            marginTop: '15px',
-            padding: '15px',
+            marginTop: '7px',
+            padding: '7px 15px',
             background: 'transparent',
             borderRadius: '3px',
-            border: '2px dashed #333'
+            border: '2px dashed #333',
+            fontSize: '1rem',
           }}>
-            <p style={{ margin: '5px 0', fontSize: '14px' }}>
+            <p className='mb-0'>
               <strong>Wallet Address:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
             </p>
             {/* <button 

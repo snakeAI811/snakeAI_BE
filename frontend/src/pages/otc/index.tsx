@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useToast } from '../../contexts/ToastContext';
 import { useWalletContext } from '../../contexts/WalletContext';
@@ -8,7 +7,8 @@ import WalletGuard from "../../components/WalletGuard";
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import { otcApi, tokenApi, roleApi, OtcSwapResponse } from '../patron/services/apiService';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
-import { useAuth } from '../../contexts/AuthContext';
+import { usePhantom } from '../../hooks/usePhantom';
+import StatusBar from '../../components/StatusBar';
 
 interface OTCOrder {
   orderId: string;
@@ -36,9 +36,8 @@ interface OTCOrder {
 const OTCTrading: React.FC = () => {
   const { showSuccess, showError, showInfo } = useToast();
   const { publicKey, connected } = useWalletContext();
-  const { handleError, handleWarning } = useErrorHandler();
-  const { user, logout } = useAuth();
-  const { signTransaction } = useWallet();
+  const { handleError } = useErrorHandler();
+  const { provider } = usePhantom();
 
   // Create connection with proper configuration
   const connection = new Connection(SOLANA_RPC_URL, {
@@ -230,7 +229,7 @@ const OTCTrading: React.FC = () => {
             'OTC swap created successfully!'
           );
           swapData.txSignature = signature;
-          // ✅ Submit txSignature to backend to mark swap active
+          //  Submit txSignature to backend to mark swap active
           await otcApi.updateSwapSignature(swapData);
           showSuccess('OTC swap order created successfully!');
         } else {
@@ -505,9 +504,9 @@ const OTCTrading: React.FC = () => {
     transaction.feePayer = new PublicKey(publicKey!);
 
     // Sign transaction
-    if (typeof window !== 'undefined' && (window as any).solana) {
+    if (provider?.signTransaction) {
       // Step 3: Re-sign transaction with Phantom
-      const signedTransaction = await (window as any).solana.signTransaction(transaction);
+      const signedTransaction = await provider.signTransaction(transaction);
 
       // Step 4: Send transaction
       showInfo(submitMessage);
@@ -548,8 +547,8 @@ const OTCTrading: React.FC = () => {
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = new PublicKey(publicKey!);
 
-    if (typeof window !== 'undefined' && (window as any).solana) {
-      const signedTransaction = await (window as any).solana.signTransaction(transaction);
+    if (provider?.signTransaction) {
+      const signedTransaction = await provider.signTransaction(transaction);
       return signedTransaction.serialize();
     }
 
@@ -569,12 +568,12 @@ const OTCTrading: React.FC = () => {
 
   const getBuyerRestrictionBadge = (order: OTCOrder) => {
     if (order.buyerRestrictions.treasuryOnly) {
-      return <span className="badge bg-primary">🏛️ Treasury Only</span>;
+      return <span className="badge bg-primary"> Treasury Only</span>;
     }
     if (order.buyerRestrictions.patronsOnly) {
-      return <span className="badge bg-warning">👑 Patrons Only</span>;
+      return <span className="badge bg-warning"> Patrons Only</span>;
     }
-    return <span className="badge bg-success">✅ Open to All</span>;
+    return <span className="badge bg-success">Open to All</span>;
   };
 
   // Add this to your otcApi object (where you have cancelSwap and processCancelSwap)
@@ -586,23 +585,9 @@ const OTCTrading: React.FC = () => {
         <ResponsiveMenu />
         {/* Menu End */}
         <div className="custom-content">
-          <div className="w-100">
-            <div className="d-flex justify-content-between align-items-center">
-              <div className="fs-1" style={{ lineHeight: 'normal' }}>🔄 OTC Trading</div>
-              <div className="text-end d-flex align-items-center gap-2">
-                <div className="fs-6 text-muted">
-                  Connected: @{user?.twitter_username || 'Not authenticated'}
-                </div>
-                <button
-                  onClick={async () => await logout()}
-                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center"
-                >
-                  LOGOUT
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+          <StatusBar title="OTC Trading" />
+
+          <div className="custom-border-y custom-content-height d-flex flex-column">
             <WalletGuard>
               <div className="">
                 {!connected && (
@@ -668,7 +653,7 @@ const OTCTrading: React.FC = () => {
                             onClick={() => setActiveTab('all')}
                             className={`nav-link ${activeTab === 'all' ? 'active' : ''}`}
                           >
-                            All Orders ({orders.length})
+                            All ({orders.length})
                           </button>
                         </li>
                         <li className="nav-item">
@@ -676,7 +661,7 @@ const OTCTrading: React.FC = () => {
                             onClick={() => setActiveTab('my')}
                             className={`nav-link ${activeTab === 'my' ? 'active' : ''}`}
                           >
-                            My Orders ({myOrders.length})
+                            My Orders({myOrders.length})
                           </button>
                         </li>
                       </ul>
@@ -685,7 +670,7 @@ const OTCTrading: React.FC = () => {
 
                   {showCreateForm && (
                     <div className="card-body border-bottom">
-                      <h5 className="card-title">📝 Create Sell Order</h5>
+                      <h5 className="card-title">Create Sell Order</h5>
                       <div className="row g-3">
                         <div className="col-md-4">
                           <label className="form-label">Amount (SNAKE)</label>
@@ -774,7 +759,7 @@ const OTCTrading: React.FC = () => {
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-center mb-4">
                       <h5 className="card-title mb-0">
-                        {activeTab === 'all' ? '📊 All Active Orders' : '📋 My Orders'}
+                        {activeTab === 'all' ? ' All Active Orders' : ' My Orders'}
                       </h5>
                       {(activeTab === 'all' ? orders : myOrders).length > 0 && (
                         <small className="text-muted">
@@ -878,9 +863,9 @@ const OTCTrading: React.FC = () => {
                                 </td>
                                 <td>
                                   {order.isExpired ? (
-                                    <span className="badge bg-danger">⏰ Expired</span>
+                                    <span className="badge bg-danger"> Expired</span>
                                   ) : (
-                                    <span className="badge bg-success">✅ Active</span>
+                                    <span className="badge bg-success"> Active</span>
                                   )}
                                 </td>
                                 <td>
@@ -972,7 +957,7 @@ const OTCTrading: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="alert alert-info mt-3">
+                    <div className="sn-success py-2 px-2 rounded align-items-center justify-content-center">
                       <small>
                         <i className="bi bi-lightbulb me-2"></i>
                         <strong>Tip:</strong> All transactions require wallet approval and network fees.

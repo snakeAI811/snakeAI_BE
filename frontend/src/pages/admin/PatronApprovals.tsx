@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { patronApi } from '../patron/services/apiService';
 
 interface PendingApplication {
@@ -85,6 +86,15 @@ function PatronApprovals() {
 
   return (
     <div className="container-fluid">
+      {/* Breadcrumb */}
+      <nav aria-label="breadcrumb" className="mb-3">
+        <ol className="breadcrumb">
+          <li className="breadcrumb-item"><Link to="/home">Home</Link></li>
+          <li className="breadcrumb-item"><Link to="/admin">Admin Dashboard</Link></li>
+          <li className="breadcrumb-item active" aria-current="page">Patron Approvals</li>
+        </ol>
+      </nav>
+
       <div className="row">
         <div className="col-12">
           <div className="card">

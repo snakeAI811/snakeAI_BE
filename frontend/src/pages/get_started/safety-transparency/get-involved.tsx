@@ -14,7 +14,7 @@ function GetInvolvedPage() {
                     
                     <a href="https://x.com/playSnakeAI" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
                         <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
-                            <IconTwitter style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                            <IconTwitter style={{ color: '#A9E000', width: '60px', height: 'auto' }} />
                             <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>FOLLOW US on twitter (x)</span>
                         </button>
                     </a>

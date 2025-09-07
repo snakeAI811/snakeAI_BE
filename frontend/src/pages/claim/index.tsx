@@ -97,7 +97,7 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
             </div>
           </div>
           
-          <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+          <div className="custom-border-y custom-content-height d-flex flex-column">
             <div className="w-100" style={{ minHeight: '86vh' }}>
 
               {/* Success Message */}
@@ -121,10 +121,10 @@ function ClaimPage({ page_number = 1 }: ClaimPageProps) {
                 <div className="alert alert-success mb-4">
                   <div className="row">
                     <div className="col-md-6">
-                      <strong>✅ Wallet Connected:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
+                      <strong>Wallet Connected:</strong> {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
                     </div>
                     <div className="col-md-6">
-                      <strong>💰 Current Balance:</strong> {walletBalance.toLocaleString()} SNAKE tokens
+                      <strong>Current Balance:</strong> {walletBalance.toLocaleString()} SNAKE tokens
                     </div>
                   </div>
                 </div>

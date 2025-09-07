@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import { useAuth } from "../../contexts/AuthContext";
 import { useWalletContext } from "../../contexts/WalletContext";
 import { usePhantom } from "../../hooks/usePhantom";
 import { userApi, roleApi, tokenApi } from "../patron/services/apiService";
@@ -13,6 +12,7 @@ import './index.css';
 // icons
 import { ReactComponent as IconLeftLogo } from "../../svgs/logo-left.svg";
 import { useAppContext } from "../../contexts/AppContext";
+import StatusBar from "../../components/StatusBar";
 
 interface ProfileData {
     twitter_username: string;
@@ -57,7 +57,6 @@ const calculateRanking = (rewardBalance: number): number => {
 function Profile() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
-    const { user, logout } = useAuth();
     const { connected } = useWalletContext();
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
@@ -224,27 +223,9 @@ function Profile() {
                 {/* Menu End */}
 
                 <div className="custom-content">
-                    <div className="w-100">
-                        <div className="d-flex justify-content-between align-items-center ">
-                            <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                                Profile
-                            </div>
-                            <div className="text-end d-flex align-items-center gap-2">
-                                <div className="fs-6 text-muted">
-                                    Connected: @{user?.twitter_username || 'Not authenticated'}
-                                </div>
-                                <button
-                                    onClick={async () => {
-                                        await logout();
-                                    }}
-                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
-                                    LOGOUT
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <StatusBar title="PROFILE" />
 
-                    <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+                    <div className="custom-border-y custom-content-height d-flex flex-column">
                         {/* Wallet Connection */}
                         <div className="mb-1">
                             <SimpleWalletConnection />
@@ -265,7 +246,7 @@ function Profile() {
                                                 <div className="mb-2">
                                                     <span className="retro-text-small">USER:</span>
                                                     <div className="retro-text text-danger">
-                                                        {profileData?.twitter_username || user?.twitter_username || 'Unknown'}
+                                                        {profileData?.twitter_username || 'Unknown'}
                                                     </div>
                                                 </div>
                                                 <div className="mb-2">

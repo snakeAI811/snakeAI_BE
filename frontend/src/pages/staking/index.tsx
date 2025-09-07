@@ -5,11 +5,10 @@ import WalletGuard from "../../components/WalletGuard";
 import { useWalletContext } from '../../contexts/WalletContext';
 import { Connection } from '@solana/web3.js';
 import { SOLANA_RPC_URL } from '../../config/program';
-import { useAuth } from '../../contexts/AuthContext';
+import StatusBar from '../../components/StatusBar';
 
 function StakingPage() {
   const { connected, publicKey } = useWalletContext();
-  const { user, logout } = useAuth();
 
   const connection = useMemo(() =>
     new Connection(SOLANA_RPC_URL || 'https://api.devnet.solana.com'),
@@ -22,25 +21,9 @@ function StakingPage() {
         <ResponsiveMenu />
 
         <div className="custom-content">
-          <div className="w-100">
-            <div className="d-flex justify-content-between align-items-center">
-              <div className="fs-1" style={{ lineHeight: 'normal' }}>🏦 Staking Dashboard</div>
-              <div className="text-end d-flex align-items-center gap-2">
-                <div className="fs-6 text-muted">
-                  Connected: @{user?.twitter_username || 'Not authenticated'}
-                </div>
-                <button
-                  onClick={async () => {
-                    await logout();
-                  }}
-                  className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
-                  LOGOUT
-                </button>
-              </div>
-            </div>
-          </div>
+          <StatusBar title="STAKING" />
 
-          <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+          <div className="custom-border-y custom-content-height d-flex flex-column">
             <WalletGuard>
               <div className="item-stretch w-100" style={{ minHeight: '86vh' }}>
                 {connected && publicKey ? (

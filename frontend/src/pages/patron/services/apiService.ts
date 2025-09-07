@@ -396,6 +396,128 @@ export const patronApi = {
     },
 };
 
+// Admin API calls
+export const adminApi = {
+    // TCE Flag Management
+    getTceStatus: async () => {
+        return apiCall<{
+            tce_enabled: boolean;
+            tce_start_date: string | null;
+            total_users_affected: number;
+        }>('/admin/tce_status', {
+            method: 'GET',
+        });
+    },
+
+    enableTce: async (): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/admin/enable_tce', {
+            method: 'POST',
+        });
+
+        if (response.success && response.data) {
+            return { success: true, data: response.data, requiresWalletSignature: true };
+        }
+
+        return { success: false, data: '', requiresWalletSignature: false, error: response.error };
+    },
+
+    disableTce: async (): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/admin/disable_tce', {
+            method: 'POST',
+        });
+
+        if (response.success && response.data) {
+            return { success: true, data: response.data, requiresWalletSignature: true };
+        }
+
+        return { success: false, data: '', requiresWalletSignature: false, error: response.error };
+    },
+
+    // Staking History Management
+    getAllStakingHistory: async (page: number = 1, limit: number = 50) => {
+        return apiCall<{
+            staking_records: Array<{
+                id: string;
+                user_pubkey: string;
+                username?: string;
+                staked_amount: number;
+                stake_start_date: string;
+                stake_end_date: string | null;
+                duration_months: number;
+                is_active: boolean;
+                validation_status: 'pending' | 'validated' | 'invalid';
+                created_at: string;
+                updated_at: string;
+            }>;
+            total_count: number;
+            page: number;
+            per_page: number;
+        }>(`/admin/staking_history?page=${page}&limit=${limit}`, {
+            method: 'GET',
+        });
+    },
+
+    validateStakingHistory: async (userPubkey: string, recordId: string): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/admin/validate_staking_history', {
+            method: 'POST',
+            body: JSON.stringify({
+                user_pubkey: userPubkey,
+                record_id: recordId
+            }),
+        });
+
+        if (response.success && response.data) {
+            return { success: true, data: response.data, requiresWalletSignature: true };
+        }
+
+        return { success: false, data: '', requiresWalletSignature: false, error: response.error };
+    },
+
+    invalidateStakingHistory: async (userPubkey: string, recordId: string): Promise<WalletTransactionResponse> => {
+        const response = await apiCall<string>('/admin/invalidate_staking_history', {
+            method: 'POST',
+            body: JSON.stringify({
+                user_pubkey: userPubkey,
+                record_id: recordId
+            }),
+        });
+
+        if (response.success && response.data) {
+            return { success: true, data: response.data, requiresWalletSignature: true };
+        }
+
+        return { success: false, data: '', requiresWalletSignature: false, error: response.error };
+    },
+
+    getUserStakingHistory: async (userPubkey: string) => {
+        return apiCall<{
+            user_pubkey: string;
+            username?: string;
+            staking_records: Array<{
+                id: string;
+                staked_amount: number;
+                stake_start_date: string;
+                stake_end_date: string | null;
+                duration_months: number;
+                is_active: boolean;
+                validation_status: 'pending' | 'validated' | 'invalid';
+                created_at: string;
+                updated_at: string;
+            }>;
+            total_staked: number;
+            longest_stake_months: number;
+            validation_summary: {
+                total_records: number;
+                validated: number;
+                pending: number;
+                invalid: number;
+            };
+        }>(`/admin/user_staking_history/${userPubkey}`, {
+            method: 'GET',
+        });
+    },
+};
+
 // OTC Trading API calls
 export const otcApi = {
     initiateSwap: async (params: {
@@ -855,6 +977,7 @@ const apiService = {
     vestingApi,
     userApi,
     daoApi,
+    adminApi,
 };
 
 export default apiService;

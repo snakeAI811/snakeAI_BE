@@ -168,7 +168,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
 
     const renderTweetsTab = () => (
         <div>
-            <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-md-flex justify-content-between align-items-center mb-3">
                 <p className="text-muted mb-0">
                     <small>
                          Pre-crafted tweets ready to post! Fresh templates will load automatically when your cooldown ends.
@@ -222,7 +222,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                         <div key={template.id} className="col-12 mb-3">
                             <div className="card border-light">
                                 <div className="card-body">
-                                    <div className="d-flex justify-content-between align-items-start">
+                                    <div className="d-md-flex justify-content-between align-items-start">
                                         <div className="flex-grow-1 me-3 w-100">
                                             <p className="card-text mb-2">{template.content}</p>
                                             {template.category && (
@@ -232,7 +232,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                                             )}
                                         </div>
                                         <button
-                                            className="primary-btn p-1"
+                                            className="primary-btn p-1 my-1"
                                             onClick={() => handlePostTweet(template.id, template.content)}
                                             disabled={isPosting || !isPostingAllowed()}
                                             title={!isPostingAllowed() ? `Cooldown active: ${formatTimeUntilRefresh(timeUntilNextPost)} remaining` : "Post this tweet"}
@@ -294,7 +294,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                             type="button"
                             role="tab"
                         >
-                             Mining Rewards
+                            Rewards
                         </button>
                     </li>
                     <li className="nav-item" role="presentation">
@@ -310,7 +310,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
                 </ul>
 
                 {/* Tab Content */}
-                <div className="tab-content">
+                <div className="tab-content p-1">
                     {activeTab === 'mining' && renderMiningRewardsTab()}
                     {activeTab === 'tweets' && renderTweetsTab()}
                 </div>

@@ -2,9 +2,9 @@
 import { useState, useEffect, useMemo } from "react";
 
 import ResponsiveMenu from "../../components/ResponsiveMenu";
-import { useAuth } from "../../contexts/AuthContext";
 import { usePhantom } from "../../hooks/usePhantom";
 import { daoApi } from "../patron/services/apiService";
+import StatusBar from "../../components/StatusBar";
 import './index.css';
 
 interface ProfileData {
@@ -31,8 +31,6 @@ interface UserTableData {
 function DAO() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
-    const { user, logout } = useAuth();
-    const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [sortBy, setSortBy] = useState<'activity' | 'address' | 'roleDuration' | 'score'>('score');
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -104,26 +102,10 @@ function DAO() {
                 {/* Menu End */}
 
                 <div className="custom-content">
-                    <div className="w-100">
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="fs-1" style={{ lineHeight: 'normal' }}>DAO</div>
-                            <div className="text-end d-flex align-items-center gap-2">
-                                <div className="fs-6 text-muted">
-                                    Connected: @{user?.twitter_username || 'Not authenticated'}
-                                </div>
-                                <button
-                                    onClick={async () => {
-                                        await logout();
-                                    }}
-                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
-                                    LOGOUT
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <StatusBar title="DAO" />
 
 
-                    <div className="custom-border-y custom-content-height d-flex flex-column px-3">
+                    <div className="custom-border-y custom-content-height d-flex flex-column ">
                         {/* <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
                             <h4>User Rankings</h4>
                         </div> */}

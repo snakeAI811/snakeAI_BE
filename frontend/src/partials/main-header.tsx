@@ -17,7 +17,7 @@ function MainHeader() {
                 </div>
                 <div className="d-flex justify-content-end align-items-center gap-3 h-100 px-2">
                     {isAuthenticated ? (
-                        <div className="d-flex align-items-center gap-2">
+                        <div className="d-flex align-items-center gap-2  m-auto header-btn-group">
                             {/* <span className="text-white">Welcome, {user?.twitter_username || 'User'}!</span> */}
                             <button
                                 onClick={() => navigate('/home')}
@@ -34,7 +34,7 @@ function MainHeader() {
                             </button>
                         </div>
                     ) : (
-                        <div className="d-flex gap-3">
+                        <div className="d-flex gap-3 m-auto">
                             <a href={`${API_BASE_URL}/login`} className="border border-0 fs-5 fw-bold py-2 px-3 text-decoration-none text-center" style={{ backgroundColor: "#A9E000", color: "black" }}>Log In</a>
                         </div>
                     )}

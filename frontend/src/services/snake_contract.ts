@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/snake_contract.json`.
  */
 export type SnakeContract = {
-  "address": "A75BhFuMiJoe3bwNXAJbsPykKSQfvVhC5oYH9k9X6RQy",
+  "address": "3sXaMR5bCoP5ePizVUCXcWykZL3PdckHMUKoG7gZyRY6",
   "metadata": {
     "name": "snakeContract",
     "version": "0.1.0",

@@ -215,12 +215,13 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             transaction.recentBlockhash = latest.blockhash;
             transaction.feePayer = new PublicKey(publicKey);
 
-            // 4. Sign with Phantom
-            if (!(window as any).solana?.signTransaction) {
+            // 4. Sign with Phantom (desktop extension or mobile in-app)
+            const provider = (window as any)?.phantom?.solana || (window as any)?.solana;
+            if (!provider?.signTransaction) {
                 throw new Error('Phantom wallet not found or not connected');
             }
 
-            const signedTx = await (window as any).solana.signTransaction(transaction);
+            const signedTx = await provider.signTransaction(transaction);
 
             // 5. Send and confirm
             showInfo('Submitting transaction...');

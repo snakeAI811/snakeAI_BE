@@ -13,7 +13,7 @@ function MainLanding() {
     //             <div className="w-100 text-center">
     //                 <div className="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2 mb-4 w-100">
     //                     <IconLeftLogo style={{ width: '30vh', height: '30vh' }} />
-    //                     <span className="fs-1 fs-lg-1 fs-xl-1">SnakeAI</span>
+    //                     <span className="fs-1 fs-lg-1 fs-xl-1">Snake AI</span>
     //                 </div>
     //                 <div className="mb-4">
     //                     <h2 className="text-success">✅ Welcome back, {user?.twitter_username}!</h2>

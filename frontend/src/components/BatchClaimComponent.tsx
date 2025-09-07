@@ -156,7 +156,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
                 {accumulatedRewards && (
                     <div className="mb-3">
                         <div className="row">
-                            <div className="col-md-6">
+                            <div className="col-md-6 mb-1">
                                 <div className="card bg-primary text-white">
                                     <div className="card-body text-center">
                                         <div className="fs-2 fw-bold">
@@ -166,7 +166,7 @@ const BatchClaimComponent: React.FC<BatchClaimComponentProps> = ({ onSuccess, on
                                     </div>
                                 </div>
                             </div>
-                            <div className="col-md-6">
+                            <div className="col-md-6 mb-1">
                                 <div className="card">
                                     <div className="card-body text-center">
                                         <div className="fs-2 fw-bold">

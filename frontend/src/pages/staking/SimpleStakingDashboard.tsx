@@ -203,8 +203,9 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           transaction.recentBlockhash = blockhash;
           transaction.feePayer = new PublicKey(publicKey);
 
-          if (typeof window !== 'undefined' && (window as any).solana) {
-            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+          if ((window as any)?.phantom?.solana?.signTransaction || (window as any)?.solana?.signTransaction) {
+            const provider = (window as any)?.phantom?.solana || (window as any)?.solana;
+            const signedTransaction = await provider.signTransaction(transaction);
             const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
               skipPreflight: false,
               preflightCommitment: 'confirmed'
@@ -269,8 +270,9 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
           transaction.recentBlockhash = blockhash;
 
-          if (typeof window !== 'undefined' && (window as any).solana) {
-            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+          if ((window as any)?.phantom?.solana?.signTransaction || (window as any)?.solana?.signTransaction) {
+            const provider = (window as any)?.phantom?.solana || (window as any)?.solana;
+            const signedTransaction = await provider.signTransaction(transaction);
             const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
               skipPreflight: false,
               preflightCommitment: 'confirmed'
@@ -344,10 +346,11 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
           transaction.feePayer = new PublicKey(publicKey);
 
           // Sign and send transaction using Phantom wallet
-          if (typeof window !== 'undefined' && (window as any).solana) {
+          if ((window as any)?.phantom?.solana?.signTransaction || (window as any)?.solana?.signTransaction) {
+            const provider = (window as any)?.phantom?.solana || (window as any)?.solana;
             console.log('🔐 Requesting wallet signature...');
 
-            const signedTransaction = await (window as any).solana.signTransaction(transaction);
+            const signedTransaction = await provider.signTransaction(transaction);
             console.log('✅ Transaction signed by wallet');
 
             const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
@@ -488,9 +491,9 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
   return (
     <div className="w-100 h-100">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 custom-border-bottom pb-3">
+      <div className="d-md-flex justify-content-between align-items-center mb-4 custom-border-bottom pb-3">
         <div>
-          <small className="text-muted">Wallet: {publicKey}</small>
+          <small className="text-muted">Wallet: {publicKey.slice(0, 10)}...{publicKey.slice(-6)}</small>
         </div>
         <div className="d-flex gap-2 align-items-center">
           <button 
@@ -580,10 +583,10 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
 
       {/* Mining Statistics */}
       <div className="mb-4 custom-border-bottom pb-3">
-        <h5 className="mb-3">📊 Mining Statistics</h5>
-        <div className="d-flex">
-          <div className="col-12 col-md-4 mb-3  ">
-            <div className='me-3 px-3 border border-3 border-dashed '>
+        <h5 className="mb-3">Mining Statistics</h5>
+        <div className="d-md-flex gap-2">
+          <div className="mb-3 flex-grow-1">
+            <div className='px-3 border border-3 border-dashed '>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Total Tweets:</span>
                 <strong>{stakingData?.tweetMiningStatus.totalTweets || 0}</strong>
@@ -594,8 +597,8 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               </div>
             </div>
           </div>
-          <div className="col-12 col-md-4 mb-3  ">
-            <div className='me-3 px-3 border border-3 border-dashed '>
+          <div className="mb-3 flex-grow-1 ">
+            <div className='px-3 border border-3 border-dashed '>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Phase 1 Mined:</span>
                 <strong>{stakingData?.totalPhase1Mined.toLocaleString() || 0} </strong>
@@ -606,7 +609,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
               </div>
             </div>
           </div>
-          <div className="col-12 col-md-4 mb-3  ">
+          <div className="mb-3 flex-grow-1">
             <div className='px-3 border border-3 border-dashed '>
               <div className="d-flex justify-content-between align-items-center py-2">
                 <span className="text-muted">Total Claimed:</span>
@@ -652,8 +655,8 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
 
       {/* Actions */}
       <div className="custom-border-top pt-3">
-        <h5 className="mb-3">⚡ Actions</h5>
-        <div className="d-flex flex-wrap gap-2">
+        <h5 className="mb-3">Actions</h5>
+        <div className="d-flex flex-wrap gap-2 action-buttons">
           {/* Stake Tokens - Only show if user has balance and no existing stake */}
           {/* {(!stakingData?.locked || stakingData.locked === 0) && (stakingData?.balance || 0) > 0 && ( */}
             <button
@@ -669,7 +672,7 @@ const SimpleStakingDashboard: React.FC<SimpleStakingDashboardProps> = ({ connect
                 setShowStakeModal(true);
               }}
               disabled={staking}
-              className="btn btn-warning"
+              className="primary-btn"
             >
               <i className="bi bi-lock-fill me-2"></i>
               Stake Tokens

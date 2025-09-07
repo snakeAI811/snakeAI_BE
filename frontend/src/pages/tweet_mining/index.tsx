@@ -6,12 +6,9 @@ import BatchClaimComponent from "../../components/BatchClaimComponent";
 import AutomatedTweetComponent from "../../components/AutomatedTweetComponent";
 import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../patron/services/apiService';
-import { Transaction, Connection, clusterApiUrl, Cluster } from '@solana/web3.js';
-import { Buffer } from 'buffer';
-import { SOLANA_RPC_URL } from '../../config/program';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import { useToast } from '../../contexts/ToastContext';
-
+import StatusBar from '../../components/StatusBar';
 
 interface Tweet {
     id: string;
@@ -264,27 +261,9 @@ function TweetMiningPage() {
                 <ResponsiveMenu />
 
                 <div className="custom-content">
-                    <div className="w-100">
-                        <div className="d-flex justify-content-between align-items-center ">
-                            <div className="fs-1" style={{ lineHeight: 'normal' }}>
-                                MINE TWEETS
-                            </div>
-                            <div className="text-end d-flex align-items-center gap-2">
-                                <div className="fs-6 text-muted">
-                                    Connected: @{user?.twitter_username || 'Not authenticated'}
-                                </div>
-                                <button
-                                    onClick={async () => {
-                                        await logout();
-                                    }}
-                                    className="fs-6 fw-bold second-btn py-1 px-2 text-decoration-none text-center">
-                                    LOGOUT
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <StatusBar title="MINE TWEETS" />
 
-                    <div className="custom-border-y custom-content-height d-flex flex-column p-3">
+                    <div className="custom-border-y custom-content-height d-flex flex-column">
                         <WalletGuard>
                             {/* Mining Stats Panel */}
                             {miningStats && (
@@ -430,7 +409,7 @@ function TweetMiningPage() {
                                                         <div key={tweet.id} className="col-12 mb-3">
                                                             <div className={`card ${tweet.rewarded ? 'border-success' : 'border-primary'}`}>
                                                                 <div className="card-body">
-                                                                    <div className="d-flex justify-content-between align-items-start">
+                                                                    <div className="d-md-flex justify-content-between align-items-start">
                                                                         <div className="flex-grow-1">
                                                                             <h6 className="card-title mb-2">
                                                                                 Tweet #{index + 1}

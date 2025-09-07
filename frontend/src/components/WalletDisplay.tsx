@@ -54,8 +54,8 @@ const WalletDisplay: React.FC = () => {
         <div className="wallet-info-card bg-white-custom p-3 rounded">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex">
-              <div className="fs-6 text-muted">Address : &nbsp;</div>
-              <div className="fs-5 fw-bold font-monospace">
+              <div className="fs-6 text-muted">Address : </div>
+              <div className="fs-6 fw-bold">
                 {formatAddress(publicKey)}
               </div>
             </div>

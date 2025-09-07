@@ -24,6 +24,15 @@ const WalletContext = createContext<WalletContextState>({
 
 export const useWalletContext = () => useContext(WalletContext);
 
+// Helpers shared with usePhantom
+const isMobile = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const getPhantomProvider = (): any | null => {
+  const w = window as any;
+  if (w?.phantom?.solana) return w.phantom.solana;
+  if (w?.solana) return w.solana;
+  return null;
+};
+
 export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ children }) => {
   const [connected, setConnected] = useState(false);
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -32,45 +41,61 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
   const connect = async () => {
     setConnecting(true);
     try {
-      // Check if Phantom wallet is available
-      if (typeof window !== 'undefined' && (window as any).solana && (window as any).solana.isPhantom) {
-        // First, connect to get the public key
-        const response = await (window as any).solana.connect();
-        const walletPublicKey = response.publicKey.toString();
+      if (typeof window === 'undefined') throw new Error('Window unavailable');
+      const provider = getPhantomProvider();
 
-        // Create a message for the user to sign (proves ownership)
-        const message = new TextEncoder().encode(
-          `Sign this message to authenticate with our app.\n\nWallet: ${walletPublicKey}\nTimestamp: ${Date.now()}`
-        );
-
-        // Request signature to verify wallet ownership
-        const signedMessage = await (window as any).solana.signMessage(message, 'utf8');
-        
-        if (signedMessage && signedMessage.signature) {
-          // Only set connected state after successful signature
-          setPublicKey(walletPublicKey);
-          setConnected(true);
-          console.log('Wallet connected and authenticated successfully');
+      if (!provider || !provider.isPhantom) {
+        // If mobile and outside Phantom, deep link to open current page in Phantom app
+        if (isMobile()) {
+          const url = window.location.href;
+          const deeplink = `https://phantom.app/ul/browse/${encodeURIComponent(url)}`;
+          window.location.href = deeplink;
         } else {
-          throw new Error('Failed to get signature from wallet');
+          alert('Phantom wallet not found! Please install it.');
         }
-      } else {
-        alert('Phantom wallet not found! Please install it.');
+        return;
+      }
+
+      // Try silent connect first
+      await provider.connect?.({ onlyIfTrusted: true }).catch(() => {});
+
+      // Connect (user gesture)
+      const response = await provider.connect();
+      const walletPublicKey = response?.publicKey?.toString?.();
+
+      // Try to sign a message if available (for authentication)
+      let signatureOk = false;
+      if (provider.signMessage && walletPublicKey) {
+        try {
+          const message = new TextEncoder().encode(
+            `Sign this message to authenticate with our app.\n\nWallet: ${walletPublicKey}\nTimestamp: ${Date.now()}`
+          );
+          const signedMessage = await provider.signMessage(message, 'utf8');
+          signatureOk = Boolean(signedMessage?.signature);
+        } catch (e) {
+          // User may reject; continue with connected state if we don't require signature strictly
+          signatureOk = false;
+        }
+      }
+
+      // Set connected regardless of signature success to improve UX on mobile
+      if (walletPublicKey) {
+        setPublicKey(walletPublicKey);
+        setConnected(true);
+        console.log('Wallet connected', signatureOk ? 'and authenticated' : '(no signature)');
       }
     } catch (err) {
       const error = err as Error & { code?: number };
       console.error('Failed to connect wallet:', error);
 
-      // Handle specific error cases
       if ((error as any)?.code === 4001) {
         alert('Connection cancelled by user.');
       } else if (error.message && error.message.includes('User rejected')) {
-        alert('Signature request was rejected. Please approve to continue.');
+        alert('Signature request was rejected. You can try again.');
       } else {
         alert('Failed to connect wallet. Please try again.');
       }
 
-      // Reset state on error
       setConnected(false);
       setPublicKey(null);
     } finally {
@@ -80,10 +105,8 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
 
   const disconnect = () => {
     try {
-      // Disconnect from Phantom if available
-      if (typeof window !== 'undefined' && (window as any).solana && (window as any).solana.isConnected) {
-        (window as any).solana.disconnect();
-      }
+      const provider = getPhantomProvider();
+      provider?.disconnect?.();
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
     } finally {
@@ -93,12 +116,14 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
   };
 
   const signMessage = async (message: Uint8Array): Promise<Uint8Array> => {
-    if (!connected || typeof window === 'undefined' || !(window as any).solana) {
+    if (!connected || typeof window === 'undefined') {
       throw new Error('Wallet not connected');
     }
+    const provider = getPhantomProvider();
+    if (!provider?.signMessage) throw new Error('signMessage not supported by wallet');
 
     try {
-      const signedMessage = await (window as any).solana.signMessage(message, 'utf8');
+      const signedMessage = await provider.signMessage(message, 'utf8');
       return signedMessage.signature;
     } catch (error) {
       console.error('Error signing message:', error);

@@ -13,6 +13,10 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
     return <>{children}</>;
   }
 
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const phantomDeepLink = `https://phantom.app/ul/browse/${encodeURIComponent(currentUrl)}`;
+
   return (
     <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
       {showMessage && (
@@ -23,6 +27,15 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
       )}
       
       <div className="text-center">
+        {isMobile && !((window as any)?.phantom?.solana || (window as any)?.solana) && (
+          <div className="alert alert-info" role="alert">
+            Open this page in Phantom for mobile to connect your wallet.
+            <div className="mt-2">
+              <a href={phantomDeepLink} className="btn btn-sm btn-primary">Open in Phantom</a>
+            </div>
+          </div>
+        )}
+
         {connecting ? (
           <div>
             <div className="spinner-border text-primary mb-2" role="status">

@@ -15,7 +15,7 @@ use state::SwapType; // Use the state module's SwapType
 use instructions::update_user_stats::UpdateUserStatsParams;
 
 
-declare_id!("A75BhFuMiJoe3bwNXAJbsPykKSQfvVhC5oYH9k9X6RQy");
+declare_id!("3sXaMR5bCoP5ePizVUCXcWykZL3PdckHMUKoG7gZyRY6");
 
 #[program]
 pub mod snake_contract {

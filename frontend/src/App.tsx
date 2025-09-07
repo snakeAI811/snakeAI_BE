@@ -13,12 +13,17 @@ import OTCTrading from "./pages/otc";
 import ClaimPage from "./pages/claim";
 import Profile from "./pages/profile";
 import StakingPage from "./pages/staking";
+import PatronApprovals from "./pages/admin/PatronApprovals";
+import TceManagement from "./pages/admin/TceManagement";
+import StakingHistoryManagement from "./pages/admin/StakingHistoryManagement";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import { WalletContextProvider } from "./contexts/WalletContext";
 import { AuthContextProvider } from "./contexts/AuthContext";
 import { AppContextProvider } from "./contexts/AppContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import ToastContainer from "./components/ToastContainer";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import { BrowserRouter } from 'react-router-dom'
 
 function App() {
@@ -40,6 +45,11 @@ function App() {
                 <Route path="/staking" element={<ProtectedRoute><StakingPage /></ProtectedRoute>} />
                 <Route path="/swap" element={<ProtectedRoute><OTCTrading /></ProtectedRoute>} />
                 <Route path="/dao" element={<ProtectedRoute><ApplicationPage /></ProtectedRoute>} />
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/patron-approvals" element={<AdminRoute><PatronApprovals /></AdminRoute>} />
+                <Route path="/admin/tce-management" element={<AdminRoute><TceManagement /></AdminRoute>} />
+                <Route path="/admin/staking-history" element={<AdminRoute><StakingHistoryManagement /></AdminRoute>} />
               </Routes>
               <ToastContainer />
             </ToastProvider>
