@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWalletContext } from '../contexts/WalletContext';
 
 interface WalletGuardProps {
@@ -8,12 +8,30 @@ interface WalletGuardProps {
 
 const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true }) => {
   const { connected, connecting, connect } = useWalletContext();
+  const [isPhantomAvailable, setIsPhantomAvailable] = useState(false);
+
+  useEffect(() => {
+    // Check if Phantom is available
+    const checkPhantom = () => {
+      const w = window as any;
+      const hasPhantom = (w?.phantom?.solana && w.phantom.solana.isPhantom) || 
+                        (w?.solana && w.solana.isPhantom);
+      setIsPhantomAvailable(hasPhantom);
+    };
+
+    checkPhantom();
+    
+    // Recheck after a delay (for mobile loading)
+    const timer = setTimeout(checkPhantom, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (connected) {
     return <>{children}</>;
   }
 
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const isInPhantomApp = navigator.userAgent.includes('Phantom') || navigator.userAgent.includes('phantom');
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
   const phantomDeepLink = `https://phantom.app/ul/browse/${encodeURIComponent(currentUrl)}`;
 
@@ -27,12 +45,22 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
       )}
       
       <div className="text-center">
-        {isMobile && !((window as any)?.phantom?.solana || (window as any)?.solana) && (
-          <div className="alert alert-info" role="alert">
-            Open this page in Phantom for mobile to connect your wallet.
-            <div className="mt-2">
-              <a href={phantomDeepLink} className="btn btn-sm btn-primary">Open in Phantom</a>
+        {/* Show different UI based on mobile vs desktop and Phantom availability */}
+        {isMobile && !isPhantomAvailable && !isInPhantomApp && (
+          <div className="alert alert-info mb-3" role="alert">
+            <div className="mb-2">
+              <strong>Mobile users:</strong> Open this page in the Phantom app to connect your wallet.
             </div>
+            <a 
+              href={phantomDeepLink} 
+              className="btn btn-sm btn-primary"
+              onClick={() => {
+                // Store the attempt for when they return
+                sessionStorage.setItem('phantomConnectAttempt', 'true');
+              }}
+            >
+              Open in Phantom App
+            </a>
           </div>
         )}
 
@@ -47,15 +75,17 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
           <button 
             onClick={connect} 
             className="primary-btn btn-lg"
+            disabled={isMobile && !isPhantomAvailable && !isInPhantomApp}
             style={{
               background: '#A9E000',
               color: 'black',
               border: 'none',
               padding: '12px 24px',
-              borderRadius: '8px'
+              borderRadius: '8px',
+              opacity: (isMobile && !isPhantomAvailable && !isInPhantomApp) ? 0.6 : 1
             }}
           >
-            Connect Wallet
+            {isPhantomAvailable || isInPhantomApp ? 'Connect Wallet' : 'Install Phantom Wallet'}
           </button>
         )}
 
@@ -72,7 +102,7 @@ const WalletGuard: React.FC<WalletGuardProps> = ({ children, showMessage = true 
             <span style={{ fontSize: '1.25rem', marginRight: '8px' }}>
               <img src="/phantom.png" alt="Phantom Logo" style={{ height: '24px', width: '24px' }} />
             </span>
-            <span>Phantom download</span>
+            <span>Download Phantom</span>
           </a>
         </div>
       </div>

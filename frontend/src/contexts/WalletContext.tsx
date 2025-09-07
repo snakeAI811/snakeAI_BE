@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 
 interface WalletContextState {
   connected: boolean;
@@ -24,13 +24,36 @@ const WalletContext = createContext<WalletContextState>({
 
 export const useWalletContext = () => useContext(WalletContext);
 
-// Helpers shared with usePhantom
-const isMobile = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+// Enhanced mobile detection
+const isMobile = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobile|BlackBerry|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+};
+
+// Enhanced provider detection with better mobile support
 const getPhantomProvider = (): any | null => {
+  if (typeof window === 'undefined') return null;
+  
   const w = window as any;
-  if (w?.phantom?.solana) return w.phantom.solana;
-  if (w?.solana) return w.solana;
+  
+  // Check for Phantom specifically first
+  if (w?.phantom?.solana && w.phantom.solana.isPhantom) {
+    return w.phantom.solana;
+  }
+  
+  // On mobile, sometimes Phantom injects as window.solana
+  if (w?.solana && w.solana.isPhantom) {
+    return w.solana;
+  }
+  
   return null;
+};
+
+// Check if we're inside Phantom mobile app
+const isInPhantomApp = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const userAgent = navigator.userAgent;
+  return userAgent.includes('Phantom') || userAgent.includes('phantom');
 };
 
 export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ children }) => {
@@ -38,62 +61,92 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
 
+  // Check if user previously attempted to connect (for mobile deep link returns)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const hadConnectAttempt = sessionStorage.getItem('phantomConnectAttempt');
+    if (hadConnectAttempt) {
+      // User returned from Phantom app, check if provider is now available
+      const provider = getPhantomProvider();
+      if (provider) {
+        console.log('User returned from Phantom app, provider now available');
+        // Don't auto-connect, just clear the flag
+        sessionStorage.removeItem('phantomConnectAttempt');
+      }
+    }
+  }, []);
+
   const connect = async () => {
     setConnecting(true);
     try {
       if (typeof window === 'undefined') throw new Error('Window unavailable');
+      
       const provider = getPhantomProvider();
 
       if (!provider || !provider.isPhantom) {
-        // If mobile and outside Phantom, deep link to open current page in Phantom app
-        if (isMobile()) {
-          const url = window.location.href;
-          const deeplink = `https://phantom.app/ul/browse/${encodeURIComponent(url)}`;
-          window.location.href = deeplink;
+        if (isMobile() && !isInPhantomApp()) {
+          // Create a more reliable deep link
+          const currentUrl = window.location.href;
+          const deeplink = `https://phantom.app/ul/browse/${encodeURIComponent(currentUrl)}?ref=wallet-connect`;
+          
+          // Store connection attempt for when user returns
+          sessionStorage.setItem('phantomConnectAttempt', 'true');
+          
+          // Use window.open with fallback to location.href
+          const opened = window.open(deeplink, '_blank');
+          if (!opened) {
+            window.location.href = deeplink;
+          }
+          return;
         } else {
-          alert('Phantom wallet not found! Please install it.');
+          throw new Error('Phantom wallet not found! Please install it from phantom.app');
         }
-        return;
       }
 
-      // Try silent connect first
-      await provider.connect?.({ onlyIfTrusted: true }).catch(() => {});
-
-      // Connect (user gesture)
+      // Connect with proper error handling
       const response = await provider.connect();
       const walletPublicKey = response?.publicKey?.toString?.();
 
-      // Try to sign a message if available (for authentication)
+      if (!walletPublicKey) {
+        throw new Error('Failed to get wallet public key');
+      }
+
+      // Optional: Try to sign a message for authentication
       let signatureOk = false;
-      if (provider.signMessage && walletPublicKey) {
+      if (provider.signMessage) {
         try {
           const message = new TextEncoder().encode(
-            `Sign this message to authenticate with our app.\n\nWallet: ${walletPublicKey}\nTimestamp: ${Date.now()}`
+            `Authenticate with our app\nWallet: ${walletPublicKey}\nTime: ${Date.now()}`
           );
           const signedMessage = await provider.signMessage(message, 'utf8');
           signatureOk = Boolean(signedMessage?.signature);
         } catch (e) {
-          // User may reject; continue with connected state if we don't require signature strictly
-          signatureOk = false;
+          console.log('Signature rejected, continuing without auth:', e);
         }
       }
 
-      // Set connected regardless of signature success to improve UX on mobile
-      if (walletPublicKey) {
-        setPublicKey(walletPublicKey);
-        setConnected(true);
-        console.log('Wallet connected', signatureOk ? 'and authenticated' : '(no signature)');
-      }
+      setPublicKey(walletPublicKey);
+      setConnected(true);
+      
+      // Clear any stored connection attempt
+      sessionStorage.removeItem('phantomConnectAttempt');
+      
+      console.log('Wallet connected successfully', signatureOk ? '(authenticated)' : '(no signature)');
+
     } catch (err) {
       const error = err as Error & { code?: number };
       console.error('Failed to connect wallet:', error);
 
-      if ((error as any)?.code === 4001) {
-        alert('Connection cancelled by user.');
-      } else if (error.message && error.message.includes('User rejected')) {
-        alert('Signature request was rejected. You can try again.');
+      // Handle specific error codes
+      if (error.code === 4001 || error.message?.includes('User rejected')) {
+        console.log('Connection cancelled by user');
       } else {
-        alert('Failed to connect wallet. Please try again.');
+        console.error('Connection error:', error.message);
+        // Don't show alert on mobile to avoid poor UX
+        if (!isMobile()) {
+          alert(`Failed to connect wallet: ${error.message}`);
+        }
       }
 
       setConnected(false);
@@ -112,6 +165,7 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     } finally {
       setConnected(false);
       setPublicKey(null);
+      sessionStorage.removeItem('phantomConnectAttempt');
     }
   };
 
@@ -119,8 +173,11 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     if (!connected || typeof window === 'undefined') {
       throw new Error('Wallet not connected');
     }
+    
     const provider = getPhantomProvider();
-    if (!provider?.signMessage) throw new Error('signMessage not supported by wallet');
+    if (!provider?.signMessage) {
+      throw new Error('signMessage not supported by wallet');
+    }
 
     try {
       const signedMessage = await provider.signMessage(message, 'utf8');
