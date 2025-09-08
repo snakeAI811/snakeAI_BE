@@ -1,158 +1,153 @@
-
 import { useRef, useEffect, useState } from 'react';
 import Snake from './snake';
 
 interface SnakePanelProps {
-    snake?: Snake.Snake | undefined,
-    milisecond?: number | undefined,
-    callback?: (result: string) => void;
+  snake?: Snake.Snake | undefined;
+  milisecond?: number | undefined;
+  callback?: (result: string) => void;
 }
 
-function SnakePanel({ snake, milisecond = 50, callback = (result: string) => { } }: SnakePanelProps) {
-    let _cellSizeRef = useRef(10);
-    let _cellCountXRef = useRef(50);
-    const _cellCountY: number = 50;
+function SnakePanel({
+  snake,
+  milisecond = 50,
+  callback = (result: string) => {},
+}: SnakePanelProps) {
+  // grid / cell refs
+  const cellSizeRef = useRef<number>(10);
+  const cellCountXRef = useRef<number>(50);
+  const coinImgRef = useRef<HTMLImageElement | null>(null);
+  const CELL_COUNT_Y = 50;
 
-    let _coinPosition = {x: 0, y: 0}; //position of target
- 
-    // reference of canvas and its parent
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const canvasParentRef = useRef<HTMLDivElement>(null);
+  // coin position (in cell coordinates) as ref so interval + render share the source of truth
+  const coinRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-    // state
-    const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
-    const [_snake, setSnake] = useState<Snake.Snake | undefined>(snake);
-    const [eatenCoin, setEatenCoin] = useState<boolean>(false);
+  // keep the latest snake in a ref for use inside setInterval (avoids stale closures)
+  const snakeRef = useRef<Snake.Snake | undefined>(snake);
 
-    // initialize
-    useEffect(() => {
-        // create a snake
-        let snake = Snake.createSnake(102, 10, 10);
-        let vectors = [];
-        for (var i = 0; i < 102; i++) {
-            if (i > 92) {
-                vectors.push(2)
-            } else if (i > 12) {
-                vectors.push(3)
-            } else {
-                vectors.push(0)
-            }
+  // canvas refs
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasParentRef = useRef<HTMLDivElement | null>(null);
+
+  // react state (used for rendering)
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [snakeState, setSnakeState] = useState<Snake.Snake | undefined>(snake);
+  const [eatenCoin, setEatenCoin] = useState<boolean>(false);
+
+  // initialize once
+  useEffect(() => {
+    // create initial snake
+    const initialSnake = Snake.createSnake(102, 10, 10);
+    const vectors: number[] = [];
+    for (let i = 0; i < 102; i++) {
+      if (i > 92) {
+        vectors.push(2);
+      } else if (i > 12) {
+        vectors.push(3);
+      } else {
+        vectors.push(0);
+      }
+    }
+    const snakeWithVectors = Snake.setSnakeVectors(initialSnake, vectors);
+
+    // set state + ref
+    snakeRef.current = snakeWithVectors;
+    setSnakeState(snakeWithVectors);
+
+    // set initial cell sizing and coin center
+    const initialCellSize = Math.floor(window.innerHeight / CELL_COUNT_Y) || 1;
+    cellSizeRef.current = initialCellSize;
+    cellCountXRef.current = Math.floor(window.innerWidth / initialCellSize) + 1;
+    coinRef.current = { x: Math.floor(cellCountXRef.current / 2), y: Math.floor(CELL_COUNT_Y / 2) };
+
+    // handle resize: recalc cell sizes and scale snake X (keep Y because CELL_COUNT_Y is fixed)
+    const handleResize = () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+
+      const oldCellSize = cellSizeRef.current;
+      const oldCellCountX = cellCountXRef.current;
+
+      const newCellSize = Math.max(1, Math.floor(newHeight / CELL_COUNT_Y));
+      const newCellCountX = Math.floor(newWidth / newCellSize) + 1;
+
+      // scale snake head x to new grid proportionally to old cell-count-X
+      setSnakeState(prev => {
+        const cur = snakeRef.current ?? prev;
+        if (!cur) return prev;
+
+        const scaledX = oldCellCountX > 0 ? Math.floor((cur.x * newCellCountX) / oldCellCountX) : cur.x;
+        const scaledY = cur.y; // we keep Y because cell count Y is fixed
+
+        // shallow-copy nodes so we don't keep referencing same node objects
+        const newNodes = cur.nodes.map(n => ({ ...n }));
+
+        const newSnake: Snake.Snake = {
+          node_count: cur.node_count,
+          nodes: newNodes,
+          one_color: cur.one_color,
+          x: scaledX,
+          y: scaledY,
+        };
+
+        snakeRef.current = newSnake;
+        return newSnake;
+      });
+
+      // update grid refs and coin center
+      cellSizeRef.current = newCellSize;
+      cellCountXRef.current = newCellCountX;
+      coinRef.current = { x: Math.floor(newCellCountX / 2), y: Math.floor(CELL_COUNT_Y / 2) };
+
+      // update size state to trigger redraw
+      setSize({ width: newWidth, height: newHeight });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // movement interval (uses snakeRef and coinRef to avoid stale closures)
+    const intervalId = window.setInterval(() => {
+      const cur = snakeRef.current;
+      if (!cur) return;
+
+      const headerV = Snake.headerVector(cur);
+      let forcedVector: number | undefined = undefined;
+
+      if (cur.y >= CELL_COUNT_Y - 9 && headerV === 0) {
+        forcedVector = 1; // bottom -> right
+      } else if (cur.x >= cellCountXRef.current - 9 && headerV === 1) {
+        forcedVector = 2; // right -> top
+      } else if (cur.y <= 9 && headerV === 2) {
+        forcedVector = 3; // top -> left
+      } else if (cur.x <= cellCountXRef.current / 2 && headerV === 3) {
+        forcedVector = 0; // left -> bottom
+      }
+
+      // move snake (move mutates nodes but returns a new wrapper object in this implementation)
+      const moved = forcedVector !== undefined ? Snake.move(cur, forcedVector) : Snake.move(cur);
+
+      // update ref + state
+      snakeRef.current = moved;
+      setSnakeState(moved);
+
+      // check coin eaten using coinRef
+      const coin = coinRef.current;
+      const coinRange = 3;
+      if (
+        moved.x >= coin.x - coinRange &&
+        moved.x <= coin.x + coinRange &&
+        moved.y >= coin.y - coinRange &&
+        moved.y <= coin.y + coinRange
+      ) {
+        // guard so we don't repeatedly call callback
+        if (!eatenCoin) {
+          setEatenCoin(true);
+          callback('out');
         }
-        snake = Snake.setSnakeVectors(snake, vectors);
-        setSnake(snake);
+      }
+    }, milisecond);
 
-        const handleResize = () => {
-            setSize({ width: window.innerWidth, height: window.innerHeight });
-        };
-
-        // resive event
-        window.addEventListener('resize', handleResize);
-
-        // timer for moving snake
-        const interval = setInterval(() => {
-            // define next position of snake
-            if (snake.y >= _cellCountY - 9 && Snake.headerVector(snake) === 0) { // bottom to right
-                setSnake(Snake.move(snake, 1));
-            } else if (snake.x >= _cellCountXRef.current - 9 && Snake.headerVector(snake) === 1) {
-                setSnake(Snake.move(snake, 2));
-            } else if (snake.y <= 9 && Snake.headerVector(snake) === 2) {
-                setSnake(Snake.move(snake, 3));
-            } else if (snake.x <= _cellCountXRef.current / 2 && Snake.headerVector(snake) === 3) {
-                setSnake(Snake.move(snake, 0));
-            } else {
-                setSnake(Snake.move(snake));
-            }
-
-            // compare if snake take the coin (as default, coin position is center of canvas.)
-            const coinRange = 3;
-            if (snake.x >= _coinPosition.x - coinRange && 
-                snake.x <= _coinPosition.x + coinRange &&
-                snake.y >= _coinPosition.y - coinRange && 
-                snake.y <= _coinPosition.y + coinRange) {
-                setEatenCoin(true);
-                callback('out');
-            }
-
-        }, milisecond);
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            clearInterval(interval);
-        };
-    }, []);
-
-
-    // get events
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const canvasParent = canvasParentRef.current;
-
-        if (canvas && canvasParent) {
-            const { width, height } = canvasParent.getBoundingClientRect();
-            canvas.width = width;
-            canvas.height = height;
-
-            // define cell size
-            _cellSizeRef.current = Math.floor(height / _cellCountY);
-            const cellSize = _cellSizeRef.current;
-            _cellCountXRef.current = Math.floor(width / cellSize) + 1;
-            // define target position
-            _coinPosition = {x: Math.floor(_cellCountXRef.current / 2), y: Math.floor(_cellCountY / 2)};
-
-            const context = canvas.getContext('2d');
-            if (context) {
-                // Example: Clear canvas and draw a rectangle
-                context.clearRect(0, 0, canvas.width, canvas.height);
-
-                // render snake
-                if (_snake) {
-                    let index_x: number = _snake.x;
-                    let index_y: number = _snake.y;
-
-                    _snake.nodes.forEach(node => {
-                        context.fillStyle = node.color;
-                        if (node.index === 0) { // header
-                            context.fillRect(index_x * cellSize - cellSize / 2 - 1, index_y * cellSize - cellSize / 2 - 1, cellSize * 2 - 2, cellSize * 2 - 2)
-                            if (node.vector === 0) { // bottom
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize * 1.8 - 2)
-                            } else if (node.vector === 2) { // top
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize - cellSize - 1, cellSize - 2, cellSize * 1.8 - 2)
-                            } else if (node.vector === 3) { // left
-                                context.fillRect(index_x * cellSize - cellSize - 1, index_y * cellSize - 1, cellSize * 1.8 - 2, cellSize - 2)
-                            } else if (node.vector === 1) { // right
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize * 2 - 1.8, cellSize - 2)
-                            }
-                        } else if (node.index === _snake.node_count - 1) { // tail
-                            if (node.vector === 0) { // bottom
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize + cellSize / 2 - 1, cellSize - 2, cellSize / 2 - 2)
-                            } else if (node.vector === 2) { // top
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize / 2 - 2)
-                            } else if (node.vector === 3) { // left
-                                context.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize / 2 - 2, cellSize - 2)
-                            } else if (node.vector === 1) { // right
-                                context.fillRect(index_x * cellSize + cellSize / 2 - 1, index_y * cellSize - 1, cellSize / 2 - 2, cellSize - 2)
-                            }
-                        } else { // body
-                            context.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize - 2);
-                        }
-
-                        // change the position of next node
-                        if (node.vector === 0) { // bottom
-                            index_y--;
-                        } else if (node.vector === 1) { // right
-                            index_x--;
-                        } else if (node.vector === 2) { // top
-                            index_y++;
-                        } else if (node.vector === 3) { // left
-                            index_x++;
-                        }
-                    })
-                }
-
-                // render coin
-                if (!eatenCoin) {
-                    const img = new Image();
-                    img.src = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${cellSize * 4}" height="${cellSize * 4}" viewBox="0 0 198 200" fill="none">
+    const img = new Image();
+    const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="198" height="200" viewBox="0 0 198 200" fill="none">
                         <path d="M170.487 89.2915H161.971V97.8075H170.487V89.2915Z" fill="black"/>
                         <path d="M170.487 80.7751H161.971V89.2912H170.487V80.7751Z" fill="black"/>
                         <path d="M170.487 72.1753H161.971V80.6913H170.487V72.1753Z" fill="black"/>
@@ -309,18 +304,109 @@ function SnakePanel({ snake, milisecond = 50, callback = (result: string) => { }
                         <path d="M33.6398 123.524H25.0394V132.04H33.6398V123.524Z" fill="black"/>
                         <path d="M33.6398 115.008H25.0394V123.524H33.6398V115.008Z" fill="black"/>
                         <path d="M33.6398 106.408H25.0394V114.924H33.6398V106.408Z" fill="black"/>
-                    </svg>`)}`; // Convert SVG string to base64
-                    context.drawImage(img, _coinPosition.x * cellSize - cellSize * 1.5, _coinPosition.y * cellSize - cellSize * 1.5);
-                }
-            }
-        }
-    }, [size, _snake, eatenCoin]);
+                    </svg>`;
+    img.src = `data:image/svg+xml;base64,${btoa(svgData)}`;
+    coinImgRef.current = img;
 
-    return (
-        <div className='w-100 h-100' ref={canvasParentRef}>
-            <canvas ref={canvasRef}>Sorry, your browser doesn't support canvas.</canvas>
-        </div>
-    );
+    // cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
+
+  // drawing effect (runs when size, snakeState or eatenCoin changes)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const parent = canvasParentRef.current;
+    if (!canvas || !parent) return;
+
+    const rect = parent.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    // recalc cell size & counts (keeps refs in sync)
+    const cellSize = Math.max(1, Math.floor(rect.height / CELL_COUNT_Y));
+    cellSizeRef.current = cellSize;
+    cellCountXRef.current = Math.floor(rect.width / cellSize) + 1;
+
+    // center coin
+    coinRef.current = { x: Math.floor(cellCountXRef.current / 2), y: Math.floor(CELL_COUNT_Y / 2) };
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // use the latest snake (prefer ref)
+    const s = snakeRef.current ?? snakeState;
+    if (s) {
+      let index_x: number = s.x;
+      let index_y: number = s.y;
+
+      s.nodes.forEach(node => {
+        ctx.fillStyle = node.color;
+        if (node.index === 0) {
+          // header
+          ctx.fillRect(index_x * cellSize - cellSize / 2 - 1, index_y * cellSize - cellSize / 2 - 1, cellSize * 2 - 2, cellSize * 2 - 2);
+          if (node.vector === 0) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize * 1.8 - 2);
+          } else if (node.vector === 2) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - cellSize - 1, cellSize - 2, cellSize * 1.8 - 2);
+          } else if (node.vector === 3) {
+            ctx.fillRect(index_x * cellSize - cellSize - 1, index_y * cellSize - 1, cellSize * 1.8 - 2, cellSize - 2);
+          } else if (node.vector === 1) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize * 2 - 1.8, cellSize - 2);
+          }
+        } else if (node.index === s.node_count - 1) {
+          // tail
+          if (node.vector === 0) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize + cellSize / 2 - 1, cellSize - 2, cellSize / 2 - 2);
+          } else if (node.vector === 2) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize / 2 - 2);
+          } else if (node.vector === 3) {
+            ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize / 2 - 2, cellSize - 2);
+          } else if (node.vector === 1) {
+            ctx.fillRect(index_x * cellSize + cellSize / 2 - 1, index_y * cellSize - 1, cellSize / 2 - 2, cellSize - 2);
+          }
+        } else {
+          // body
+          ctx.fillRect(index_x * cellSize - 1, index_y * cellSize - 1, cellSize - 2, cellSize - 2);
+        }
+
+        // advance index position according to node vector
+        if (node.vector === 0) {
+          index_y--;
+        } else if (node.vector === 1) {
+          index_x--;
+        } else if (node.vector === 2) {
+          index_y++;
+        } else if (node.vector === 3) {
+          index_x++;
+        }
+      });
+    }
+
+    // render coin at center (from coinRef). Use onload to ensure drawImage works first frame
+    if (!eatenCoin && coinImgRef.current) {
+        const coin = coinRef.current;
+        ctx.drawImage(
+            coinImgRef.current,
+            coin.x * cellSize - cellSize * 1.5,
+            coin.y * cellSize - cellSize * 1.5,
+            cellSize * 4,
+            cellSize * 4
+        );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size, snakeState, eatenCoin]);
+
+  return (
+    <div className="w-100 h-100" ref={canvasParentRef} style={{ width: '100%', height: '100%' }}>
+      <canvas ref={canvasRef}>Sorry, your browser doesn't support canvas.</canvas>
+    </div>
+  );
 }
 
 export default SnakePanel;
