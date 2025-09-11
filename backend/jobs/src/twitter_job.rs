@@ -344,7 +344,7 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
 
     for t in &new_tweets {
         tweet_count += 1;
-
+        
         let user = match service.user.get_user_by_twitter_id(&t.author_id).await? {
             Some(user) => Some(user),
             None => {
@@ -363,7 +363,6 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         .await
                         .ok();
                 }
-
                 new_user
             }
         };
@@ -409,24 +408,25 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         }
                         None => match user.latest_claim_timestamp {
                             Some(timestamp) => {
-                                let result = timestamp
-                                    .checked_add_signed(Duration::minutes(25)) // ✅ cooldown check changed
-                                    .map(|next_claim_date| next_claim_date < Utc::now())
-                                    .unwrap_or(false);
+                                // let result = timestamp
+                                //     .checked_add_signed(Duration::minutes(25)) // ✅ cooldown check changed
+                                //     .map(|next_claim_date| next_claim_date < Utc::now())
+                                //     .unwrap_or(false);
 
-                                if !result {
-                                    let formatted_time =
-                                        timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
-                                    let formatted_next_time = (timestamp + Duration::minutes(25))
-                                        .format("%Y-%-m-%-d %H:%M:%S")
-                                        .to_string();
-                                    text = format!(
-                                                "⏰ You claimed at {}. Next mining available after {} (25 min cooldown). Thanks for playing! 🐍",
-                                                formatted_time, formatted_next_time
-                                            );
-                                }
+                                // if !result {
+                                //     let formatted_time =
+                                //         timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                //     let formatted_next_time = (timestamp + Duration::minutes(25))
+                                //         .format("%Y-%-m-%-d %H:%M:%S")
+                                //         .to_string();
+                                //     text = format!(
+                                //                 "⏰ You claimed at {}. Next mining available after {} (25 min cooldown). Thanks for playing! 🐍",
+                                //                 formatted_time, formatted_next_time
+                                //             );
+                                // }
 
-                                result
+                                // result
+                                true
                             }
                             None => true,
                         },
@@ -451,26 +451,44 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                         burn_amount
                     );
 
-                    service
+                    // Create reward and get the row back
+                    if let Ok(reward) = service
                         .reward
                         .insert_reward_with_phase_and_amounts(
                             &user.id,
                             &tweet.id,
-                            if mining_phase == MiningPhase::Phase2 {
-                                2
-                            } else {
-                                1
-                            },
+                            if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
                             reward_amount,
                             burn_amount,
                         )
                         .await
-                        .ok();
-                    cnt += 1;
+                    {
+                        cnt += 1;
+
+                        // Reply only for new users and only once per user (success)
+                        if !user.success_msg_flag {
+                            let success_text = format!(
+                                "Congratsss!🐍Your X tweet qualified for Snake AI token rewardsss. \n\n Keep it up!  Claim your tokens: {}",
+                                reward.get_reward_url(&env.frontend_url)
+                            );
+
+                            if client.reply_with_media(&success_text, &None, &t.id).await.is_ok() {
+                                let _ = service
+                                    .user
+                                    .set_success_msg_flag_by_twitter_id(&user.twitter_id)
+                                    .await;
+                            }
+                        }
+                    }
                 } else {
-                    match client.reply_with_media(&text, &None, &t.id).await {
-                        Ok(_) => {}
-                        Err(err) => println!("send message error: {:?}", err),
+                    // No reward allocated -> failed case
+                    if !user.failed_msg_flag {
+                        if client.reply_with_media(&text, &None, &t.id).await.is_ok() {
+                            let _ = service
+                                .user
+                                .set_failed_msg_flag_by_twitter_id(&user.twitter_id)
+                                .await;
+                        }
                     }
                 }
             }
@@ -490,25 +508,14 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             .await?;
     }
 
-    if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
-        for reward in &rewards {
-            if client
-                .reply_with_media(
-                    &format!(
-                        // "🎉 Congrats! Your tweet qualified for Snake AI token rewards! 🐍💰\n\n🔗 Claim your tokens: {}\n\n#SnakeAI #TokenRewards",
-                        "Congratsss!🐍Your X tweet qualified for Snake AI token rewardsss. \n\n Keep it up!  Claim your tokens: {}",
-                        reward.get_reward_url(&env.frontend_url)
-                    ),
-                    &None,
-                    &reward.tweet_id,
-                )
-                .await
-                .is_ok()
-            {
-                service.reward.mark_as_message_sent(&reward.id).await.ok();
-            }
-        }
-    }
+    // Replies restricted to NEW users only. The catch-up reply loop below has been disabled
+    // to avoid replying to existing users with pending rewards.
+    // If you need to re-enable, ensure user-level flags and "new user" gating are applied here.
+    // if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
+    //     for reward in &rewards {
+    //         // Intentionally disabled
+    //     }
+    // }
 
     Ok(())
 }

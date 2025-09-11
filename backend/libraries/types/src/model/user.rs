@@ -39,6 +39,9 @@ pub struct User {
     pub role_updated_at: Option<DateTime<Utc>>,
     pub is_following: bool,
     pub accumulated_reward: Option<i64>,
+    // Reply flags (one-time messages per user)
+    pub success_msg_flag: bool,
+    pub failed_msg_flag: bool,
     // Twitter OAuth tokens
     pub twitter_access_token: Option<String>,
     pub twitter_refresh_token: Option<String>,

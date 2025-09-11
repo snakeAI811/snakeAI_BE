@@ -164,6 +164,20 @@ impl UserService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
+    pub async fn set_success_msg_flag_by_twitter_id(&self, twitter_id: &str) -> Result<User, ApiError> {
+        self.user_repo
+            .set_success_msg_flag_by_twitter_id(twitter_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_failed_msg_flag_by_twitter_id(&self, twitter_id: &str) -> Result<User, ApiError> {
+        self.user_repo
+            .set_failed_msg_flag_by_twitter_id(twitter_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
     pub async fn add_accumulated_reward(
         &self,
         user_id: &Uuid,

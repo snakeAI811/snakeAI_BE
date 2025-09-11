@@ -37,8 +37,9 @@ impl UserRepository {
                 initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
                 total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
                 role_transaction_signature, role_updated_at, is_following, accumulated_reward,
+                success_msg_flag, failed_msg_flag,
                 twitter_access_token, twitter_refresh_token, twitter_token_expires_at
-            "#,
+            "#, 
             twitter_id,
             twitter_username,
         )
@@ -212,6 +213,36 @@ impl UserRepository {
             User,
             "UPDATE users SET is_following = $1 WHERE twitter_id = $2 RETURNING *",
             is_following,
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_success_msg_flag_by_twitter_id(
+        &self,
+        twitter_id: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET success_msg_flag = TRUE WHERE twitter_id = $1 RETURNING *",
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_failed_msg_flag_by_twitter_id(
+        &self,
+        twitter_id: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET failed_msg_flag = TRUE WHERE twitter_id = $1 RETURNING *",
             twitter_id
         )
         .fetch_one(self.db_conn.get_pool())

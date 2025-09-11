@@ -284,12 +284,15 @@ const Home: React.FC = () => {
           <main className="custom-border-y custom-content-height d-flex flex-column">
             {/* Welcome Section */}
             <section className="h-100 d-flex flex-column justify-content-center">
-              <div className="text-center fs-2 fs-lg-4 fs-xl-7 fw-bold">
+              <div className="text-center fs-2 fs-lg-4 fs-xl-7 fw-bold desktop-mod-only">
                 Play
               </div>
               <div className="d-flex justify-content-center align-items-center">
                 <IconLeftLogo aria-label="Snake AI Logo" />
-                <span className="fs-1 fs-lg-2 fs-xl-1 fw-bold">Snake AI</span>
+                <div>
+                  <p className="fs-2 fs-lg-4 fs-xl-7 text-center fw-bold mobile-mod-only">Play</p>
+                  <p className="fs-1 fs-lg-2 fs-xl-1 fw-bold">Snake AI</p>
+                </div>
               </div>
               <div>
                 <WalletDisplay />
