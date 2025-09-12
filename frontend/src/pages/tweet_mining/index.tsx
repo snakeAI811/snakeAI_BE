@@ -443,7 +443,7 @@ function TweetMiningPage() {
                                                                                     `Log ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
                                                                                 )}
                                                                             </button>
-                                                                            <a
+                                                                            {/* <a
                                                                                 href={`https://twitter.com/intent/retweet?tweet_id=${tweet.tweet_id}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
@@ -451,7 +451,7 @@ function TweetMiningPage() {
                                                                                 title="Retweet"
                                                                             >
                                                                                 View
-                                                                            </a>
+                                                                            </a> */}
                                                                         </div>
                                                                     </div>
                                                                 </div>

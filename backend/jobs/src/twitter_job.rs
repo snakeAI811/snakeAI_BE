@@ -400,11 +400,12 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 let should_create_reward = if user.is_following {
                     match service.reward.get_available_reward(&user.id).await? {
                         Some(reward) => {
-                            text = format!(
-                                "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
-                                reward.get_reward_url(&env.frontend_url)
-                            );
-                            false
+                            // text = format!(
+                            //     "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
+                            //     reward.get_reward_url(&env.frontend_url)
+                            // );
+                            // false
+                            true
                         }
                         None => match user.latest_claim_timestamp {
                             Some(timestamp) => {
