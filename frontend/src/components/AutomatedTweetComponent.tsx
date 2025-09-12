@@ -29,7 +29,7 @@ const AutomatedTweetComponent: React.FC<AutomatedTweetComponentProps> = ({ class
     const { showSuccess, showError, showInfo } = useToast();
 
     // Post cooldown interval in milliseconds (25 minutes)
-    const POST_COOLDOWN_INTERVAL = 25 * 60 * 1000;
+    const POST_COOLDOWN_INTERVAL = 3 * 1000;
 
     const loadTweetTemplates = useCallback(async (showLoadingIndicator = true) => {
         if (showLoadingIndicator) {
