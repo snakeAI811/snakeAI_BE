@@ -27,7 +27,7 @@ const menuItems: MenuItem[] = [
   // { id: "claim", label: "Claim", icon: IconClaim, path: "/claim" },
   { id: "swap", label: "Swap", icon: IconSwap, path: "/swap" },
   // { id: "mining-status", label: "Mining Status", icon: IconMining, path: "/patron-framework/mining" },
-  { id: "patron", label: "Patron", icon: IconDao, path: "/dao" },
+  { id: "patron", label: "Patron", icon: IconDao, path: "/leaderboard" },
 ];
 
 interface ResponsiveMenuProps {

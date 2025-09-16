@@ -6,7 +6,7 @@ import { useWalletContext } from "../../contexts/WalletContext";
 import { usePhantom } from "../../hooks/usePhantom";
 import { userApi, roleApi, tokenApi } from "../patron/services/apiService";
 import RoleSelection from "./RoleSelection";
-import SimpleWalletConnection from "../patron/components/SimpleWalletConnection";
+import WalletGuard from "../../components/WalletGuard";
 import { UserRole } from "../patron/index";
 import './index.css';
 // icons
@@ -73,10 +73,10 @@ function Profile() {
         balance: 0, locked: 0, staked: 0, rewards: 0
     });
 
-    const { 
-            userProfile, 
-            tokenInfo, 
-        } = useAppContext();
+    const {
+        userProfile,
+        tokenInfo,
+    } = useAppContext();
 
     const [userStats, setUserStats] = useState<UserStats>({
         total_mined_phase1: 0,
@@ -96,7 +96,7 @@ function Profile() {
                     roleApi.getUserRole(),
                 ]);
 
-                if (userProfile ) {
+                if (userProfile) {
                     setProfileData(userProfile);
                     const tweets = userProfile.tweets || 0;
                     const likes = userProfile.likes || 0;
@@ -226,104 +226,103 @@ function Profile() {
                     <StatusBar title="PROFILE" />
 
                     <div className="custom-border-y custom-content-height d-flex flex-column">
-                        {/* Wallet Connection */}
-                        <div className="mb-1">
-                            <SimpleWalletConnection />
-                        </div>
-                        <div className="custom-border-bottom fs-2 mt-4" >USER PROFILE</div>
-                        <div className="row mx-0">
-                            {/* Left Column - Profile Info */}
-                            <div className="col-md-12 col-lg-7 custom-border mt-4">
-                                <div className=" p-3">
-                                    <div className="profile-section gap-4">
-                                        <div className="col-auto">
-                                            <div className="avatar-container">
-                                                <div className="pixel-avatar"><IconLeftLogo /></div>
-                                            </div>
-                                        </div>
-                                        <div className="col">
-                                            <div className="profile-info">
-                                                <div className="mb-2">
-                                                    <span className="retro-text-small">USER:</span>
-                                                    <div className="retro-text text-danger">
-                                                        {profileData?.twitter_username || 'Unknown'}
-                                                    </div>
-                                                </div>
-                                                <div className="mb-2">
-                                                    <span className="retro-text-small">WALLET:</span>
-                                                    <div className="retro-text text-xs">
-                                                        {profileData?.wallet_address ?
-                                                            `${profileData.wallet_address.slice(0, 4)}...${profileData.wallet_address.slice(-4)}` :
-                                                            'Not Connected'
-                                                        }
-                                                    </div>
-                                                </div>
-                                                <div className="mb-2">
-                                                    <span className="retro-text-small">ROLE:</span>
-                                                    <div className="retro-text">
-                                                        {userDetails?.role?.toUpperCase() || 'NONE'}
-                                                        {userDetails?.patron_status === 'approved' && ' (APPROVED)'}
-                                                    </div>
-                                                </div>
-                                                <div className="mb-3">
-                                                    <span className="retro-text-small">RANK:</span>
-                                                    <div className="retro-text">
-                                                        #{userDetails?.ranking?.toLocaleString() || 'N/A'}
-                                                    </div>
+                        
+                        <WalletGuard>
+
+                            <div className="custom-border-bottom fs-2 mt-4" >USER PROFILE</div>
+                            <div className="row mx-0">
+                                {/* Left Column - Profile Info */}
+                                <div className="col-md-12 col-lg-7 custom-border mt-4">
+                                    <div className=" p-3">
+                                        <div className="profile-section gap-4">
+                                            <div className="col-auto">
+                                                <div className="avatar-container">
+                                                    <div className="pixel-avatar"><IconLeftLogo /></div>
                                                 </div>
                                             </div>
+                                            <div className="col">
+                                                <div className="profile-info">
+                                                    <div className="mb-2">
+                                                        <span className="retro-text-small">USER:</span>
+                                                        <div className="retro-text text-danger">
+                                                            {profileData?.twitter_username || 'Unknown'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="mb-2">
+                                                        <span className="retro-text-small">WALLET:</span>
+                                                        <div className="retro-text text-xs">
+                                                            {profileData?.wallet_address ?
+                                                                `${profileData.wallet_address.slice(0, 4)}...${profileData.wallet_address.slice(-4)}` :
+                                                                'Not Connected'
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <div className="mb-2">
+                                                        <span className="retro-text-small">ROLE:</span>
+                                                        <div className="retro-text">
+                                                            {userDetails?.role?.toUpperCase() || 'NONE'}
+                                                            {userDetails?.patron_status === 'approved' && ' (APPROVED)'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="mb-3">
+                                                        <span className="retro-text-small">RANK:</span>
+                                                        <div className="retro-text">
+                                                            #{userDetails?.ranking?.toLocaleString() || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {/* <button className="btn proposal-btn bg-light-green-950">PROPOSAL SUBMISSION FORM →</button> */}
                                         </div>
-                                        {/* <button className="btn proposal-btn bg-light-green-950">PROPOSAL SUBMISSION FORM →</button> */}
+                                    </div>
+                                </div>
+                                <div className="col-md-12 col-lg-5 px-3 py-5 gap-4">
+                                    <div className="d-flex flex-column gap-3 pt-3">
+                                        <div className="custom-border-bottom ">REWARD BALANCE:</div>
+                                        <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
+                                            <span className="fs-5">{loading ? '...' : (profileData?.reward_balance?.toLocaleString() || '0')}</span>
+                                            &nbsp;&nbsp;&nbsp;<span className="fs-6">snakes</span>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex flex-column gap-3 pt-3">
+                                        <div className="custom-border-bottom ">ENGAGEMENT METRICS:</div>
+                                        <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
+                                            <span className="fs-5">{loading ? '...' : (profileData?.tweets || '0')}</span>
+                                            &nbsp;&nbsp;&nbsp;<span className="fs-6">tweets</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="col-md-12 col-lg-5 px-3 py-5 gap-4">
-                                <div className="d-flex flex-column gap-3 pt-3">
-                                    <div className="custom-border-bottom ">REWARD BALANCE:</div>
-                                    <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
-                                        <span className="fs-5">{loading ? '...' : (profileData?.reward_balance?.toLocaleString() || '0')}</span>
-                                        &nbsp;&nbsp;&nbsp;<span className="fs-6">snakes</span>
-                                    </div>
-                                </div>
-                                <div className="d-flex flex-column gap-3 pt-3">
-                                    <div className="custom-border-bottom ">ENGAGEMENT METRICS:</div>
-                                    <div className="d-flex justify-content-center p-3 bg-black text-light-green-950 align-items-center" >
-                                        <span className="fs-5">{loading ? '...' : (profileData?.tweets || '0')}</span>
-                                        &nbsp;&nbsp;&nbsp;<span className="fs-6">tweets</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Role Selection Section */}
-                        {connected ? (
-                            <div className="border border-3 border-dashed mt-4 p-3">
-                                <RoleSelection
-                                    userRole={{
-                                        role:
-                                            userDetails?.role === 'staker'
-                                                ? 'staker'
-                                                : userDetails?.role === 'patron'
-                                                    ? 'patron'
-                                                    : 'none'
-                                    }}
-                                    onRoleChange={handleRoleChange}
-                                    tokenBalance={tokenBalance}
-                                    userStats={userStats}
-                                />
-                            </div>
-                        ) : (
-                            <div className="border border-3 border-dashed mt-4 p-3 text-center">
-                                <h5 className="text-muted mb-3">ROLE MANAGEMENT</h5>
-                                <p className="text-muted">Connect your wallet to access role management features</p>
-                                <div className="sn-success p-2">
-                                    <small>Role management allows you to become a Staker or Patron for enhanced benefits</small>
+                            {/* Role Selection Section */}
+                            {connected ? (
+                                <div className="border border-3 border-dashed mt-4 p-3">
+                                    <RoleSelection
+                                        userRole={{
+                                            role:
+                                                userDetails?.role === 'staker'
+                                                    ? 'staker'
+                                                    : userDetails?.role === 'patron'
+                                                        ? 'patron'
+                                                        : 'none'
+                                        }}
+                                        onRoleChange={handleRoleChange}
+                                        tokenBalance={tokenBalance}
+                                        userStats={userStats}
+                                    />
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="border border-3 border-dashed mt-4 p-3 text-center">
+                                    <h5 className="text-muted mb-3">ROLE MANAGEMENT</h5>
+                                    <p className="text-muted">Connect your wallet to access role management features</p>
+                                    <div className="sn-success p-2">
+                                        <small>Role management allows you to become a Staker or Patron for enhanced benefits</small>
+                                    </div>
+                                </div>
+                            )}
 
-                        {/* Countdown Section */}
-                        {/* <div className="countdown-section mt-4 py-3 custom-border-top w-100">
+                            {/* Countdown Section */}
+                            {/* <div className="countdown-section mt-4 py-3 custom-border-top w-100">
                             <div className="retro-text mb-3">COUNTDOWN TO "EVENT NAME"</div>
                             <div className="row g-2 justify-content-center">
                                 <div className="col-auto">
@@ -352,6 +351,8 @@ function Profile() {
                                 </div>
                             </div>
                         </div> */}
+
+                        </WalletGuard>
                     </div>
                 </div>
             </div>

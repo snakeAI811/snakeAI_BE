@@ -139,20 +139,35 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             default:
                 return {
                     valid: true,
-                    message: (
-                        <span>
-                            <IconChecker /> No requirements
-                        </span>
-                    )
+                    message: null
                 };
+        }
+    };
+
+    // Get current role display name for status bookmark
+    const getCurrentRoleDisplayName = () => {
+        switch (userRole.role) {
+            case 'none':
+                return 'MINER';
+            case 'staker':
+                return 'STAKER';
+            case 'patron':
+                return 'PATRON';
+            default:
+                return 'MINER';
         }
     };
 
     const roleDescriptions = {
         none: {
-            title: 'No Role',
-            description: 'Basic access to mining and standard features',
-            benefits: ['Basic tweet mining', 'Standard rewards', 'Community access'],
+            title: 'Miner',
+            description: 'Basic Access To Mining, No Commitment',
+            benefits: [
+                'Basic tweet mining',
+                'Community access',
+                'No commitment. Sell/Swap instantly after TGE.',
+                '❌ No opportunity to be part of DAO'
+            ],
             icon: <IconExiter />,
             color: 'secondary'
         },
@@ -171,8 +186,6 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             color: 'warning'
         }
     };
-
-    // Set up connection globally (you can also use useMemo/useEffect if needed)
 
     const handleRoleSelect = async () => {
         if (selectedRole === userRole.role) return;
@@ -288,17 +301,18 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
     return (
         <div className="w-100">
             <div className='sn-bold-border'>
-                <div className="my-4 text-center fs-3 fs-lg-4 fs-xl-6 fs-xxl-6" > Choose Your Role</div>
+                <div className="my-4 text-center fs-3 fs-lg-4 fs-xl-6 fs-xxl-6">Choose Your Role</div>
 
                 <div className="row g-4">
                     {Object.entries(roleDescriptions).map(([role, info]) => {
                         const requirements = getRoleRequirements(role as 'none' | 'staker' | 'patron');
                         const roleKey = role as 'none' | 'staker' | 'patron';
+                        const isCurrentRole = userRole.role === role;
 
                         return (
                             <div key={role} className="col-lg-4">
                                 <div
-                                    className={`card h-100 border-3 ${selectedRole === role ? 'border-dark bg-light' :
+                                    className={`card h-100 border-3 position-relative ${selectedRole === role ? 'border-dark bg-light' :
                                         !requirements.valid ? 'border-danger' : 'border-secondary'
                                         }`}
                                     style={{
@@ -307,6 +321,24 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                                     }}
                                     onClick={() => requirements.valid && setSelectedRole(roleKey)}
                                 >
+                                    {/* Role Status Badges */}
+                                    <div className="position-absolute" style={{ top: '10px', left: '10px', zIndex: 10 }}>
+                                        {isCurrentRole && (
+                                            <div>
+                                                <span className="badge bg-success text-white px-2 py-1 me-1 mb-1" style={{ fontSize: '15px' }}>
+                                                    CURRENT
+                                                </span>
+                                            </div>
+                                        )}
+                                        {selectedRole === role && (
+                                            <div>
+                                                <span className="badge bg-primary text-white px-2 py-1" style={{ fontSize: '15px' }}>
+                                                    SELECTED
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="card-body text-center">
                                         <div className="fs-1 mb-3">{info.icon}</div>
                                         <h3 className="card-title">{info.title}</h3>
@@ -317,47 +349,24 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                                             <ul className="list-unstyled">
                                                 {info.benefits.map((benefit, index) => (
                                                     <li key={index} className="mb-1 text-start">
-                                                        <small>✓ {benefit}</small>
+                                                        <small>
+                                                            {benefit.startsWith('❌') ? benefit : `✓ ${benefit}`}
+                                                        </small>
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
 
                                         {/* Requirements Status */}
-                                        <div className="my-2">
+                                        {requirements?.message && (<div className="my-2">
                                             <div className={`${requirements.valid ? 'sn-success' : 'sn-warning'} py-1 px-2 rounded d-flex align-items-center justify-content-center`}>
                                                 <small>{requirements.message}</small>
                                             </div>
-                                        </div>
+                                        </div>)}
 
-                                        {selectedRole === role && (
-                                            <div className="sn-bg-success">
-                                                <span className="">Selected</span>
-                                            </div>
-                                        )}
 
-                                        {/* Additional Info for Roles */}
-                                        {/* {roleKey === 'staker' && (
-                                        <div className="mt-2">
-                                            <small className="text-muted">
-                                                Requires token lock for 3 months
-                                            </small>
-                                        </div>
-                                    )}
 
-                                    {roleKey === 'patron' && (
-                                        <div className="mt-2">
-                                            <small className="text-muted">
-                                                Score: {calculatePatronScore()}/100 | 6-month commitment
-                                            </small>
-                                        </div>
-                                    )} */}
 
-                                        {userRole.role === role && (
-                                            <div className="mt-2">
-                                                <span className="">[Current Role]</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -368,17 +377,6 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
 
             {/* Role Selection Actions */}
             <div className="mt-4 text-center sn-select-role-actions">
-                {/* {selectedRole !== userRole.role && (
-                    <div className="alert alert-warning">
-                        <strong>Warning:</strong> Changing roles may require token locking and have associated costs.
-                        {selectedRole !== 'none' && (
-                            <div className="mt-2">
-                                <small>This role requires a commitment period where tokens will be locked.</small>
-                            </div>
-                        )}
-                    </div>
-                )} */}
-
                 <button
                     className={`primary-btn btn-lg fs-5`}
                     onClick={handleRoleSelect}
@@ -392,7 +390,7 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                     ) : selectedRole === userRole.role ? (
                         'Current Role'
                     ) : (
-                        `Select ${selectedRole} Role`
+                        `Select ${selectedRole == 'none' ? 'Miner' : selectedRole} Role`
                     )}
                 </button>
             </div>
@@ -400,7 +398,6 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
             {/* Important Information */}
             <div className="mt-4">
                 <div className="sn-bold-border">
-                    {/* <h6 className="card-title text-center">📋 Role Requirements & Information</h6> */}
                     <div className="gap-2 d-flex sn-require-section">
                         <div className="sn-border sn-rq-staker p-3">
                             <h5 className='text-black'><IconStaker width={25} /> Staker Requirements:</h5>

@@ -28,7 +28,7 @@ interface UserTableData {
     activity: number;
 }
 
-function DAO() {
+function Leaderboard() {
     // eslint-disable-next-line no-empty-pattern
     const { } = usePhantom();
     const [sortBy, setSortBy] = useState<'activity' | 'address' | 'roleDuration' | 'score'>('score');
@@ -102,7 +102,7 @@ function DAO() {
                 {/* Menu End */}
 
                 <div className="custom-content">
-                    <StatusBar title="DAO" />
+                    <StatusBar title="Leaderboard" />
 
 
                     <div className="custom-border-y custom-content-height d-flex flex-column ">
@@ -211,4 +211,4 @@ function DAO() {
     );
 }
 
-export default DAO;
+export default Leaderboard;

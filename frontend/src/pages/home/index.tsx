@@ -246,8 +246,8 @@ const Home: React.FC = () => {
     const total: number = PHASE_1_TARGET;
     // Use actual data from mining status instead of hardcoded values
     const mined: number = miningStatus.phase1_mining_count || 0;
-    let percentage: number = Math.round(Math.min((mined / total) * 120, 120));
-    if (percentage < 70) percentage += 10; 
+    let percentage: number = Math.round(Math.min((mined / total) * 100, 100));
+    // if (percentage < 70) percentage += 10; 
     
     return { percentage, mined, total };
   }, [miningStatus]);

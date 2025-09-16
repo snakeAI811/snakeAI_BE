@@ -46,20 +46,19 @@ function TweetMiningPage() {
 
     const { handleError, isUserRejection } = useErrorHandler();
     const { showSuccess, showError, showInfo } = useToast();
-    
+
     const checkClaimLinkAccess = useCallback(async (rewardId: string) => {
         try {
             console.log('🔍 Checking claim link for reward ID:', rewardId);
             console.log('👤 Current user ID:', user?.id);
-            
+
             const response = await userApi.getRewardById(rewardId);
-            console.log('📡 API Response:', response);
-            
+
             if (response.success && response.data) {
                 setClaimLinkReward(response.data);
                 console.log('Reward data:', response.data);
                 console.log('Reward owner ID:', response.data.user_id);
-                
+
                 // Check if the current user owns this reward
                 if (response.data.user_id !== user?.id) {
                     console.log('❌ User does not own this reward - showing educational modal');
@@ -86,7 +85,10 @@ function TweetMiningPage() {
         if (user) {
             loadMiningStats();
             loadData();
-            
+
+            console.log('📡 user:------------------', user);
+
+
             // If there's a reward ID in the URL, check claim link access
             if (rewardId) {
                 console.log('🔄 User loaded with reward ID, checking claim link access...');
@@ -215,7 +217,7 @@ function TweetMiningPage() {
             if (response.success && response.data) {
                 setSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
                 showSuccess(`Reward logged successfully! Accumulated rewards: ${response.data.accumulated_rewards} SNAKE tokens. You can claim all rewards after TCE.`);
-                
+
                 //  Mark as rewarded locally
                 setTweets(prev =>
                     prev.map(tweet =>
@@ -315,7 +317,7 @@ function TweetMiningPage() {
                             {/* Batch Claim Component */}
                             <div className="row mb-4">
                                 <div className="col-12">
-                                    
+
                                 </div>
                             </div>
 
@@ -443,15 +445,16 @@ function TweetMiningPage() {
                                                                                     `Log ${formatTokenAmount(tweet.reward_amount || 0)} SNAKE`
                                                                                 )}
                                                                             </button>
-                                                                            {/* <a
-                                                                                href={`https://twitter.com/intent/retweet?tweet_id=${tweet.tweet_id}`}
+
+                                                                            <a
+                                                                                href={`https://twitter.com/${user?.twitter_username}/status/${tweet.tweet_id}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
                                                                                 className="btn btn-outline-primary btn-sm"
-                                                                                title="Retweet"
+                                                                                title="View Tweet"
                                                                             >
                                                                                 View
-                                                                            </a> */}
+                                                                            </a>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -484,9 +487,9 @@ function TweetMiningPage() {
                         <div className="modal-content">
                             <div className="modal-header">
                                 <h5 className="modal-title">🚫 This Reward Doesn't Belong to You</h5>
-                                <button 
-                                    type="button" 
-                                    className="btn-close" 
+                                <button
+                                    type="button"
+                                    className="btn-close"
                                     onClick={() => setShowEducationalModal(false)}
                                 ></button>
                             </div>
@@ -510,7 +513,7 @@ function TweetMiningPage() {
                                                 </p>
                                                 <div className="alert alert-info">
                                                     <small>
-                                                        <strong>Example:</strong><br/>
+                                                        <strong>Example:</strong><br />
                                                         "Just discovered @playSnakeAI! This AI-powered snake game is amazing! #MineTheSnake #GameFi"
                                                     </small>
                                                 </div>
@@ -527,8 +530,8 @@ function TweetMiningPage() {
                                                 </p>
                                                 <div className="alert alert-success">
                                                     <small>
-                                                        <strong>Rewards:</strong><br/>
-                                                        Phase 1: 60 - 375 SNAKE per tweet<br/>
+                                                        <strong>Rewards:</strong><br />
+                                                        Phase 1: 60 - 375 SNAKE per tweet<br />
                                                         Phase 2: 40 SNAKE per tweet
                                                     </small>
                                                 </div>
@@ -550,16 +553,16 @@ function TweetMiningPage() {
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button 
-                                    type="button" 
-                                    className="btn btn-secondary" 
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
                                     onClick={() => setShowEducationalModal(false)}
                                 >
                                     Close
                                 </button>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-primary" 
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
                                     onClick={() => {
                                         setShowEducationalModal(false);
                                         // If user is not authenticated, they'll need to login first

@@ -40,11 +40,12 @@ function LandingPage({ page_status = 'game' }: LandingPageProps) {
     return (
         <>
             <LandingHeader />
-            {/* <AuthDebug /> */}
+            <AuthDebug />
             <div className='w-100 p-2 p-md-4 p-lg-4' style={{ height: '90vh' }}>
                 {
                     (() => {
-                        return pageStatus === "game" ? <BlankPage component={<SnakePanel callback={gameResult} />} /> : <MainLanding />
+                        return <MainLanding />
+                        // return pageStatus === "game" ? <BlankPage component={<SnakePanel callback={gameResult} />} /> : <MainLanding />
                     })()
                 }
             </div>

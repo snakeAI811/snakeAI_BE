@@ -6,11 +6,8 @@ import GetStartedPage from "./pages/get_started";
 import Home from "./pages/home";
 import TweetMiningPage from "./pages/tweet_mining";
 import GenerateMeme from "./pages/meme_generation";
-import PatronFrameworkPage from "./pages/patron";
-import ApplicationPage from "./pages/dao";
-// import ApplicationPage from "./pages/patron/application";
+import Leaderboard from "./pages/leaderboard";
 import OTCTrading from "./pages/otc";
-import ClaimPage from "./pages/claim";
 import Profile from "./pages/profile";
 import StakingPage from "./pages/staking";
 import PatronApprovals from "./pages/admin/PatronApprovals";
@@ -44,7 +41,7 @@ function App() {
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/staking" element={<ProtectedRoute><StakingPage /></ProtectedRoute>} />
                 <Route path="/swap" element={<ProtectedRoute><OTCTrading /></ProtectedRoute>} />
-                <Route path="/dao" element={<ProtectedRoute><ApplicationPage /></ProtectedRoute>} />
+                <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
                 {/* Admin Routes */}
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/patron-approvals" element={<AdminRoute><PatronApprovals /></AdminRoute>} />
