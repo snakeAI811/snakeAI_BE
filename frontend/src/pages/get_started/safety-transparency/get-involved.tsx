@@ -25,6 +25,13 @@ function GetInvolvedPage() {
                             <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on telegram</span>
                         </button>
                     </a>
+
+                     <a href="https://discord.gg/ybq29aSp" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
+                        <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5 mb-3 mb-lg-4 mb-xl-5' style={{ height: '120px' }}>
+                            <IconDiscord style={{ color: '#A9E000', width: '80px', height: 'auto' }} />
+                            <span className='text-white fs-5 fs-xl-12 fs-xxl-14 text-start w-100' style={{ lineHeight: 'normal' }}>Join our community on Discord</span>
+                        </button>
+                    </a>
                     
                     <a href="https://docs.google.com/document/d/1J0U5r3AF5CgMQ67wPBUUOs_9kuF7NDH6796Q2zsrEfI/edit?tab=t.0#heading=h.cwxo20daalgp" target="_blank" rel="noopener noreferrer" className="text-decoration-none">
                         <button className='d-flex justify-content-start align-items-center gap-4 w-100 bg-black px-3 px-lg-5' style={{ height: '120px' }}>

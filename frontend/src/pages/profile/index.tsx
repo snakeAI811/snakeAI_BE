@@ -260,7 +260,7 @@ function Profile() {
                                                     <div className="mb-2">
                                                         <span className="retro-text-small">ROLE:</span>
                                                         <div className="retro-text">
-                                                            {userDetails?.role?.toUpperCase() || 'NONE'}
+                                                            {(userDetails?.role?.toUpperCase() == 'NONE'? 'MINER' : userDetails?.role?.toUpperCase() || 'MINER') }
                                                             {userDetails?.patron_status === 'approved' && ' (APPROVED)'}
                                                         </div>
                                                     </div>
