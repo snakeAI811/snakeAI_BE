@@ -16,6 +16,10 @@ pub struct RewardService {
 }
 
 impl RewardService {
+    /// Returns distinct user IDs who have at least one reward (i.e., started mining)
+    pub async fn get_distinct_user_ids_with_rewards(&self) -> Result<Vec<Uuid>, ApiError> {
+        self.reward_repo.get_distinct_user_ids_with_rewards().await.map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
     pub fn new(db_conn: &Arc<DatabasePool>) -> Self {
         Self {
             reward_repo: RewardRepository::new(db_conn),
@@ -25,6 +29,20 @@ impl RewardService {
     pub async fn insert_reward(&self, user_id: &Uuid, tweet_id: &Uuid) -> Result<Reward, ApiError> {
         self.reward_repo
             .insert_reward(user_id, tweet_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn insert_reward_with_phase_and_amounts(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &Uuid,
+        phase: i32,
+        reward_amount: u64,
+        burn_amount: u64,
+    ) -> Result<Reward, ApiError> {
+        self.reward_repo
+            .insert_reward_with_phase_and_amounts(user_id, tweet_id, phase, reward_amount, burn_amount)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
@@ -43,7 +61,7 @@ impl RewardService {
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }
 
-    pub async fn get_rewards(
+    pub async fn get_rewards( 
         &self,
         user_id: &Option<Uuid>,
         offset: Option<i64>,
@@ -107,6 +125,38 @@ impl RewardService {
     ) -> Result<Reward, ApiError> {
         self.reward_repo
             .update_reward_media_data(reward_id, media_id, media_id_expires_at)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn get_phase1_mining_total(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.reward_repo
+            .get_phase1_mining_total(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn set_reward_flag(
+        &self,
+        user_id: &Uuid,
+        tweet_id: &str,
+    ) -> Result<bool, ApiError> {
+        self.reward_repo
+            .set_reward_flag(user_id, tweet_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn count_available_rewards(&self, user_id: &Uuid) -> Result<i64, ApiError> {
+        self.reward_repo
+            .count_available_rewards(user_id)
+            .await
+            .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
+    }
+
+    pub async fn claim_tweet_reward(&self, user_id: &Uuid, tweet_twitter_id: &str) -> Result<Option<Reward>, ApiError> {
+        self.reward_repo
+            .claim_tweet_reward(user_id, tweet_twitter_id)
             .await
             .map_err(|err| DbError::SomethingWentWrong(err.to_string()).into())
     }

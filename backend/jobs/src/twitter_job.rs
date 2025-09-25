@@ -10,6 +10,29 @@ use std::{collections::HashSet, sync::Arc};
 use types::model::RewardUtils;
 use utils::env::Env;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum MiningPhase {
+    Phase1,
+    Phase2,
+}
+
+impl MiningPhase {
+    pub fn to_string(&self) -> String {
+        match self {
+            MiningPhase::Phase1 => "phase1".to_string(),
+            MiningPhase::Phase2 => "phase2".to_string(),
+        }
+    }
+
+    pub fn from_string(s: &str) -> Option<Self> {
+        match s {
+            "phase1" => Some(MiningPhase::Phase1),
+            "phase2" => Some(MiningPhase::Phase2),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tweet {
     pub id: String,
@@ -116,7 +139,7 @@ impl TwitterClient {
         hashtag: &str,
         latest_tweet_id: Option<String>,
     ) -> Result<(Vec<TweetWithAuthor>, Option<String>), anyhow::Error> {
-        let query = format!("@{} #{}", username, hashtag);
+        let query = format!("@{} #{} -is:reply", username, hashtag);
 
         let mut url = format!(
             "https://api.twitter.com/2/tweets/search/recent?query={}&max_results=100&sort_order=recency&tweet.fields=created_at,author_id&expansions=author_id&user.fields=username",
@@ -287,43 +310,61 @@ impl TwitterClient {
 
 pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error> {
     let client = TwitterClient::new(
-        env.twitter_bearer_token,
-        env.twitter_access_token,
-        env.twitter_access_token_secret,
-        env.twitter_api_key,
-        env.twitter_api_key_secret,
+        env.twitter_bearer_token.clone(),
+        env.twitter_access_token.clone(),
+        env.twitter_access_token_secret.clone(),
+        env.twitter_api_key.clone(),
+        env.twitter_api_key_secret.clone(),
     );
 
-    // Fetch latest_tweet_id what I fetched last
     let latest_tweet_id = service.util.get_latest_tweet_id().await?;
 
-    // Fetch new tweets with author information
     let (new_tweets, latest_tweet_id) = client
         .get_tweets("playSnakeAI", "MineTheSnake", latest_tweet_id)
         .await?;
 
-    let follow_users = client
-        .get_follow_users(
-            new_tweets
-                .iter()
-                .map(|tweet| tweet.author_id.clone())
-                .collect(),
-        )
-        .await?;
+    // ✳️ Extract all tweet authors
+    let author_ids: Vec<String> = new_tweets.iter().map(|t| t.author_id.clone()).collect();
+
+    // ✳️ Check which authors are followers
+    let current_followers = client.get_follow_users(author_ids.clone()).await?;
+
+    // ✳️ Persist follower status to DB
+    for twitter_id in author_ids {
+        let is_following = current_followers.contains(&twitter_id);
+        service
+            .user
+            .update_is_following_by_twitter_id(&twitter_id, is_following)
+            .await
+            .ok();
+    }
 
     let mut cnt = 0;
+    let mut tweet_count = service.tweet.get_tweets_count(None).await.unwrap_or(0);
 
-    // Prepare tweets to insert into database
     for t in &new_tweets {
-        // Get user
-        let user = if let Some(user) = service.user.get_user_by_twitter_id(&t.author_id).await? {
-            Some(user)
-        } else {
-            service
-                .user
-                .insert_user(&t.author_id, &t.author_username.clone().unwrap_or_default())
-                .await
-                .ok()
+        tweet_count += 1;
+        
+        let user = match service.user.get_user_by_twitter_id(&t.author_id).await? {
+            Some(user) => Some(user),
+            None => {
+                let new_user = service
+                    .user
+                    .insert_user(&t.author_id, &t.author_username.clone().unwrap_or_default())
+                    .await
+                    .ok();
+
+                // Set follow status if inserted
+                if let Some(u) = &new_user {
+                    let is_following = current_followers.contains(&u.twitter_id);
+                    service
+                        .user
+                        .update_is_following_by_twitter_id(&u.twitter_id, is_following)
+                        .await
+                        .ok();
+                }
+                new_user
+            }
         };
 
         if let Some(user) = user {
@@ -335,61 +376,65 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or(Utc::now());
 
-            // Insert tweet
+            let mining_phase = get_current_mining_phase(tweet_count);
+            let (reward_amount, burn_amount) = get_reward_burn_amount(tweet_count);
+
+            println!(
+                "log: tweet_count = {}, mining_phase = {:?}, reward_amount = {}, burn_amount = {}",
+                tweet_count, mining_phase, reward_amount, burn_amount
+            );
+
             if let Ok(tweet) = service
                 .tweet
-                .insert_tweet(&user.id, &t.id, &created_at)
+                .insert_tweet(
+                    &user.id,
+                    &t.id,
+                    &created_at,
+                    &mining_phase.to_string(),
+                    reward_amount,
+                )
                 .await
             {
-                // Create reward if conditions are met
                 let mut text = String::new();
 
-                let should_create_reward = match follow_users.contains(&user.twitter_id) {
-                    true => {
-                        // User follow us
-                        match service.reward.get_available_reward(&user.id).await? {
-                            Some(reward) => {
-                                // Reward already exists
-                                text = format!(
-                                    "You have already available reward. Click the link to claim. {}",
-                                    reward.get_reward_url(&env.frontend_url)
-                                );
-
-                                false
-                            }
-                            None => {
-                                // There is no available reward
-                                match user.latest_claim_timestamp {
-                                    Some(timestamp) => {
-                                        let result = timestamp
-                                            .checked_add_days(Days::new(1))
-                                            .map(|next_claim_date| next_claim_date < Utc::now())
-                                            .unwrap_or(false);
-
-                                        if !result {
-                                            let formatted_time =
-                                                timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
-                                            let next_time = timestamp + Duration::hours(24);
-                                            let formatted_next_time =
-                                                next_time.format("%Y-%-m-%-d %H:%M:%S").to_string();
-                                            text = format!(
-                                                "You've claimed reward at {}, post after {} (24 hours later) to mint",
-                                                formatted_time, formatted_next_time
-                                            );
-                                        }
-
-                                        result
-                                    }
-                                    None => true, // No previous claim
-                                }
-                            }
+                let should_create_reward = if user.is_following {
+                    match service.reward.get_available_reward(&user.id).await? {
+                        Some(reward) => {
+                            // text = format!(
+                            //     "🎁 You already have an unclaimed reward waiting! Don't miss out:\n\n🔗 Claim here: {}\n\n#SnakeAI",
+                            //     reward.get_reward_url(&env.frontend_url)
+                            // );
+                            // false
+                            true
                         }
+                        None => match user.latest_claim_timestamp {
+                            Some(timestamp) => {
+                                // let result = timestamp
+                                //     .checked_add_signed(Duration::minutes(25)) // ✅ cooldown check changed
+                                //     .map(|next_claim_date| next_claim_date < Utc::now())
+                                //     .unwrap_or(false);
+
+                                // if !result {
+                                //     let formatted_time =
+                                //         timestamp.format("%Y-%-m-%-d %H:%M:%S").to_string();
+                                //     let formatted_next_time = (timestamp + Duration::minutes(25))
+                                //         .format("%Y-%-m-%-d %H:%M:%S")
+                                //         .to_string();
+                                //     text = format!(
+                                //                 "⏰ You claimed at {}. Next mining available after {} (25 min cooldown). Thanks for playing! 🐍",
+                                //                 formatted_time, formatted_next_time
+                                //             );
+                                // }
+
+                                // result
+                                true
+                            }
+                            None => true,
+                        },
                     }
-                    false => {
-                        // User don't follow us
-                        text = format!("You need to follow us before posting to get your rewards");
-                        false
-                    }
+                } else {
+                    text = "👋 To qualify for Snake AI token rewards, please follow @playSnakeAI first, then tweet again with @playSnakeAI & #MineTheSnake! 🐍".to_string();
+                    false
                 };
 
                 println!(
@@ -398,13 +443,52 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
                 );
 
                 if should_create_reward {
-                    service.reward.insert_reward(&user.id, &tweet.id).await.ok();
-                    cnt += 1;
+                    println!(
+                        "log: creating reward for user_id = {}, tweet_id = {}, phase = {}, reward = {}, burn = {}",
+                        user.id,
+                        tweet.id,
+                        if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
+                        reward_amount,
+                        burn_amount
+                    );
+
+                    // Create reward and get the row back
+                    if let Ok(reward) = service
+                        .reward
+                        .insert_reward_with_phase_and_amounts(
+                            &user.id,
+                            &tweet.id,
+                            if mining_phase == MiningPhase::Phase2 { 2 } else { 1 },
+                            reward_amount,
+                            burn_amount,
+                        )
+                        .await
+                    {
+                        cnt += 1;
+
+                        // Reply only for new users and only once per user (success)
+                        if !user.success_msg_flag {
+                            let success_text = format!(
+                                "Congratsss!🐍Your X tweet qualified for Snake AI token rewardsss. \n\n Keep it up!  Claim your tokens: {}",
+                                reward.get_reward_url(&env.frontend_url)
+                            );
+
+                            if client.reply_with_media(&success_text, &None, &t.id).await.is_ok() {
+                                let _ = service
+                                    .user
+                                    .set_success_msg_flag_by_twitter_id(&user.twitter_id)
+                                    .await;
+                            }
+                        }
+                    }
                 } else {
-                    match client.reply_with_media(&text, &None, &t.id).await {
-                        Ok(_) => {}
-                        Err(err) => {
-                            println!("send message error: {:?}", err);
+                    // No reward allocated -> failed case
+                    if !user.failed_msg_flag {
+                        if client.reply_with_media(&text, &None, &t.id).await.is_ok() {
+                            let _ = service
+                                .user
+                                .set_failed_msg_flag_by_twitter_id(&user.twitter_id)
+                                .await;
                         }
                     }
                 }
@@ -413,18 +497,11 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
     }
 
     println!(
-        "log: {} tweets detected, {} follow users, {} rewards created",
+        "log: {} tweets detected, {} rewards created",
         new_tweets.len(),
-        follow_users.len(),
         cnt
     );
 
-    println!(
-        "log: tweets: {:?}\n     follow users: {:?}",
-        new_tweets, follow_users,
-    );
-
-    // Update latest_tweet_id from response
     if let Some(latest_tweet_id) = latest_tweet_id {
         service
             .util
@@ -432,28 +509,32 @@ pub async fn run(service: Arc<AppService>, env: Env) -> Result<(), anyhow::Error
             .await?;
     }
 
-    if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
-        for reward in &rewards {
-            match client
-                .reply_with_media(
-                    &format!(
-                        "Click the link to claim. {}",
-                        reward.get_reward_url(&env.frontend_url)
-                    ),
-                    &None,
-                    &reward.tweet_id,
-                )
-                .await
-            {
-                Ok(_) => {
-                    service.reward.mark_as_message_sent(&reward.id).await.ok();
-                }
-                Err(err) => {
-                    println!("send message error: {:?}", err);
-                }
-            }
-        }
-    }
+    // Replies restricted to NEW users only. The catch-up reply loop below has been disabled
+    // to avoid replying to existing users with pending rewards.
+    // If you need to re-enable, ensure user-level flags and "new user" gating are applied here.
+    // if let Ok(rewards) = service.reward.get_rewards_to_send_message().await {
+    //     for reward in &rewards {
+    //         // Intentionally disabled
+    //     }
+    // }
 
     Ok(())
+}
+
+fn get_current_mining_phase(tweet_count: i64) -> MiningPhase {
+    if tweet_count < 1_000_000 {
+        MiningPhase::Phase1
+    } else {
+        MiningPhase::Phase2
+    }
+}
+
+fn get_reward_burn_amount(tweet_count: i64) -> (u64, u64) {
+    match tweet_count {
+        1..=200_000 => (375, 375),
+        200_001..=500_000 => (150, 150),
+        500_001..=1_000_000 => (60, 60),
+        1_000_001..=3_500_000 => (40, 40),
+        _ => (0, 0), // No reward after 3,500,000
+    }
 }

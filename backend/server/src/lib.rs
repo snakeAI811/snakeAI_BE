@@ -1,7 +1,9 @@
 mod handler;
 mod middleware;
 mod routes;
+pub mod services;
 mod state;
+pub mod utils2;
 
 use database::DatabasePool;
 use routes::routes;
@@ -16,6 +18,7 @@ pub async fn run() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", env.port))
         .await
         .unwrap();
+    println!("✅ Server running on localhost:{}", env.port);
     axum::serve(
         listener,
         routes(Arc::new(connection), env).into_make_service_with_connect_info::<SocketAddr>(),

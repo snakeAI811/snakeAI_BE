@@ -1,0 +1,25 @@
+// Snake AI Smart Contract Configuration
+import { PublicKey } from '@solana/web3.js';
+
+// Program ID from your deployed contract
+export const PROGRAM_ID = new PublicKey(
+  process.env.REACT_APP_PROGRAM_ID || '3sXaMR5bCoP5ePizVUCXcWykZL3PdckHMUKoG7gZyRY6'
+);
+
+// Token Mint Address (will be set after token creation)
+export const TOKEN_MINT = new PublicKey(
+  process.env.REACT_APP_TOKEN_MINT || 'AfCCVWYwfzdLbbBzG1De1dRsQ7DhjgT1zggF6pHU11YV'
+);
+
+// Solana Network Configuration
+export const SOLANA_NETWORK = process.env.REACT_APP_SOLANA_NETWORK || 'localnet';
+export const SOLANA_RPC_URL = process.env.REACT_APP_SOLANA_RPC_URL || 'http://localhost:8899';
+
+// API Configuration
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+console.log('🐍 Snake AI Configuration Loaded:');
+console.log('  Program ID:', PROGRAM_ID.toString());
+console.log('  Token Mint:', TOKEN_MINT.toString());
+console.log('  Network:', SOLANA_NETWORK);
+console.log('  RPC URL:', SOLANA_RPC_URL);

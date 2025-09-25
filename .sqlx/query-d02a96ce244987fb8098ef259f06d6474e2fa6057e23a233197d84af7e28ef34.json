@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT CAST(SUM(reward_amount) AS BIGINT) FROM rewards WHERE user_id = $1 AND available = false",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sum",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d02a96ce244987fb8098ef259f06d6474e2fa6057e23a233197d84af7e28ef34"
+}

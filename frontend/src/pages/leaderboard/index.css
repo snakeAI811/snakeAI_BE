@@ -1,0 +1,9 @@
+.searchbar span, .searchbar input {
+  background: transparent;
+  border: 2px solid #333
+}
+
+.table>:not(caption)>*>* {
+    padding: .5rem .5rem;
+    background-color: transparent !important;
+}

@@ -30,8 +30,16 @@ impl UserRepository {
             VALUES ($1, $2)
             ON CONFLICT (twitter_id) DO UPDATE
             SET twitter_username = EXCLUDED.twitter_username
-            RETURNING *
-            "#,
+            RETURNING 
+                id, twitter_id, twitter_username, wallet_address, latest_claim_timestamp, created_at, updated_at,
+                role, selected_role, patron_status, locked_amount, lock_start_timestamp, lock_end_timestamp,
+                lock_duration_months, last_yield_claim_timestamp, total_yield_claimed, user_claim_pda,
+                initialized, vesting_pda, has_vesting, vesting_amount, vesting_role_type, otc_swap_count,
+                total_burned, dao_eligibility_revoked_at, patron_qualification_score, wallet_age_days, community_score,
+                role_transaction_signature, role_updated_at, is_following, accumulated_reward,
+                success_msg_flag, failed_msg_flag,
+                twitter_access_token, twitter_refresh_token, twitter_token_expires_at
+            "#, 
             twitter_id,
             twitter_username,
         )
@@ -42,8 +50,21 @@ impl UserRepository {
     }
 
     pub async fn get_user_by_user_id(&self, user_id: &Uuid) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id,)
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
             .fetch_one(self.db_conn.get_pool())
+            .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_id(&self, user_id: &str) -> Result<Option<User>, sqlx::Error> {
+        let parsed_id = match Uuid::parse_str(user_id) {
+            Ok(id) => id,
+            Err(_) => return Ok(None),
+        };
+
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", parsed_id)
+            .fetch_optional(self.db_conn.get_pool())
             .await?;
 
         Ok(user)
@@ -53,13 +74,9 @@ impl UserRepository {
         &self,
         twitter_id: &str,
     ) -> Result<Option<User>, sqlx::Error> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE twitter_id = $1",
-            twitter_id,
-        )
-        .fetch_optional(self.db_conn.get_pool())
-        .await?;
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE twitter_id = $1", twitter_id)
+            .fetch_optional(self.db_conn.get_pool())
+            .await?;
 
         Ok(user)
     }
@@ -71,7 +88,7 @@ impl UserRepository {
         let user = sqlx::query_as!(
             User,
             "SELECT * FROM users WHERE wallet_address = $1",
-            wallet_address,
+            wallet_address
         )
         .fetch_optional(self.db_conn.get_pool())
         .await?;
@@ -79,7 +96,7 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn set_wallet_address(
+    pub async fn set_wallet_address_by_uuid(
         &self,
         user_id: &Uuid,
         wallet_address: &str,
@@ -112,4 +129,175 @@ impl UserRepository {
 
         Ok(user)
     }
+
+    // Patron Framework methods
+    pub async fn update_patron_status(
+        &self,
+        user_id: &Uuid,
+        patron_status: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET patron_status = $1 WHERE id = $2 RETURNING *",
+            patron_status,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_role(
+        &self,
+        user_id: &Uuid,
+        role: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET role = $1 WHERE id = $2 RETURNING *",
+            role,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_lock_details(
+        &self,
+        user_id: &Uuid,
+        lock_duration_months: i32,
+        locked_amount: i64,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET lock_duration_months = $1, locked_amount = $2 WHERE id = $3 RETURNING *",
+            lock_duration_months,
+            locked_amount,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_wallet_address(
+        &self,
+        user_id: &str,
+        wallet_address: &str,
+    ) -> Result<User, sqlx::Error> {
+        let parsed_id = Uuid::parse_str(user_id)
+            .map_err(|_| sqlx::Error::RowNotFound)?;
+
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET wallet_address = $1 WHERE id = $2 RETURNING *",
+            wallet_address,
+            parsed_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_is_following_by_twitter_id(
+        &self,
+        twitter_id: &str,
+        is_following: bool,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET is_following = $1 WHERE twitter_id = $2 RETURNING *",
+            is_following,
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_success_msg_flag_by_twitter_id(
+        &self,
+        twitter_id: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET success_msg_flag = TRUE WHERE twitter_id = $1 RETURNING *",
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn set_failed_msg_flag_by_twitter_id(
+        &self,
+        twitter_id: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET failed_msg_flag = TRUE WHERE twitter_id = $1 RETURNING *",
+            twitter_id
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn add_accumulated_reward(
+        &self,
+        user_id: &Uuid,
+        reward_amount: i64,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET accumulated_reward = COALESCE(accumulated_reward, 0) + $1 WHERE id = $2 RETURNING *",
+            reward_amount,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn update_twitter_tokens(
+        &self,
+        user_id: &Uuid,
+        access_token: &str,
+        refresh_token: Option<&str>,
+        expires_at: Option<&DateTime<Utc>>,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as!(
+            User,
+            "UPDATE users SET twitter_access_token = $1, twitter_refresh_token = $2, twitter_token_expires_at = $3 WHERE id = $4 RETURNING *",
+            access_token,
+            refresh_token,
+            expires_at,
+            user_id,
+        )
+        .fetch_one(self.db_conn.get_pool())
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_twitter_access_token(&self, user_id: &str) -> Result<Option<String>, sqlx::Error> {
+        let result = sqlx::query!(
+            "SELECT twitter_access_token FROM users WHERE id = $1",
+            Uuid::parse_str(user_id).map_err(|_| sqlx::Error::RowNotFound)?
+        )
+        .fetch_optional(self.db_conn.get_pool())
+        .await?;
+
+        Ok(result.and_then(|row| row.twitter_access_token))
+    }
+
 }

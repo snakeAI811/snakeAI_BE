@@ -1,0 +1,99 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE rewards SET transaction_signature = $2, reward_amount = $3, wallet_address = $4, block_time = $5, available = $6\n            WHERE id = $1\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tweet_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "available",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "message_sent",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "transaction_signature",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "reward_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "wallet_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "block_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "media_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "media_id_expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "phase",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "39195ed20619e113df726fdc6b4af6f2ddb96c7bd342b4604c2a8e6998b662da"
+}

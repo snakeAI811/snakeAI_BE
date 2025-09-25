@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PRODUCTION=true
+      - DATABASE_URL=${DATABASE_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - PHASE2_START_DATE=2025-01-25T00:00:00Z
+      - SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+      - TWITTER_OAUTH_CLIENT_ID=${TWITTER_OAUTH_CLIENT_ID}
+      - TWITTER_OAUTH_CLIENT_SECRET=${TWITTER_OAUTH_CLIENT_SECRET}
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
+      - BACKEND_WALLET_PRIVATE_KEY=${BACKEND_WALLET_PRIVATE_KEY}
+      - TOKEN_MINT=${TOKEN_MINT}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - snakeai-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - snakeai-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${FRONTEND_URL}
+        - REACT_APP_PHASE2_ENABLED=true
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=${FRONTEND_URL}
+      - REACT_APP_PHASE2_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - snakeai-network
+
+volumes:
+  postgres_data:
+
+networks:
+  snakeai-network:
+    driver: bridge

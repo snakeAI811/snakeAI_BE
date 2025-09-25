@@ -18,6 +18,8 @@ pub struct Reward {
     // media data
     pub media_id: Option<String>,
     pub media_id_expires_at: Option<DateTime<Utc>>,
+    // phase tracking
+    pub phase: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]
@@ -42,6 +44,8 @@ pub struct RewardWithUserAndTweet {
     // media data
     pub media_id: Option<String>,
     pub media_id_expires_at: Option<DateTime<Utc>>,
+    // phase tracking
+    pub phase: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize, sqlx::FromRow, Default, Debug)]

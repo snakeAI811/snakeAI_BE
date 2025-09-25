@@ -44,10 +44,104 @@ pub async fn login(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 #[derive(Deserialize)]
-pub struct CallbackParams {
+pub struct CallbackParams { 
     code: AuthorizationCode,
     state: CsrfToken,
 }
+
+// pub async fn callback(
+//     State(s): State<AppState>,
+//     Query(CallbackParams { code, state }): Query<CallbackParams>,
+//     TypedHeader(user_agent): TypedHeader<UserAgent>,
+//     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+//     jar: CookieJar,
+// ) -> Result<impl IntoResponse, ApiError> {
+//     let (client, verifier) = {
+//         let ctx = s.ctx.lock().unwrap();
+
+//         if let Some(challenge) = ctx.challenges.get(state.secret()) {
+//             let client = ctx.client.clone();
+//             (
+//                 client,
+//                 PkceCodeVerifier::new(challenge.verifier.secret().clone()),
+//             )
+//         } else {
+//             return Err(ApiError::BadRequest("Invalid state returned".to_string()));
+//         }
+//     };
+
+//     let token = client
+//         .request_token(code, PkceCodeVerifier::from(verifier))
+//         .await
+//         .map_err(|err| ApiError::InternalServerError(err.to_string()))?;
+
+//     let api = TwitterApi::new(token.clone());
+//     let user_response = api
+//         .get_users_me()
+//         .send()
+//         .await
+//         .map_err(|err| ApiError::InternalServerError(err.to_string()))?;
+
+//     let twitter_user = match &user_response.data {
+//         Some(me) => me,
+//         None => {
+//             return Err(ApiError::InternalServerError(
+//                 "An error occurred while trying to retrieve user information from twitter"
+//                     .to_string(),
+//             ));
+//         }
+//     };
+
+//     let user = s
+//         .service
+//         .user
+//         .insert_user(&twitter_user.id.to_string(), &twitter_user.username)
+//         .await?;
+
+//     // Save Twitter OAuth tokens
+//     let expires_at = token.expires_at().map(|exp| {
+//         use chrono::{DateTime, Utc};
+//         DateTime::<Utc>::from_timestamp(exp.timestamp(), 0).unwrap_or_else(Utc::now)
+//     });
+
+//     s.service
+//         .user
+//         .update_twitter_tokens(
+//             &user.id,
+//             token.access_token().secret(),
+//             token.refresh_token().map(|rt| rt.secret()).as_deref(),
+//             expires_at.as_ref(),
+//         )
+//         .await?;
+
+//     let session = s
+//         .service
+//         .session
+//         .create_session(
+//             &user.id,
+//             user_agent.as_str(),
+//             &addr.ip().to_string(),
+//             s.env.session_ttl_in_minutes,
+//         )
+//         .await?;
+
+//     // Create a cookie for the session ID
+//     let cookie = Cookie::build(("SID", session.session_id.to_string()))
+//         .path("/")
+//         .http_only(true)
+//         .secure(true) // Use only if served over HTTPS
+//         .same_site(axum_extra::extract::cookie::SameSite::Lax);
+
+//     // Attach the cookie to the response
+//     Ok((
+//         jar.add(cookie),
+//         Redirect::to(&format!(
+//             "{}?SID={}",
+//             s.env.frontend_url + "/get-started", session.session_id
+//         )),
+//     ))
+// }
+
 
 pub async fn callback(
     State(s): State<AppState>,
@@ -58,7 +152,6 @@ pub async fn callback(
 ) -> Result<impl IntoResponse, ApiError> {
     let (client, verifier) = {
         let ctx = s.ctx.lock().unwrap();
-
         if let Some(challenge) = ctx.challenges.get(state.secret()) {
             let client = ctx.client.clone();
             (
@@ -75,7 +168,7 @@ pub async fn callback(
         .await
         .map_err(|err| ApiError::InternalServerError(err.to_string()))?;
 
-    let api = TwitterApi::new(token);
+    let api = TwitterApi::new(token.clone());
     let user_response = api
         .get_users_me()
         .send()
@@ -96,6 +189,28 @@ pub async fn callback(
         .service
         .user
         .insert_user(&twitter_user.id.to_string(), &twitter_user.username)
+        .await?;
+
+    // Save Twitter OAuth tokens
+    // Convert expires() OffsetDateTime to chrono::DateTime<Utc>
+    let expires_at = {
+        use chrono::{DateTime, Utc};
+        let expires_time = token.expires();
+        // Convert time::OffsetDateTime to chrono::DateTime<Utc>
+        Some(DateTime::<Utc>::from_timestamp(expires_time.unix_timestamp(), 0)
+            .unwrap_or_else(Utc::now))
+    };
+
+    // Fix 2: Convert Option<&String> to Option<&str>
+    let refresh_token_str = token.refresh_token().map(|rt| rt.secret().as_str());
+    s.service
+        .user
+        .update_twitter_tokens(
+            &user.id,
+            token.access_token().secret(),
+            refresh_token_str,
+            expires_at.as_ref(),
+        )
         .await?;
 
     let session = s
@@ -121,7 +236,7 @@ pub async fn callback(
         jar.add(cookie),
         Redirect::to(&format!(
             "{}?SID={}",
-            s.env.frontend_url, session.session_id
+            s.env.frontend_url + "/get-started", session.session_id
         )),
     ))
 }
@@ -139,6 +254,17 @@ pub async fn check_reward_available(
         return Ok(Json(Some(reward.available)));
     }
     Ok(Json(None))
+}
+
+pub async fn get_reward(
+    State(state): State<AppState>,
+    Path(reward_id): Path<Uuid>,
+) -> Result<Json<types::model::Reward>, ApiError> {
+    if let Some(reward) = state.service.reward.get_reward_by_id(&reward_id).await? {
+        Ok(Json(reward))
+    } else {
+        Err(ApiError::NotFound("Reward not found".to_string()))
+    }
 }
 
 pub async fn get_qrcode(

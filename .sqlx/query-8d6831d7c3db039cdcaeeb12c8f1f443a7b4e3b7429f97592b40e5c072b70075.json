@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO values (key, value)\n                VALUES ('latest_transaction_signature', $1)\n                ON CONFLICT (key)\n                DO UPDATE SET value = EXCLUDED.value\n                RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "value",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "8d6831d7c3db039cdcaeeb12c8f1f443a7b4e3b7429f97592b40e5c072b70075"
+}

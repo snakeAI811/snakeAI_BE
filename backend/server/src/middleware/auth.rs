@@ -4,16 +4,18 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use axum_extra::{TypedHeader, headers::UserAgent};
+use axum_extra::{TypedHeader, headers::UserAgent, extract::CookieJar};
 use hyper::header::AUTHORIZATION;
 use types::error::ApiError;
 
 pub async fn auth(
     State(state): State<AppState>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
+    jar: CookieJar,
     mut req: Request,
     next: Next,
 ) -> Result<impl IntoResponse, ApiError> {
+    // Try to get token from Authorization header first
     let token = req
         .headers()
         .get(AUTHORIZATION)
@@ -26,9 +28,15 @@ pub async fn auth(
             }
         });
 
+    // If no Bearer token, try to get from SID cookie
     let session_token = match token {
         Some(token) => token,
-        None => return Err(ApiError::SessionInvalid),
+        None => {
+            match jar.get("SID") {
+                Some(cookie) => cookie.value().to_string(),
+                None => return Err(ApiError::SessionInvalid),
+            }
+        }
     };
 
     let session_token = match session_token.parse() {

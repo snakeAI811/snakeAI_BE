@@ -1,8 +1,8 @@
 mod auth;
 mod user;
 
-use crate::{middleware::auth as auth_middleware, state::AppState};
-use axum::{Router, http::HeaderValue, middleware, routing::get};
+use crate::{middleware::auth as auth_middleware, state::AppState, handler::{dev}};
+use axum::{Router, http::HeaderValue, middleware, routing::{get}};
 use database::DatabasePool;
 use hyper::{
     Method,
@@ -25,9 +25,19 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
                     auth_middleware,
                 )));
         let public = Router::new().merge(auth::routes());
+        
+        let dev_routes = Router::new()
+            .route("/dev/login", get(dev::dev_login))
+            .route("/dev/login2", get(dev::dev_login2))
+            .route("/dev/session", get(dev::dev_session_info))
+            .route("/dev/init-reward-pool", get(dev::init_reward_pool))
+            .route("/dev/sync-phase1-user", axum::routing::post(dev::sync_user_phase1_data))
+            .route("/dev/sync-phase1-all", axum::routing::post(dev::sync_all_phase1_data));
+        
         Router::new()
             .merge(protected)
             .merge(public)
+            .merge(dev_routes)
             .with_state(app_state)
             .merge(Router::new().route("/health", get(|| async { "<h1>SNAKE AI BACKEND</h1>" })))
             .merge(Router::new().route("/version", get(|| async { "V0.0.1" })))
@@ -54,7 +64,9 @@ pub fn routes(db_conn: Arc<DatabasePool>, env: Env) -> Router {
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE, COOKIE]);
 
-    let app_router = Router::new().nest("/api/v1", merged_router).layer(cors);
+    let app_router = Router::new()
+    .route("/", get(|| async { "🚀 Axum server is running!" }))
+    .nest("/api/v1", merged_router).layer(cors);
 
     app_router
 }

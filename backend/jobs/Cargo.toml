@@ -3,6 +3,10 @@ name = "jobs"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "jobs"
+path = "src/main.rs"
+
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
@@ -27,3 +31,5 @@ types.path = "../libraries/types"
 twitter-v2.workspace = true
 urlencoding.workspace = true
 utils.path = "../libraries/utils"
+anchor-client.workspace = true
+log.workspace = true

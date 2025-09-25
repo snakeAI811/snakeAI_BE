@@ -1,6 +1,7 @@
 # Various IDEs and Editors
 .vscode/
 .idea/
+.sqlx/
 **/*~
 
 # Mac OSX temporary files
@@ -11,8 +12,35 @@
 target/
 node_modules/
 .anchor/
+solana-release/
 
 # environment variables
 .env
 .env.prod
 
+*.md
+*.lock
+
+
+Cargo.toml
+yarn.lock
+Cargo.lock
+Anchor.toml
+.log
+.gitignore
+.zencoder/
+.vscode/
+.anchor/
+target/
+test-ledger/
+node_modules/
+M1_2_testing_result/
+solana-token-metadata/package-lock.json
+setup_contract.sh
+tests/
+yarn.lock
+validator.log
+yarn.lock
+test_pda.js
+scripts/calc_rent.sh
+yarn.lock

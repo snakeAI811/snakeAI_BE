@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO values (key, value)\n                VALUES ('latest_tweet_id', $1)\n                ON CONFLICT (key)\n                DO UPDATE SET value = EXCLUDED.value\n                RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "value",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "33bdc8921fe4f892ae4e43ddc0292f5f90325a5f1b3c3eef8e2e716dce0ea3d5"
+}
