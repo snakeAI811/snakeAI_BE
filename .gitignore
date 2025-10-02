@@ -44,3 +44,7 @@ yarn.lock
 test_pda.js
 scripts/calc_rent.sh
 yarn.lock
+export_db.sh
+database_export/
+.csv
+frontend/src/pages/landing/index.tsx

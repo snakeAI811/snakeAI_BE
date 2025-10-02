@@ -952,7 +952,7 @@ pub async fn get_dao_users(
                 username: user.twitter_username.unwrap_or_default(),
                 wallet_address: user.wallet_address.unwrap_or_default(),
                 score: mining_count as i32,
-                role_duration: user.lock_duration_months.unwrap_or(0),
+                role_duration: (chrono::Utc::now() - user.created_at).num_days() as i32,
                 activity: mining_count as i32,
                 user_icon: "👤".to_string(),
                 avatar: None,
