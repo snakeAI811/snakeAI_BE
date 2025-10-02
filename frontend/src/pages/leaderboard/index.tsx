@@ -104,7 +104,6 @@ function Leaderboard() {
                 <div className="custom-content">
                     <StatusBar title="Leaderboard" />
 
-
                     <div className="custom-border-y custom-content-height d-flex flex-column ">
                         {/* <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
                             <h4>User Rankings</h4>
@@ -121,6 +120,11 @@ function Leaderboard() {
                                 />
                                 <span className="input-group-text">🔍</span>
                             </div>
+                        </div>
+
+                        <div className="alert alert-info mb-3" style={{ fontSize: '0.9rem' }}>
+                            <i className="fas fa-info-circle me-2"></i>
+                            Score is calculated based on mining activity (number of tweets). Higher score = more tweets.
                         </div>
 
                         <div className="d-flex justify-content-between align-items-center mb-3">
