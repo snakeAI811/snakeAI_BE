@@ -7,11 +7,13 @@ import { usePhantom } from "../../hooks/usePhantom";
 import { userApi, roleApi, tokenApi } from "../patron/services/apiService";
 import RoleSelection from "./RoleSelection";
 import WalletGuard from "../../components/WalletGuard";
+import TweetAssistanceComponent from "../../components/TweetAssistanceComponent";
 import { UserRole } from "../patron/index";
 import './index.css';
 // icons
 import { ReactComponent as IconLeftLogo } from "../../svgs/logo-left.svg";
 import { useAppContext } from "../../contexts/AppContext";
+import { useToast } from "../../contexts/ToastContext";
 import StatusBar from "../../components/StatusBar";
 
 interface ProfileData {
@@ -294,6 +296,13 @@ function Profile() {
                                 </div>
                             </div>
 
+                            {/* Tweet Assistance Section */}
+                            <div className="row mb-4">
+                                <div className="col-12 pt-3">
+                                    <TweetAssistanceComponent />
+                                </div>
+                            </div>
+
                             {/* Role Selection Section */}
                             {connected ? (
                                 <div className="border border-3 border-dashed mt-4 p-3">
@@ -320,38 +329,6 @@ function Profile() {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Countdown Section */}
-                            {/* <div className="countdown-section mt-4 py-3 custom-border-top w-100">
-                            <div className="retro-text mb-3">COUNTDOWN TO "EVENT NAME"</div>
-                            <div className="row g-2 justify-content-center">
-                                <div className="col-auto">
-                                    <div className="countdown-box">
-                                        <div className="bg-black text-white px-3 py-1 text-center fs-4 fw-bold" style={{ width: '55px' }}>{countdown.days.toString().padStart(2, "0")}</div>
-                                        <div className="text-center fs-8">DAYS</div>
-                                    </div>
-                                </div>
-                                <div className="col-auto">
-                                    <div className="countdown-box">
-                                        <div className="bg-black text-white px-3 py-1 text-center fs-4 fw-bold" style={{ width: '55px' }}>{countdown.hours.toString().padStart(2, "0")}</div>
-                                        <div className="text-center fs-8">HOURS</div>
-                                    </div>
-                                </div>
-                                <div className="col-auto">
-                                    <div className="countdown-box">
-                                        <div className="bg-black text-white px-3 py-1 text-center fs-4 fw-bold" style={{ width: '55px' }}>{countdown.minutes.toString().padStart(2, "0")}</div>
-                                        <div className="text-center fs-8">MINUTES</div>
-                                    </div>
-                                </div>
-                                <div className="col-auto">
-                                    <div className="countdown-box">
-                                        <div className="bg-black text-white px-3 py-1 text-center fs-4 fw-bold" style={{ width: '55px' }}>{countdown.seconds.toString().padStart(2, "0")}</div>
-                                        <div className="text-center fs-8">SECONDS</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> */}
-
                         </WalletGuard>
                     </div>
                 </div>

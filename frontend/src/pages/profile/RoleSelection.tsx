@@ -394,7 +394,11 @@ function RoleSelection({ userRole, onRoleChange, tokenBalance, userStats }: Role
                     )}
                 </button>
             </div>
-
+            <div className="mt-4">
+                <div className="text-center fs-10 role-require-title">
+                    🐍 Explore Requirement of Each Role
+                </div>
+            </div>
             {/* Important Information */}
             <div className="mt-4">
                 <div className="sn-bold-border">

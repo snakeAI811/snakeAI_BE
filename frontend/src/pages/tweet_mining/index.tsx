@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ResponsiveMenu from "../../components/ResponsiveMenu";
 import WalletGuard from "../../components/WalletGuard";
 import BatchClaimComponent from "../../components/BatchClaimComponent";
-import AutomatedTweetComponent from "../../components/AutomatedTweetComponent";
 import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../patron/services/apiService';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
@@ -85,17 +84,8 @@ function TweetMiningPage() {
         if (user) {
             loadMiningStats();
             loadData();
-
-            console.log('📡 user:------------------', user);
-
-
-            // If there's a reward ID in the URL, check claim link access
-            if (rewardId) {
-                console.log('🔄 User loaded with reward ID, checking claim link access...');
-                checkClaimLinkAccess(rewardId);
-            }
         }
-    }, [user, rewardId, checkClaimLinkAccess]); // Added checkClaimLinkAccess as dependency
+    }, [user]); // Added checkClaimLinkAccess as dependency
 
     // Handle claim link access
     useEffect(() => {
@@ -317,14 +307,7 @@ function TweetMiningPage() {
                             {/* Batch Claim Component */}
                             <div className="row mb-4">
                                 <div className="col-12">
-
-                                </div>
-                            </div>
-
-                            {/* Automated Tweet Component */}
-                            <div className="row mb-4">
-                                <div className="col-12">
-                                    <AutomatedTweetComponent />
+                                    <BatchClaimComponent />
                                 </div>
                             </div>
 

@@ -1120,3 +1120,8 @@ body {
   border-radius: 0;
   border: 2px solid black !important;
 }
+
+.tweet-assist-category-select {
+  background-color: transparent;
+  display: flex;
+}
